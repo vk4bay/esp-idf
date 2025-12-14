@@ -15,7 +15,7 @@
 #pragma once
 
 #include "hal/touch_sensor_ll.h"
-#include "hal/touch_sensor_legacy_types.h"
+#include "hal/touch_sensor_types.h"
 
 #include_next "hal/touch_sensor_hal.h"
 
@@ -186,7 +186,7 @@ void touch_hal_filter_get_config(touch_filter_config_t *filter_info);
  * Force reset benchmark to raw data of touch sensor.
  *
  * @param touch_num touch pad index
- *                  - TOUCH_PAD_MAX Reset baseline of all channels.
+ *                  - TOUCH_PAD_MAX Reset basaline of all channels.
  */
 #define touch_hal_reset_benchmark(touch_num) touch_ll_reset_benchmark(touch_num)
 
@@ -278,10 +278,14 @@ void touch_hal_filter_get_config(touch_filter_config_t *filter_info);
 /**
  * Enable touch sensor filter and detection algorithm.
  * For more details on the detection algorithm, please refer to the application documentation.
- *
- * @param enable set true to enable the filter
  */
-#define touch_hal_filter_enable(enable) touch_ll_filter_enable(enable)
+#define touch_hal_filter_enable() touch_ll_filter_enable()
+
+/**
+ * Disable touch sensor filter and detection algorithm.
+ * For more details on the detection algorithm, please refer to the application documentation.
+ */
+#define touch_hal_filter_disable() touch_ll_filter_disable()
 
 /************************ Denoise register setting ************************/
 
@@ -322,7 +326,7 @@ void touch_hal_denoise_enable(void);
  * This denoise function filters out interference introduced on all channels,
  * such as noise introduced by the power supply and external EMI.
  */
-#define touch_hal_denoise_disable() touch_ll_denoise_enable(false)
+#define touch_hal_denoise_disable() touch_ll_denoise_disable()
 
 /**
  * Set internal reference capacitance of denoise channel.
@@ -387,7 +391,7 @@ void touch_hal_denoise_enable(void);
  *
  * @param pad_num Touch sensor channel number.
  */
-#define touch_hal_waterproof_set_sheild_driver(driver_level) touch_ll_waterproof_set_shield_driver(driver_level)
+#define touch_hal_waterproof_set_sheild_driver(driver_level) touch_ll_waterproof_set_sheild_driver(driver_level)
 
 /**
  * Get max equivalent capacitance for shield channel.
@@ -396,7 +400,7 @@ void touch_hal_denoise_enable(void);
  *
  * @param pad_num Touch sensor channel number.
  */
-#define touch_hal_waterproof_get_sheild_driver(driver_level) touch_ll_waterproof_get_shield_driver(driver_level)
+#define touch_hal_waterproof_get_sheild_driver(driver_level) touch_ll_waterproof_get_sheild_driver(driver_level)
 
 /**
  * Set parameter of waterproof function.
@@ -426,7 +430,7 @@ void touch_hal_waterproof_enable(void);
 /**
  * Disable parameter of waterproof function.
  */
-#define touch_hal_waterproof_disable() touch_ll_waterproof_enable(false)
+#define touch_hal_waterproof_disable() touch_ll_waterproof_disable()
 
 /************************ Proximity register setting ************************/
 
@@ -546,9 +550,13 @@ void touch_hal_sleep_channel_enable(touch_pad_t pad_num, bool enable);
 
 /**
  * Enable proximity function for sleep pad.
- * @param enable the proximity sensing
  */
-#define touch_hal_sleep_enable_approach(enable) touch_ll_sleep_enable_proximity_sensing(enable)
+#define touch_hal_sleep_enable_approach() touch_ll_sleep_enable_proximity_sensing()
+
+/**
+ * Disable proximity function for sleep pad.
+ */
+#define touch_hal_sleep_disable_approach() touch_ll_sleep_disable_proximity_sensing()
 
 /**
  * Read benchmark of touch sensor for sleep pad.

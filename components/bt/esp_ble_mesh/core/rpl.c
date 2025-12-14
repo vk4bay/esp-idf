@@ -17,9 +17,6 @@
 
 void bt_mesh_update_rpl(struct bt_mesh_rpl *rpl, struct bt_mesh_net_rx *rx)
 {
-    BT_DBG("UpdateRPL, Src 0x%04x Seq 0x%06x OldIV %u",
-           rx->ctx.addr, rx->seq, rx->old_iv);
-
     rpl->src = rx->ctx.addr;
     rpl->seq = rx->seq;
     rpl->old_iv = rx->old_iv;
@@ -36,15 +33,8 @@ void bt_mesh_update_rpl(struct bt_mesh_rpl *rpl, struct bt_mesh_net_rx *rx)
  */
 static bool rpl_check_and_store(struct bt_mesh_net_rx *rx, struct bt_mesh_rpl **match)
 {
-    BT_DBG("%s, Src 0x%04x Seq %lu OldIV %u",
-           match ? "RPLOnlyCheck" : "RPLCheckAndStore",
-           rx->ctx.addr, rx->seq, rx->old_iv);
-
     for (size_t i = 0; i < ARRAY_SIZE(bt_mesh.rpl); i++) {
         struct bt_mesh_rpl *rpl = &bt_mesh.rpl[i];
-
-        BT_DBG("RPL%u, Src 0x%04x Seq %lu OldIV %u",
-               i, rpl->src, rpl->seq, rpl->old_iv);
 
         /* Empty slot */
         if (rpl->src == BLE_MESH_ADDR_UNASSIGNED) {
@@ -60,7 +50,6 @@ static bool rpl_check_and_store(struct bt_mesh_net_rx *rx, struct bt_mesh_rpl **
         /* Existing slot for given address */
         if (rpl->src == rx->ctx.addr) {
             if (rx->old_iv && !rpl->old_iv) {
-                BT_DBG("DueToOldIV");
                 return true;
             }
 
@@ -77,30 +66,25 @@ static bool rpl_check_and_store(struct bt_mesh_net_rx *rx, struct bt_mesh_rpl **
 
 #if CONFIG_BLE_MESH_NOT_RELAY_REPLAY_MSG
             rx->replay_msg = 1;
-#endif /* CONFIG_BLE_MESH_NOT_RELAY_REPLAY_MSG */
+#endif
 
-            BT_DBG("DueToSeq");
             return true;
         }
     }
 
-    BT_ERR("RPLFull");
+    BT_ERR("RPL is full!");
     return true;
 }
 
 bool bt_mesh_rpl_check(struct bt_mesh_net_rx *rx, struct bt_mesh_rpl **match)
 {
-    BT_DBG("RPLCheck");
-
     /* Don't bother checking messages from ourselves */
     if (rx->net_if == BLE_MESH_NET_IF_LOCAL) {
-        BT_DBG("LocalNetIf");
         return false;
     }
 
     /* The RPL is used only for the local node */
     if (!rx->local_match) {
-        BT_DBG("LocalNotMatch");
         return false;
     }
 
@@ -112,13 +96,8 @@ void bt_mesh_rpl_update(void)
     /* Discard "old old" IV Index entries from RPL and flag
      * any other ones (which are valid) as old.
      */
-    BT_DBG("RPLUpdate");
-
     for (size_t i = 0; i < ARRAY_SIZE(bt_mesh.rpl); i++) {
         struct bt_mesh_rpl *rpl = &bt_mesh.rpl[i];
-
-        BT_DBG("RPL%u, Src 0x%04x Seq %lu OldIV %u",
-               i, rpl->src, rpl->seq, rpl->old_iv);
 
         if (rpl->src) {
             if (rpl->old_iv) {
@@ -136,8 +115,6 @@ void bt_mesh_rpl_update(void)
 
 void bt_mesh_rpl_reset_single(uint16_t src, bool erase)
 {
-    BT_DBG("RPLResetSingle, Src 0x%04x Erase %u", src, erase);
-
     if (!BLE_MESH_ADDR_IS_UNICAST(src)) {
         return;
     }
@@ -155,8 +132,6 @@ void bt_mesh_rpl_reset_single(uint16_t src, bool erase)
 
 void bt_mesh_rpl_reset(bool erase)
 {
-    BT_DBG("RPLReset, Erase %u", erase);
-
     (void)memset(bt_mesh.rpl, 0, sizeof(bt_mesh.rpl));
 
     if (IS_ENABLED(CONFIG_BLE_MESH_SETTINGS) && erase) {

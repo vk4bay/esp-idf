@@ -24,6 +24,6 @@ idf_component_register(SRCS "${srcs}"
                     INCLUDE_DIRS "${include_dirs}"
                     PRIV_INCLUDE_DIRS "${priv_include_dirs}"
                     REQUIRES protocomm esp_https_server
-                    PRIV_REQUIRES protobuf-c esp_netif)
+                    PRIV_REQUIRES protobuf-c)
 
 idf_component_optional_requires(PRIVATE espressif__mdns mdns)

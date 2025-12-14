@@ -60,8 +60,7 @@ void app_main()
         return;
     }
 
-    esp_bluedroid_config_t cfg = BT_BLUEDROID_INIT_CONFIG_DEFAULT();
-    ret = esp_bluedroid_init_with_cfg(&cfg);
+    ret = esp_bluedroid_init();
     if (ret) {
         ESP_LOGE(GATTC_TAG, "%s init bluetooth failed, error code = %x", __func__, ret);
         return;
@@ -137,7 +136,7 @@ There are four Bluetooth modes supported:
 After the initialization of the BT controller, the Bluedroid stack, which includes the common definitions and APIs for both BT Classic and BLE, is initialized and enabled by using:
 
 ```c
-ret = esp_bluedroid_init_with_cfg(&cfg);
+ret = esp_bluedroid_init();
 ret = esp_bluedroid_enable();
 ```
 The main function ends by registering the GAP and GATT event handlers, as well as the Application Profile and set the maximum supported MTU size.

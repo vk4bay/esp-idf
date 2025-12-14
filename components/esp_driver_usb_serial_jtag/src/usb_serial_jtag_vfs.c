@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2015-2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2015-2024 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -17,6 +17,7 @@
 #include "esp_timer.h"
 #include "esp_vfs.h"
 #include "esp_vfs_dev.h" // Old headers for the aliasing functions
+#include "esp_vfs_usb_serial_jtag.h" // Old headers for the aliasing functions
 #include "esp_attr.h"
 #include "esp_log.h"
 #include "sdkconfig.h"
@@ -34,17 +35,17 @@
 // Token signifying that no character is available
 #define NONE -1
 
-#if CONFIG_LIBC_STDOUT_LINE_ENDING_CRLF
+#if CONFIG_NEWLIB_STDOUT_LINE_ENDING_CRLF
 #   define DEFAULT_TX_MODE ESP_LINE_ENDINGS_CRLF
-#elif CONFIG_LIBC_STDOUT_LINE_ENDING_CR
+#elif CONFIG_NEWLIB_STDOUT_LINE_ENDING_CR
 #   define DEFAULT_TX_MODE ESP_LINE_ENDINGS_CR
 #else
 #   define DEFAULT_TX_MODE ESP_LINE_ENDINGS_LF
 #endif
 
-#if CONFIG_LIBC_STDIN_LINE_ENDING_CRLF
+#if CONFIG_NEWLIB_STDIN_LINE_ENDING_CRLF
 #   define DEFAULT_RX_MODE ESP_LINE_ENDINGS_CRLF
-#elif CONFIG_LIBC_STDIN_LINE_ENDING_CR
+#elif CONFIG_NEWLIB_STDIN_LINE_ENDING_CR
 #   define DEFAULT_RX_MODE ESP_LINE_ENDINGS_CR
 #else
 #   define DEFAULT_RX_MODE ESP_LINE_ENDINGS_LF
@@ -181,10 +182,6 @@ static int usb_serial_jtag_rx_char_no_driver(int fd)
 
 static ssize_t usb_serial_jtag_write(int fd, const void * data, size_t size)
 {
-    if (!usb_serial_jtag_is_connected()) {
-        // TODO: IDF-14303
-        return -1;
-    }
     const char *data_c = (const char *)data;
     /*  Even though newlib does stream locking on each individual stream, we need
      *  a dedicated lock if two streams (stdout and stderr) point to the
@@ -229,73 +226,40 @@ static void usb_serial_jtag_return_char(int fd, int c)
 
 static ssize_t usb_serial_jtag_read(int fd, void* data, size_t size)
 {
-    if (!usb_serial_jtag_is_connected()) {
-        // TODO: IDF-14303
-        return -1;
-    }
-    assert(fd == USJ_LOCAL_FD);
     char *data_c = (char *) data;
     size_t received = 0;
-    size_t available_size = 0;
-    int c = NONE; // store the read char
     _lock_acquire_recursive(&s_ctx.read_lock);
-
-    // if blocking read, wait for data to  be available
-    if (!s_ctx.non_blocking) {
-        c = usb_serial_jtag_read_char(fd);
-    }
-
-    // find the actual fetch size
-    available_size += usb_serial_jtag_get_read_bytes_available();
-    if (c != NONE) {
-        available_size++;
-    }
-    if (s_ctx.peek_char != NONE) {
-        available_size++;
-    }
-    size_t fetch_size = MIN(available_size, size);
-
-    if (fetch_size > 0) {
-        do {
-            if (c == NONE) { // for non-O_NONBLOCK mode, there is already a pre-fetched char
-                c = usb_serial_jtag_read_char(fd);
-            }
-            assert(c != NONE);
-
-            if (c == '\r') {
-                if (s_ctx.rx_mode == ESP_LINE_ENDINGS_CR) {
+    while (received < size) {
+        int c = usb_serial_jtag_read_char(fd);
+        if (c == '\r') {
+            if (s_ctx.rx_mode == ESP_LINE_ENDINGS_CR) {
+                c = '\n';
+            } else if (s_ctx.rx_mode == ESP_LINE_ENDINGS_CRLF) {
+                /* look ahead */
+                int c2 = usb_serial_jtag_read_char(fd);
+                if (c2 == NONE) {
+                    /* could not look ahead, put the current character back */
+                    usb_serial_jtag_return_char(fd, c);
+                    break;
+                }
+                if (c2 == '\n') {
+                    /* this was \r\n sequence. discard \r, return \n */
                     c = '\n';
-                } else if (s_ctx.rx_mode == ESP_LINE_ENDINGS_CRLF) {
-                    /* look ahead */
-                    int c2 = usb_serial_jtag_read_char(fd);
-                    fetch_size--;
-                    if (c2 == NONE) {
-                        /* could not look ahead, put the current character back */
-                        usb_serial_jtag_return_char(fd, c);
-                        c = NONE;
-                        break;
-                    }
-                    if (c2 == '\n') {
-                        /* this was \r\n sequence. discard \r, return \n */
-                        c = '\n';
-                    } else {
-                        /* \r followed by something else. put the second char back,
-                         * it will be processed on next iteration. return \r now.
-                         */
-                        usb_serial_jtag_return_char(fd, c2);
-                        fetch_size++;
-                    }
+                } else {
+                    /* \r followed by something else. put the second char back,
+                     * it will be processed on next iteration. return \r now.
+                     */
+                    usb_serial_jtag_return_char(fd, c2);
                 }
             }
-
-            data_c[received] = (char) c;
-            ++received;
-            c = NONE;
-        } while (received < fetch_size);
-    }
-
-    if (c != NONE) { // fetched, but not used
-        usb_serial_jtag_return_char(fd, c);
+        } else if (c == NONE) {
+            break;
+        }
+        data_c[received] = (char) c;
+        ++received;
+        if (c == '\n') {
+            break;
+        }
     }
     _lock_release_recursive(&s_ctx.read_lock);
     if (received > 0) {
@@ -356,10 +320,6 @@ static int usb_serial_jtag_wait_tx_done_no_driver(int fd)
 
 static int usb_serial_jtag_fsync(int fd)
 {
-    if (!usb_serial_jtag_is_connected()) {
-        // TODO: IDF-14303
-        return -1;
-    }
     _lock_acquire_recursive(&s_ctx.write_lock);
     int r = s_ctx.fsync_func(fd);
     _lock_release_recursive(&s_ctx.write_lock);
@@ -373,7 +333,7 @@ static int usb_serial_jtag_fsync(int fd)
 
 #ifdef CONFIG_VFS_SUPPORT_SELECT
 
-static void select_notif_callback_isr(usj_select_notif_t usj_select_notif, int *task_woken)
+static void select_notif_callback_isr(usj_select_notif_t usj_select_notif, BaseType_t *task_woken)
 {
     portENTER_CRITICAL_ISR(&s_registered_select_lock);
     for (int i = 0; i < s_registered_select_num; ++i) {
@@ -440,38 +400,19 @@ static esp_err_t unregister_select(usb_serial_jtag_select_args_t *args)
         for (int i = 0; i < s_registered_select_num; ++i) {
             if (s_registered_selects[i] == args) {
                 const int new_size = s_registered_select_num - 1;
-                // Move last element to fill gap (only if not removing the last element)
-                if (i < new_size) {
-                    s_registered_selects[i] = s_registered_selects[new_size];
-                }
-                if (new_size == 0) {
-                    // Free the entire array
-                    free(s_registered_selects);
-                    s_registered_selects = NULL;
-                    s_registered_select_num = 0;
-                    ret = ESP_OK;
-                } else {
-                    // Shrink the array
-                    usb_serial_jtag_select_args_t **new_selects = heap_caps_realloc(s_registered_selects, new_size * sizeof(usb_serial_jtag_select_args_t *), USJ_VFS_MALLOC_FLAGS);
-                    if (new_selects == NULL) {
-                        // Realloc failed - restore moved element
-                        if (i < new_size) {
-                            s_registered_selects[new_size] = s_registered_selects[i];
-                        }
-                        ret = ESP_ERR_NO_MEM;
-                    } else {
-                        // Success - update pointer
-                        s_registered_selects = new_selects;
-                        s_registered_select_num = new_size;
-                        ret = ESP_OK;
-                    }
-                }
+                // The item is removed by overwriting it with the last item. The subsequent rellocation will drop the
+                // last item.
+                s_registered_selects[i] = s_registered_selects[new_size];
+                s_registered_selects = heap_caps_realloc(s_registered_selects, new_size * sizeof(usb_serial_jtag_select_args_t *), USJ_VFS_MALLOC_FLAGS);
+                // Shrinking a buffer with realloc is guaranteed to succeed.
+                s_registered_select_num = new_size;
 
                 /* when the last select is unregistered, also unregister the callback  */
                 if (s_registered_select_num == 0) {
                     usb_serial_jtag_set_select_notif_callback(NULL);
                 }
 
+                ret = ESP_OK;
                 break;
             }
         }
@@ -514,7 +455,7 @@ static esp_err_t usb_serial_jtag_start_select(int nfds, fd_set *readfds, fd_set 
     bool trigger_select = false;
 
     // check if the select should return instantly if the bus is read ready
-    if (FD_ISSET(USJ_LOCAL_FD, &args->readfds_orig) && (usb_serial_jtag_get_read_bytes_available() > 0)) {
+    if (FD_ISSET(USJ_LOCAL_FD, &args->readfds_orig) && usb_serial_jtag_read_ready()) {
         // signal immediately when data is buffered
         FD_SET(USJ_LOCAL_FD, readfds);
         trigger_select = true;

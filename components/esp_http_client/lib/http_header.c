@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2015-2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2015-2021 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -81,19 +81,17 @@ static esp_err_t http_header_new_item(http_header_handle_t header, const char *k
 
     item = calloc(1, sizeof(http_header_item_t));
     ESP_RETURN_ON_FALSE(item, ESP_ERR_NO_MEM, TAG, "Memory exhausted");
-    HTTP_GOTO_ON_FALSE_DBG(http_utils_assign_string(&item->key, key, -1), ESP_ERR_NO_MEM, _header_new_item_exit, TAG, "Failed to assign string");
+    http_utils_assign_string(&item->key, key, -1);
+    ESP_GOTO_ON_FALSE(item->key, ESP_ERR_NO_MEM, _header_new_item_exit, TAG, "Memory exhausted");
     http_utils_trim_whitespace(&item->key);
-    HTTP_GOTO_ON_FALSE_DBG(http_utils_assign_string(&item->value, value, -1), ESP_ERR_NO_MEM, _header_new_item_exit, TAG, "Failed to assign string");
+    http_utils_assign_string(&item->value, value, -1);
+    ESP_GOTO_ON_FALSE(item->value, ESP_ERR_NO_MEM, _header_new_item_exit, TAG, "Memory exhausted");
     http_utils_trim_whitespace(&item->value);
     STAILQ_INSERT_TAIL(header, item, next);
     return ret;
 _header_new_item_exit:
-    if (item->key) {
-        free(item->key);
-    }
-    if (item->value) {
-        free(item->value);
-    }
+    free(item->key);
+    free(item->value);
     free(item);
     return ret;
 }
@@ -154,7 +152,7 @@ esp_err_t http_header_delete(http_header_handle_t header, const char *key)
 
 int http_header_set_format(http_header_handle_t header, const char *key, const char *format, ...)
 {
-    va_list argptr = {0};
+    va_list argptr;
     int len = 0;
     char *buf = NULL;
     va_start(argptr, format);
@@ -169,7 +167,7 @@ int http_header_set_format(http_header_handle_t header, const char *key, const c
 int http_header_generate_string(http_header_handle_t header, int index, char *buffer, int *buffer_len)
 {
     http_header_item_handle_t item;
-    int size = 0;
+    int siz = 0;
     int idx = 0;
     int ret_idx = -1;
     bool is_end = false;
@@ -177,13 +175,13 @@ int http_header_generate_string(http_header_handle_t header, int index, char *bu
     // iterate over the header entries to calculate buffer size and determine last item
     STAILQ_FOREACH(item, header, next) {
         if (item->value && idx >= index) {
-            size += strlen(item->key);
-            size += strlen(item->value);
-            size += 4; //': ' and '\r\n'
+            siz += strlen(item->key);
+            siz += strlen(item->value);
+            siz += 4; //': ' and '\r\n'
         }
         idx ++;
 
-        if (size + 1 > *buffer_len - 2) {
+        if (siz + 1 > *buffer_len - 2) {
             // if this item would not fit to the buffer, return the index of the last fitting one
             ret_idx = idx - 1;
             ESP_LOGE(TAG, "Buffer length is small to fit all the headers");
@@ -191,7 +189,7 @@ int http_header_generate_string(http_header_handle_t header, int index, char *bu
         }
     }
 
-    if (size == 0) {
+    if (siz == 0) {
         return 0;
     }
     if (ret_idx < 0) {
@@ -200,7 +198,7 @@ int http_header_generate_string(http_header_handle_t header, int index, char *bu
         is_end = true;
     }
 
-    // iterate again over the header entries to write only the fitting indices
+    // iterate again over the header entries to write only the fitting indeces
     int str_len = 0;
     idx = 0;
     STAILQ_FOREACH(item, header, next) {

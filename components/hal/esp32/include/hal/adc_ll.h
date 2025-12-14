@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2021-2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2021-2024 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -7,7 +7,6 @@
 #pragma once
 
 #include <stdbool.h>
-#include "esp_rom_sys.h"
 #include "hal/adc_types.h"
 #include "hal/misc.h"
 #include "hal/assert.h"
@@ -26,16 +25,13 @@ extern "C" {
 #define ADC_LL_EVENT_ADC1_ONESHOT_DONE    (1 << 0)
 #define ADC_LL_EVENT_ADC2_ONESHOT_DONE    (1 << 1)
 
-#define ADC_LL_NEED_APB_PERIPH_CLAIM(ADC_UNIT)      (0)
-
-#define ADC_LL_UNIT2_CHANNEL_SUBSTRATION 0
-
 /*---------------------------------------------------------------
                     Oneshot
 ---------------------------------------------------------------*/
 #define ADC_LL_DATA_INVERT_DEFAULT(PERIPH_NUM)         (1)
 #define ADC_LL_SAR_CLK_DIV_DEFAULT(PERIPH_NUM)         (1)
 #define ADC_LL_DELAY_CYCLE_AFTER_DONE_SIGNAL           (0)
+#define ADC_LL_RTC_GPIO_SUPPORTED                      (1)
 
 /*---------------------------------------------------------------
                     DMA
@@ -49,7 +45,7 @@ extern "C" {
 
 //On esp32, ADC can only be continuously triggered when `ADC_LL_DEFAULT_CONV_LIMIT_EN == 1`, `ADC_LL_DEFAULT_CONV_LIMIT_NUM != 0`
 #define ADC_LL_DEFAULT_CONV_LIMIT_EN      1
-#define ADC_LL_DEFAULT_CONV_LIMIT_NUM     255
+#define ADC_LL_DEFAULT_CONV_LIMIT_NUM     10
 
 /*---------------------------------------------------------------
                     PWDET (Power Detect)
@@ -159,8 +155,6 @@ static inline void adc_ll_digi_set_convert_limit_num(uint32_t meas_num)
  */
 static inline void adc_ll_digi_convert_limit_enable(bool enable)
 {
-    //ESP32 has a hardware limitaton, meas_num_limit can only be cleared after ADC enters sample phase(10~15us after start)
-    esp_rom_delay_us(60);
     SYSCON.saradc_ctrl2.meas_num_limit = enable;
 }
 

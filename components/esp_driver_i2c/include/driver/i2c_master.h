@@ -59,10 +59,6 @@ typedef struct {
  *
  * This structure is used to define individual I2C operations (write or read)
  * within a sequence of I2C master transactions.
- *
- * @note The union contains either write or read operation parameters.
- *       - For write operations: use `.write.data` (const uint8_t *) to provide data to be written
- *       - For read operations: use `.read.data` (uint8_t *) to provide buffer for storing read data
  */
 typedef struct {
     i2c_master_command_t command; /**< I2C command indicating the type of operation (START, WRITE, READ, or STOP) */
@@ -74,7 +70,7 @@ typedef struct {
          */
         struct {
             bool ack_check;        /**< Whether to enable ACK check during WRITE operation */
-            const uint8_t *data;   /**< Pointer to the data to be written */
+            uint8_t *data;         /**< Pointer to the data to be written */
             size_t total_bytes;    /**< Total number of bytes to write */
         } write;
         /**
@@ -94,7 +90,7 @@ typedef struct {
  * @brief I2C master transmit buffer information structure
  */
 typedef struct {
-    const uint8_t *write_buffer;         /*!< Pointer to buffer to be written. */
+    uint8_t *write_buffer;               /*!< Pointer to buffer to be written. */
     size_t buffer_size;                  /*!< Size of data to be written. */
 } i2c_master_transmit_multi_buffer_info_t;
 
@@ -166,8 +162,7 @@ esp_err_t i2c_master_bus_rm_device(i2c_master_dev_handle_t handle);
  * @param[in] write_size Size, in bytes, of the write buffer.
  * @param[in] xfer_timeout_ms Wait timeout, in ms. Note: -1 means wait forever.
  * @return
- *      - ESP_OK: I2C master transmit success.
- *      - ESP_ERR_INVALID_RESPONSE: I2C master transmit receives NACK.
+ *      - ESP_OK: I2C master transmit success
  *      - ESP_ERR_INVALID_ARG: I2C master transmit parameter invalid.
  *      - ESP_ERR_TIMEOUT: Operation timeout(larger than xfer_timeout_ms) because the bus is busy or hardware crash.
  */
@@ -185,8 +180,7 @@ esp_err_t i2c_master_transmit(i2c_master_dev_handle_t i2c_dev, const uint8_t *wr
  * @param xfer_timeout_ms Wait timeout, in ms. Note: -1 means wait forever.
  *
  * @return
- *      - ESP_OK: I2C master transmit success.
- *      - ESP_ERR_INVALID_RESPONSE: I2C master transmit receives NACK.
+ *      - ESP_OK: I2C master transmit success
  *      - ESP_ERR_INVALID_ARG: I2C master transmit parameter invalid.
  *      - ESP_ERR_TIMEOUT: Operation timeout(larger than xfer_timeout_ms) because the bus is busy or hardware crash.
  */
@@ -207,8 +201,7 @@ esp_err_t i2c_master_multi_buffer_transmit(i2c_master_dev_handle_t i2c_dev, i2c_
  * @param[in] read_size Size, in bytes, of the read buffer.
  * @param[in] xfer_timeout_ms Wait timeout, in ms. Note: -1 means wait forever.
  * @return
- *      - ESP_OK: I2C master transmit-receive success.
- *      - ESP_ERR_INVALID_RESPONSE: I2C master transmit-receive receives NACK.
+ *      - ESP_OK: I2C master transmit-receive success
  *      - ESP_ERR_INVALID_ARG: I2C master transmit parameter invalid.
  *      - ESP_ERR_TIMEOUT: Operation timeout(larger than xfer_timeout_ms) because the bus is busy or hardware crash.
  */
@@ -240,7 +233,7 @@ esp_err_t i2c_master_receive(i2c_master_dev_handle_t i2c_dev, uint8_t *read_buff
  * @param[in] address I2C device address that you want to probe.
  * @param[in] xfer_timeout_ms Wait timeout, in ms. Note: -1 means wait forever (Not recommended in this function).
  *
- * @attention Pull-ups must be connected to the SCL and SDA pins when this function is called. If you get `ESP_ERR_TIMEOUT`
+ * @attention Pull-ups must be connected to the SCL and SDA pins when this function is called. If you get `ESP_ERR_TIMEOUT
  * while `xfer_timeout_ms` was parsed correctly, you should check the pull-up resistors. If you do not have proper resistors nearby.
  * `flags.enable_internal_pullup` is also acceptable.
  *
@@ -253,7 +246,7 @@ esp_err_t i2c_master_receive(i2c_master_dev_handle_t i2c_dev, uint8_t *read_buff
  * So, if the on line data is strange and no ack/nack got respond. Please check the device datasheet.
  *
  * @return
- *      - ESP_OK: I2C device probed successfully.
+ *      - ESP_OK: I2C device probe successfully
  *      - ESP_ERR_NOT_FOUND: I2C probe failed, doesn't find the device with specific address you gave.
  *      - ESP_ERR_TIMEOUT: Operation timeout(larger than xfer_timeout_ms) because the bus is busy or hardware crash.
  */
@@ -274,9 +267,9 @@ esp_err_t i2c_master_probe(i2c_master_bus_handle_t bus_handle, uint16_t address,
  *
  * @return
  *  - ESP_OK: Transaction completed successfully.
- *  - ESP_ERR_INVALID_RESPONSE: I2C master transaction receives NACK.
  *  - ESP_ERR_INVALID_ARG: One or more arguments are invalid.
  *  - ESP_ERR_TIMEOUT: Transaction timed out.
+ *  - ESP_FAIL: Other error during transaction.
  *
  * @note The `ack_value` field in the READ operation must be set to `I2C_NACK_VAL` if the next
  *       operation is a STOP command.
@@ -311,29 +304,6 @@ esp_err_t i2c_master_register_event_callbacks(i2c_master_dev_handle_t i2c_dev, c
  *      - Otherwise: Reset failed.
  */
 esp_err_t i2c_master_bus_reset(i2c_master_bus_handle_t bus_handle);
-
-/**
- * @brief Change the I2C device address at runtime.
- *
- * This function updates the device address of an existing I2C device handle.
- * It is useful for devices that support dynamic address assignment or when
- * switching communication to a device with a different address on the same bus.
- *
- * @param[in] i2c_dev           I2C device handle.
- * @param[in] new_device_address The new device address.
- * @param[in] timeout_ms        Timeout for the address change operation, in milliseconds.
- *
- * @return
- *      - ESP_OK: Address successfully changed.
- *      - ESP_ERR_INVALID_ARG: Invalid arguments (e.g., NULL handle or invalid address).
- *      - ESP_ERR_TIMEOUT: Operation timed out.
- *
- * @note
- *      - This function does not send commands to the I2C device. It only updates
- *        the address used in subsequent transactions through the I2C handle.
- *      - Ensure that the new address is valid and does not conflict with other devices on the bus.
- */
-esp_err_t i2c_master_device_change_address(i2c_master_dev_handle_t i2c_dev, uint16_t new_device_address, int timeout_ms);
 
 /**
  * @brief Wait for all pending I2C transactions done

@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2015-2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2015-2024 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -33,7 +33,6 @@
 #include "esp_log.h"
 #include "esp_rom_md5.h"
 #include "bootloader_util.h"
-#include "hal/efuse_hal.h"
 
 #if CONFIG_IDF_TARGET_LINUX
 #include "esp_private/partition_linux.h"
@@ -70,7 +69,7 @@ typedef struct esp_partition_iterator_opaque_ {
 static SLIST_HEAD(partition_list_head_, partition_list_item_) s_partition_list = SLIST_HEAD_INITIALIZER(s_partition_list);
 static _lock_t s_partition_list_lock;
 
-ESP_LOG_ATTR_TAG(TAG, "partition");
+static const char *TAG = "partition";
 
 static bool is_partition_encrypted(bool encryption_config, esp_partition_type_t type, esp_partition_subtype_t subtype)
 {
@@ -88,16 +87,11 @@ static bool is_partition_encrypted(bool encryption_config, esp_partition_type_t 
                 || (type == ESP_PARTITION_TYPE_BOOTLOADER)
                 || (type == ESP_PARTITION_TYPE_PARTITION_TABLE)
                 || (type == ESP_PARTITION_TYPE_DATA && subtype == ESP_PARTITION_SUBTYPE_DATA_OTA)
-                || (type == ESP_PARTITION_TYPE_DATA && subtype == ESP_PARTITION_SUBTYPE_DATA_TEE_OTA)
                 || (type == ESP_PARTITION_TYPE_DATA && subtype == ESP_PARTITION_SUBTYPE_DATA_NVS_KEYS)) {
         /* If encryption is turned on, all app partitions and OTA data
             are always encrypted */
         ret_encrypted = true;
     }
-#ifdef CONFIG_EFUSE_VIRTUAL_KEEP_IN_FLASH
-    // FE can be enabled in virt eFuses but not in real eFuses.
-    ret_encrypted &= efuse_hal_flash_encryption_enabled();
-#endif
     return ret_encrypted;
 #endif
 }
@@ -300,47 +294,26 @@ static esp_partition_iterator_opaque_t *iterator_create(esp_partition_type_t typ
     return it;
 }
 
-esp_err_t esp_partition_find_err(esp_partition_type_t type,
-        esp_partition_subtype_t subtype, const char *label, esp_partition_iterator_t *it)
+esp_partition_iterator_t esp_partition_find(esp_partition_type_t type,
+        esp_partition_subtype_t subtype, const char *label)
 {
-    if (it == NULL) {
-        return ESP_ERR_INVALID_ARG;
-    }
-
-    *it  = NULL;
-    esp_err_t err = ensure_partitions_loaded();
-    if (err != ESP_OK) {
-        return err;
+    if (ensure_partitions_loaded() != ESP_OK) {
+        return NULL;
     }
     // Searching for a specific subtype without specifying the type doesn't make
     // sense, and is likely a usage error.
     if (type == ESP_PARTITION_TYPE_ANY && subtype != ESP_PARTITION_SUBTYPE_ANY) {
-        return ESP_ERR_INVALID_ARG;
+        return NULL;
     }
     // create an iterator pointing to the start of the list
     // (next item will be the first one)
-    *it = iterator_create(type, subtype, label);
-    if (*it == NULL) {
-        return ESP_ERR_NO_MEM;
-    }
-    // advance iterator to the next item which matches constraints
-    *it = esp_partition_next(*it);
-    if (*it == NULL) {
-        return ESP_ERR_NOT_FOUND;
-    }
-    // if nothing found, it == NULL and iterator has been released
-    return ESP_OK;
-}
-
-esp_partition_iterator_t esp_partition_find(esp_partition_type_t type,
-        esp_partition_subtype_t subtype, const char *label)
-{
-    esp_partition_iterator_t it;
-    esp_err_t err = esp_partition_find_err(type, subtype, label, &it);
-    if (err != ESP_OK) {
+    esp_partition_iterator_t it = iterator_create(type, subtype, label);
+    if (it == NULL) {
         return NULL;
     }
-
+    // advance iterator to the next item which matches constraints
+    it = esp_partition_next(it);
+    // if nothing found, it == NULL and iterator has been released
     return it;
 }
 
@@ -377,36 +350,16 @@ esp_partition_iterator_t esp_partition_next(esp_partition_iterator_t it)
     return it;
 }
 
-esp_err_t esp_partition_find_first_err(esp_partition_type_t type,
-        esp_partition_subtype_t subtype, const char *label, const esp_partition_t **partition)
-{
-    if (partition == NULL) {
-        return ESP_ERR_INVALID_ARG;
-    }
-
-    esp_partition_iterator_t it = NULL;
-    esp_err_t err = esp_partition_find_err(type, subtype, label, &it);
-    if (err != ESP_OK || it == NULL) {
-        *partition = NULL;
-        return err;
-    }
-    *partition = esp_partition_get(it);
-    esp_partition_iterator_release(it);
-    if (*partition == NULL) {
-        return ESP_ERR_NOT_FOUND;
-    }
-    return ESP_OK;
-}
-
 const esp_partition_t *esp_partition_find_first(esp_partition_type_t type,
         esp_partition_subtype_t subtype, const char *label)
 {
-    const esp_partition_t *partition;
-    esp_err_t err = esp_partition_find_first_err(type, subtype, label, &partition);
-    if (err != ESP_OK) {
+    esp_partition_iterator_t it = esp_partition_find(type, subtype, label);
+    if (it == NULL) {
         return NULL;
     }
-    return partition;
+    const esp_partition_t *res = esp_partition_get(it);
+    esp_partition_iterator_release(it);
+    return res;
 }
 
 void esp_partition_iterator_release(esp_partition_iterator_t iterator)
@@ -421,49 +374,27 @@ const esp_partition_t *esp_partition_get(esp_partition_iterator_t iterator)
     return iterator->info;
 }
 
-esp_err_t esp_partition_verify_err(const esp_partition_t *partition, const esp_partition_t **out_partition)
+const esp_partition_t *esp_partition_verify(const esp_partition_t *partition)
 {
-    // Validate input parameters
-    if (partition == NULL || out_partition == NULL) {
-        return ESP_ERR_INVALID_ARG;
-    }
-
-    *out_partition = NULL;
+    assert(partition != NULL);
     const char *label = (strlen(partition->label) > 0) ? partition->label : NULL;
-    esp_partition_iterator_t it = NULL;
-    esp_err_t err = esp_partition_find_err(partition->type,
-                                          partition->subtype,
-                                          label, &it);
-    if (err != ESP_OK) {
-        return err;
-    }
-
+    esp_partition_iterator_t it = esp_partition_find(partition->type,
+                                  partition->subtype,
+                                  label);
     while (it != NULL) {
         const esp_partition_t *p = esp_partition_get(it);
         /* Can't memcmp() whole structure here as padding contents may be different */
         if (p->flash_chip == partition->flash_chip
                 && p->address == partition->address
-                && p->size == partition->size
-                && p->encrypted == partition->encrypted) {
+                && partition->size == p->size
+                && partition->encrypted == p->encrypted) {
             esp_partition_iterator_release(it);
-            *out_partition = p;
-            return ESP_OK;
+            return p;
         }
         it = esp_partition_next(it);
     }
-
-    // Iterator is automatically released by esp_partition_next when it reaches the end
-    return ESP_ERR_NOT_FOUND;
-}
-
-const esp_partition_t *esp_partition_verify(const esp_partition_t *partition)
-{
-    const esp_partition_t *out_partition;
-    esp_err_t err = esp_partition_verify_err(partition, &out_partition);
-    if (err != ESP_OK) {
-        return NULL;
-    }
-    return out_partition;
+    esp_partition_iterator_release(it);
+    return NULL;
 }
 
 esp_err_t esp_partition_register_external(esp_flash_t *flash_chip, size_t offset, size_t size,
@@ -546,7 +477,6 @@ esp_err_t esp_partition_deregister_external(const esp_partition_t *partition)
                 result = ESP_ERR_INVALID_ARG;
                 break;
             }
-            //remove the external partition record
             SLIST_REMOVE(&s_partition_list, it, partition_list_item_, next);
             free(it);
             result = ESP_OK;
@@ -627,138 +557,4 @@ esp_err_t esp_partition_copy(const esp_partition_t* dest_part, uint32_t dest_off
         remaining_size -= chunk_size;
     }
     return error;
-}
-
-/* *************************************************************************************
- * Block Device Layer interface
- * *************************************************************************************/
-
-static esp_err_t esp_partition_blockdev_read(esp_blockdev_handle_t dev_handle, uint8_t* dst_buf, size_t dst_buf_size, uint64_t src_addr, size_t data_read_len)
-{
-    if (dev_handle->geometry.read_size == 0) {
-        return ESP_ERR_NOT_SUPPORTED;
-    }
-
-    //the simplest boundary check. Should be replaced by auxiliary geometry mapping function
-    if (src_addr % dev_handle->geometry.read_size != 0 || data_read_len % dev_handle->geometry.read_size != 0) {
-        return ESP_ERR_INVALID_SIZE;
-    }
-
-    if (dst_buf_size < data_read_len) {
-        return ESP_ERR_INVALID_ARG;
-    }
-
-    const esp_partition_t* partition = ((const esp_partition_t*)dev_handle->ctx);
-    assert(partition != NULL);
-
-    esp_err_t res = esp_partition_read(partition, src_addr, dst_buf, data_read_len);
-    ESP_LOGV(TAG, "esp_partition_read - src_addr=0x%.16" PRIx64 ", size=0x%08" PRIx32 ", result=0x%08x", src_addr, (uint32_t)data_read_len, res);
-
-    return res;
-}
-
-static esp_err_t esp_partition_blockdev_write(esp_blockdev_handle_t dev_handle, const uint8_t* src_buf, uint64_t dst_addr, size_t data_write_len)
-{
-    if (dev_handle->device_flags.read_only || dev_handle->geometry.write_size == 0) {
-        return ESP_ERR_NOT_SUPPORTED;
-    }
-
-    //the simplest boundary check. Should be replaced by auxiliary geometry mapping function
-    if (dst_addr % dev_handle->geometry.write_size != 0 || data_write_len % dev_handle->geometry.write_size != 0) {
-        return ESP_ERR_INVALID_SIZE;
-    }
-
-    const esp_partition_t* partition = ((const esp_partition_t*)dev_handle->ctx);
-    assert(partition != NULL);
-
-    esp_err_t res = esp_partition_write(partition, dst_addr, src_buf, data_write_len);
-    ESP_LOGV(TAG, "esp_partition_write - dst_addr=0x%.16" PRIx64 ", size=0x%08" PRIx32 ", result=0x%08x", dst_addr, (uint32_t)data_write_len, res);
-
-    return res;
-}
-
-static esp_err_t esp_partition_blockdev_erase(esp_blockdev_handle_t dev_handle, uint64_t start_addr, size_t erase_len)
-{
-    if (dev_handle->device_flags.read_only || dev_handle->geometry.erase_size == 0) {
-        return ESP_ERR_NOT_SUPPORTED;
-    }
-
-    //the simplest boundary check. Should be replaced by auxiliary geometry mapping function
-    if (start_addr % dev_handle->geometry.erase_size != 0 || erase_len % dev_handle->geometry.erase_size != 0) {
-        return ESP_ERR_INVALID_SIZE;
-    }
-
-    const esp_partition_t* partition = ((const esp_partition_t*)dev_handle->ctx);
-    assert(partition != NULL);
-
-    esp_err_t res = esp_partition_erase_range(partition, start_addr, erase_len);
-    ESP_LOGV(TAG, "esp_partition_blockdev_erase - src_addr=0x%.16" PRIx64 ", size=0x%08" PRIx32 ", result=0x%08x", start_addr, (uint32_t)erase_len, res);
-
-    return res;
-}
-
-static esp_err_t esp_partition_blockdev_release(esp_blockdev_handle_t dev_handle)
-{
-    free(dev_handle);
-    return ESP_OK;
-}
-
-//BDL ops singleton
-static const esp_blockdev_ops_t s_bdl_ops = {
-    .read = esp_partition_blockdev_read,
-    .write = esp_partition_blockdev_write,
-    .erase = esp_partition_blockdev_erase,
-    .release = esp_partition_blockdev_release
-};
-
-esp_err_t esp_partition_ptr_get_blockdev(const esp_partition_t* partition, esp_blockdev_handle_t *out_bdl_handle_ptr)
-{
-    esp_blockdev_t *out = calloc(1, sizeof(esp_blockdev_t));
-    if (out == NULL) {
-        return ESP_ERR_NO_MEM;
-    }
-
-    out->ctx = (void*)partition;
-
-    ESP_BLOCKDEV_FLAGS_INST_CONFIG_DEFAULT(out->device_flags);
-
-    if(partition->readonly) {
-        out->device_flags.read_only = 1;
-        out->geometry.write_size = 0;
-        out->geometry.erase_size = 0;
-        out->geometry.recommended_write_size = 0;
-        out->geometry.recommended_erase_size = 0;
-    }
-    else {
-        if (partition->encrypted) {
-            out->geometry.write_size = 16;
-            out->geometry.recommended_write_size = 16;
-        } else {
-            out->geometry.write_size = 1;
-            out->geometry.recommended_write_size = 1;
-        }
-        out->geometry.erase_size = partition->erase_size;
-        out->geometry.recommended_erase_size = partition->erase_size;
-    }
-    out->geometry.read_size = 1;
-    out->geometry.recommended_read_size = 1;
-    out->geometry.disk_size = partition->size;
-
-    out->ops = &s_bdl_ops;
-    *out_bdl_handle_ptr = out;
-
-    return ESP_OK;
-}
-
-esp_err_t esp_partition_get_blockdev(const esp_partition_type_t type, const esp_partition_subtype_t subtype, const char *label, esp_blockdev_handle_t *out_bdl_handle_ptr)
-{
-    esp_partition_iterator_t it = esp_partition_find(type, subtype, label);
-    if (it == NULL) {
-        return ESP_ERR_NOT_FOUND;
-    }
-
-    esp_err_t res = esp_partition_ptr_get_blockdev(it->info, out_bdl_handle_ptr);
-    esp_partition_iterator_release(it);
-
-    return res;
 }

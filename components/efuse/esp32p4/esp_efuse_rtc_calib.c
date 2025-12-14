@@ -8,6 +8,8 @@
 #include "esp_efuse.h"
 #include "esp_efuse_table.h"
 #include "esp_efuse_rtc_calib.h"
+
+#include "esp_efuse_rtc_calib.h"
 #include "hal/efuse_hal.h"
 #include "hal/adc_types.h"
 
@@ -22,7 +24,7 @@ int esp_efuse_rtc_calib_get_ver(void)
 {
     uint32_t cali_version = 0;
     uint32_t blk_ver = efuse_hal_blk_version();
-    if (blk_ver >= 1) {
+    if (blk_ver >= 1 && blk_ver < 100) {
         cali_version = ESP_EFUSE_ADC_CALIB_VER1;
     } else {
         ESP_LOGW("eFuse", "calibration efuse version does not match, set default version to 0");
@@ -192,4 +194,22 @@ int esp_efuse_rtc_calib_get_chan_compens(int version, uint32_t adc_unit, uint32_
     ESP_ERROR_CHECK(esp_efuse_read_field_blob(chan_diff_efuse, &chan_diff, chan_diff_size));
 
     return RTC_CALIB_GET_SIGNED_VAL(chan_diff, 3) * (4 - atten);
+}
+
+esp_err_t esp_efuse_rtc_calib_get_tsens_val(float* tsens_cal)
+{
+    const esp_efuse_desc_t** cal_temp_efuse;
+    cal_temp_efuse = ESP_EFUSE_TEMPERATURE_SENSOR;
+    int cal_temp_size = esp_efuse_get_field_size(cal_temp_efuse);
+    assert(cal_temp_size == 9);
+
+    uint32_t cal_temp = 0;
+    esp_err_t err = esp_efuse_read_field_blob(cal_temp_efuse, &cal_temp, cal_temp_size);
+    if (err != ESP_OK) {
+        *tsens_cal = 0.0;
+        return err;
+    }
+    // BIT(8) stands for sign: 1: negative, 0: positive
+    *tsens_cal = ((cal_temp & BIT(8)) != 0)? -(uint8_t)cal_temp: (uint8_t)cal_temp;
+    return ESP_OK;
 }

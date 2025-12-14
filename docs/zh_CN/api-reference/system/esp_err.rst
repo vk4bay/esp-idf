@@ -9,8 +9,6 @@
 
 有关 ESP-IDF 定义的错误代码的完整列表，请参阅 :doc:`错误代码参考 <../error-codes>`。
 
-.. _esp-check-api-ref:
-
 API 参考
 -------------
 

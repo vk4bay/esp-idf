@@ -218,37 +218,25 @@ No Pull-ups
 
         Burning eFuses is irreversible! The issue list above might be out of date, so please make sure that the module you are burning has a 3.3 V flash chip by checking the information on https://www.espressif.com/. If you burn the 3.3 V eFuses on a module with a 1.8 V flash chip, the module will stop functioning.
 
-    If you are sure that you need to irreversibly burn eFuses, go to your ESP-IDF directory and run the following command using ``espefuse`` tool:
+    If you are sure that you need to irreversibly burn eFuses, go to your ESP-IDF directory and run the following command using ``espefuse.py`` tool:
 
     .. code-block:: bash
 
-        espefuse set-flash-voltage 3.3V
+        components/esptool_py/esptool/espefuse.py set_flash_voltage 3.3V
 
     This command burns the ``XPD_SDIO_TIEH``, ``XPD_SDIO_FORCE``, and ``XPD_SDIO_REG`` eFuses. After all the three eFuses are burned to value 1, the internal VDD_SDIO flash voltage regulator is permanently set to 3.3 V. You will see the following log if the burning succeeds:
 
     .. code-block:: bash
 
-        espefuse v5.0.2
+        espefuse.py v2.6
         Connecting....
 
-        === Run "set-flash-voltage" command ===
-        Enable internal flash voltage regulator (VDD_SDIO) to 3.3V.
+        Enable internal flash voltage regulator (VDD_SDIO) to 3.3 V.
         The following eFuses are burned: XPD_SDIO_FORCE, XPD_SDIO_REG, XPD_SDIO_TIEH.
-        VDD_SDIO setting complete.
-
-        Check all blocks for burn...
-        idx, BLOCK_NAME,          Conclusion
-        [00] BLOCK0               is not empty
-                (written ): 0x0000000400182226000004320000a8b0002bc8f09e47e69800000000
-                (to write): 0x00000000000000000001c00000000000000000000000000000000000
-                (coding scheme = NONE)
-        .
-        This is an irreversible operation!
+        This is an irreversible operation.
         Type 'BURN' (all capitals) to continue.
         BURN
-        BURN BLOCK0  - OK (write block == read block)
-        Reading updated eFuses...
-        Successful.
+        VDD_SDIO setting complete.
 
     To check the status of the eFuses, run:
 
@@ -256,7 +244,7 @@ No Pull-ups
 
         idf.py efuse-summary
 
-    If running from an automated flashing script, it is better to use standalone eFuse tool ``espefuse``. This tool also has an option ``--do-not-confirm`` to burn eFuses without confirmation.
+    If running from an automated flashing script, it is better to use standalone eFuse tool ``espefuse.py``. This tool also has an option ``--do-not-confirm`` to burn eFuses without confirmation.
 
     For more details, see **{IDF_TARGET_NAME} Technical Reference Manual** [`PDF <{IDF_TARGET_TRM_EN_URL}#efuse>`__].
 

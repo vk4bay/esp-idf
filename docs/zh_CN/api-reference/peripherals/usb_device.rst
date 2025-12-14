@@ -3,8 +3,8 @@ USB 设备栈
 
 :link_to_translation:`en:[English]`
 
-{IDF_TARGET_USB_DP_GPIO_NUM:default="20", esp32h4="22"}
-{IDF_TARGET_USB_DM_GPIO_NUM:default="19", esp32h4="21"}
+{IDF_TARGET_USB_DP_GPIO_NUM:default="20"}
+{IDF_TARGET_USB_DM_GPIO_NUM:default="19"}
 {IDF_TARGET_USB_EP_NUM: default="6", esp32p4="15"}
 {IDF_TARGET_USB_EP_NUM_INOUT:default="5", esp32p4="8"}
 {IDF_TARGET_USB_EP_NUM_IN:default="1", esp32p4="7"}
@@ -34,20 +34,20 @@ USB 设备栈（以下简称设备栈）支持在 {IDF_TARGET_NAME} 上启用 US
 硬件连接
 --------
 
-.. only:: esp32s2 or esp32s3 or esp32h4
+.. only:: esp32s2 or esp32s3
 
     {IDF_TARGET_NAME} 将 USB D+ 和 D- 信号分别路由到 GPIO {IDF_TARGET_USB_DP_GPIO_NUM} 和 {IDF_TARGET_USB_DM_GPIO_NUM}。为了实现 USB 设备功能，这些 GPIO 应通过某种方式连接到总线（例如，通过 Micro-B 端口、USB-C 端口或直接连接到标准-A 插头）。
 
 .. only:: esp32p4
 
-    {IDF_TARGET_NAME} 将 USB D+ 和 D- 信号路由到其专用管脚。为了实现 USB 设备功能，这些管脚应通过某种方式连接到总线（例如，通过 Micro-B 端口、USB-C 端口或直接连接到标准-A 插头）。
+    {IDF_TARGET_NAME} 将 USB D+ 和 D- 信号路由到其专用引脚。为了实现 USB 设备功能，这些引脚应通过某种方式连接到总线（例如，通过 Micro-B 端口、USB-C 端口或直接连接到标准-A 插头）。
 
 .. figure:: ../../../_static/usb-board-connection.png
     :align: center
     :alt: 将 USB GPIO 直接接连至 USB 标准-A 插头
     :figclass: align-center
 
-.. only:: esp32s2 or esp32s3 or esp32h4
+.. only:: esp32s2 or esp32s3
 
     .. note::
 
@@ -56,89 +56,6 @@ USB 设备栈（以下简称设备栈）支持在 {IDF_TARGET_NAME} 上启用 US
 .. note::
 
     自供电设备还必须通过电压分压器或比较器连接 VBUS，详情请参阅 :ref:`self-powered-device`。
-
-.. only:: esp32s3
-
-    外部 PHY 配置
-    -------------
-
-    {IDF_TARGET_NAME} 内部集成了两个 USB 控制器：USB-OTG 与 USB-Serial-JTAG。这两个控制器 **共用同一个 PHY**，因此同一时间只能有一个控制器工作。如果在 USB-Serial-JTAG 工作时（例如调试或烧录）时仍需要使用 USB 设备功能，必须使用 **外部 PHY**，因为此时内部 PHY 已被 USB-Serial-JTAG 占用。
-
-    .. note::
-        使用外部 PHY 并不是在 USB 主机或设备功能开启时同时实现调试的唯一办法。也可以通过烧录对应的 eFuse，将调试接口从 USB-Serial-JTAG 切换为传统的 JTAG 接口。具体步骤请参考 ESP-IDF 编程指南中针对你的芯片的 :doc:`JTAG 调试 <../../api-guides/jtag-debugging/index>` 章节。
-
-    {IDF_TARGET_NAME} 支持连接外部 PHY 芯片。当需要在使用 USB-Serial-JTAG 控制器的同时提供全速 USB 设备功能时，这一点尤其重要。不同的外部 PHY 芯片可能需要不同的硬件配置，请参考各自芯片的规格书。乐鑫官方文档提供了如下的通用连接示意图供参考。如需了解更多内容，请参阅 `使用外部 PHY <https://docs.espressif.com/projects/esp-iot-solution/zh_CN/latest/usb/usb_overview/usb_phy.html#external-phy>`__。
-
-    .. figure:: ../../../_static/usb_device/usb_fs_phy_sp5301.png
-       :align: center
-       :alt: usb_fs_phy_sp5301
-
-       连接外部 PHY 芯片的典型电路图
-
-    **已测试的外部 PHY 芯片如下：**
-
-    - **SP5301** — {IDF_TARGET_NAME} 原生支持此芯片。原理图与布线方法请参考上文链接。
-    - **TUSB1106** — {IDF_TARGET_NAME} 原生支持。可通过 GPIO 映射与外部 PHY 驱动配合使用。请遵循 TUSB1106 数据手册中的参考连接（供电方案以及在 D+/D– 上建议的串联电阻）。
-    - **STUSB03E** — 需要通过模拟开关进行信号切换，详情参考下方示例。
-
-    .. figure:: ../../../_static/usb_device/ext_phy_schematic_stusb03e.png
-       :align: center
-       :alt: 使用模拟开关的外部 PHY 原理图（设备模式）
-
-       使用 STUSB03E 与模拟开关的连接示例（设备模式）
-
-    .. note::
-        此原理图仅为简化示例，用于展示外部 PHY 的连接方式，未包含完整 {IDF_TARGET_NAME} 设计所需的所有元件和信号（如 VCC、GND、RESET 等）。
-        图中包含 +5 V 电源轨（通常来自 USB VBUS）和 VCC 电源轨。VCC 电压应与芯片供电电压一致（通常为 3.3 V），并确保外部 PHY 与芯片使用同一电压域供电。如果设计自供电 USB 设备，请将外部 PHY 的 VBUSDET 信号接入 {IDF_TARGET_NAME}，以便实现对 VBUS 电压状态的监控。
-
-    硬件配置通过将 GPIO 映射到 PHY 管脚实现。任何未使用的管脚（如 :cpp:member:`usb_phy_ext_io_conf_t::suspend_n_io_num`、:cpp:member:`usb_phy_ext_io_conf_t::fs_edge_sel_io_num`） **必须设置为 -1**。
-
-    .. note::
-        :cpp:member:`usb_phy_ext_io_conf_t::suspend_n_io_num` 管脚 **当前不受支持**，无需连接。
-        :cpp:member:`usb_phy_ext_io_conf_t::fs_edge_sel_io_num` 管脚为可选管脚，仅需在低速和全速模式间切换时使用。
-
-    ESP TinyUSB 设备栈从 2.0 版本开始支持外部 PHY。要在设备模式下使用外部 PHY，需执行以下步骤：
-
-    1. 使用 :cpp:type:`usb_phy_config_t` 配置 GPIO 映射与 PHY。
-    2. 调用 :cpp:func:`usb_new_phy()` 创建 PHY。
-    3. 使用 :cpp:func:`TINYUSB_DEFAULT_CONFIG()` 初始化 :cpp:type:`tinyusb_config_t`。
-    4. 将 :cpp:type:`tinyusb_config_t` 的 `phy.skip_setup` 字段设为 ``true``，从而跳过 PHY 的重新初始化，直接使用已配置的外部 PHY。
-
-    **示例代码：**
-
-    .. code-block:: c
-
-        // 外部 PHY 的 GPIO 配置
-        const usb_phy_ext_io_conf_t ext_io_conf = {
-            .vp_io_num  = 8,
-            .vm_io_num  = 5,
-            .rcv_io_num = 11,
-            .oen_io_num = 17,
-            .vpo_io_num = 4,
-            .vmo_io_num = 46,
-            .suspend_n_io_num = -1,
-            .fs_edge_sel_io_num = -1,
-        };
-
-        // 针对 OTG 控制器（设备模式）的外部 PHY 配置与初始化
-        const usb_phy_config_t phy_config = {
-            .controller = USB_PHY_CTRL_OTG,
-            .target = USB_PHY_TARGET_EXT,
-            .otg_mode = USB_OTG_MODE_DEVICE,
-            .otg_speed = USB_PHY_SPEED_FULL,
-            .ext_io_conf = &ext_io_conf
-        };
-
-        usb_phy_handle_t phy_hdl;
-        ESP_ERROR_CHECK(usb_new_phy(&phy_config, &phy_hdl));
-
-        // 使用默认配置初始化 TinyUSB（可根据需要设置事件处理函数）
-        tinyusb_config_t config = TINYUSB_DEFAULT_CONFIG();
-        config.phy.skip_setup = true;
-
-        tinyusb_driver_install(&config);
-
-    通过上述配置，USB 设备栈会直接使用 **外部 PHY**，而不会尝试配置内部 PHY。
 
 设备栈结构
 ----------
@@ -253,7 +170,7 @@ USB 规范要求自供电设备监测 USB 的 VBUS 信号的电压水平。与�
 
 .. note::
 
-    在这两种情况下，设备从 USB 主机拔出后 3 毫秒内，传感管脚上的电压必须为逻辑低电平。
+    在这两种情况下，设备从 USB 主机拔出后 3 毫秒内，传感引脚上的电压必须为逻辑低电平。
 
 .. figure:: ../../../_static/diagrams/usb/usb_vbus_voltage_monitor.png
     :align: center
@@ -349,109 +266,6 @@ USB 大容量存储设备 (MSC)
     };
     tinyusb_msc_storage_init_sdmmc(&config_sdmmc);
 
-MSC 性能优化
-^^^^^^^^^^^^^^
-
-**single-buffer 方案**
-
-single-buffer 方案通过使用专用 buffer 临时存储接收到的写入数据，而不是在回调中立即处理，从而提升性能。
-
-- **可配置的 buffer 大小**： 通过 ``CONFIG_TINYUSB_MSC_BUFSIZE`` 参数设置 buffer 大小，用户可以根据实际需要，灵活调整性能与存储占用的平衡点。
-
-该方案确保了 USB 传输的效率，同时避免因存储操作可能带来的延迟。
-
-**USB MSC 驱动器性能**
-
-.. only:: esp32s3
-
-    .. list-table::
-        :header-rows: 1
-        :widths: 20 20 20
-
-        * - FIFO 大小
-          - 读取速度
-          - 写入速度
-
-        * - 512 B
-          - 0.566 MB/s
-          - 0.236 MB/s
-
-        * - 8192 B
-          - 0.925 MB/s
-          - 0.928 MB/s
-
-.. only:: esp32p4
-
-    .. list-table::
-        :header-rows: 1
-        :widths: 20 20 20
-
-        * - FIFO 大小
-          - 读取速度
-          - 写入速度
-
-        * - 512 B
-          - 1.174 MB/s
-          - 0.238 MB/s
-
-        * - 8192 B
-          - 4.744 MB/s
-          - 2.157 MB/s
-
-        * - 32768 B
-          - 5.998 MB/s
-          - 4.485 MB/s
-
-.. only:: esp32s2
-
-    .. note::
-
-        {IDF_TARGET_NAME} 在 MSC 设备模式下不支持 SD 卡功能。
-
-    **SPI flash 性能：**
-
-    .. list-table::
-        :header-rows: 1
-        :widths: 20 20
-
-        * - FIFO 大小
-          - 写入速度
-
-        * - 512 B
-          - 5.59 KB/s
-
-        * - 8192 B
-          - 21.54 KB/s
-
-.. only:: esp32h4
-
-    .. note::
-
-        {IDF_TARGET_NAME} 不支持在 MSC 设备模式下使用 SD 卡。
-
-    **SPI Flash 性能：**
-
-    .. list-table::
-        :header-rows: 1
-        :widths: 20 20
-
-        * - FIFO 大小
-          - 写入速度
-
-        * - 512 B
-          - 4.48 KB/s
-
-        * - 8192 B
-          - 22.33 KB/s
-
-性能限制：
-
-- **内部 SPI flash 性能** 受架构限制影响。程序执行和存储访问共享同一 flash 芯片，导致写入 flash 时必须暂停程序执行，会显著影响性能。
-- **内部 SPI flash 主要适用于演示场景**。在需要更高性能的实际应用中，在支持的情况下使用 **外部存储设备**，如 SD 卡或外部 SPI flash 芯片。
-
-.. only:: esp32s3 or esp32p4
-
-    SD 卡不受此限制影响，因此能获得更高的性能提升。
 
 应用示例
 --------------------
@@ -465,6 +279,6 @@ single-buffer 方案通过使用专用 buffer 临时存储接收到的写入数�
 - :example:`peripherals/usb/device/tusb_msc` 演示了如何使用 USB 功能创建一个可以被 USB 主机识别的大容量存储设备，允许访问其内部数据存储，支持 SPI Flash 和 SD MMC 卡存储介质。
 - :example:`peripherals/usb/device/tusb_composite_msc_serialdevice` 演示了如何使用 TinyUSB 组件将 {IDF_TARGET_NAME} 同时配置为 USB 串行设备和 MSC 设备（存储介质为 SPI-Flash）运行。
 
-.. only:: not esp32p4 and not esp32h4
+.. only:: not esp32p4
 
   - :example:`peripherals/usb/device/tusb_ncm` 演示了使用 TinyUSB 组件，借助网络控制模型 (NCM) 将 Wi-Fi 数据通过 USB 传输到 Linux 或 Windows 主机。NCM 是通信设备类 (CDC) USB 设备的一个子类，专用于 Ethernet-over-USB 应用。

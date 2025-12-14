@@ -1,3 +1,1 @@
-CONFIG_ESP_TRACE_LIB_NONE=y
-CONFIG_ESP_TRACE_TRANSPORT_APPTRACE=y
-CONFIG_APPTRACE_DEST_JTAG=y
+# app_trace is already enabled by sdkconfig.defaults, so no options are needed here

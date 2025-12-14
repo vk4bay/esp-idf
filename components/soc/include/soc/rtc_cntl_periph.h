@@ -1,7 +1,7 @@
 /*
- * SPDX-FileCopyrightText: 2019-2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2019-2024 Espressif Systems (Shanghai) CO LTD
  *
- * SPDX-License-Identifier: Apache-2.0 OR MIT
+ * SPDX-License-Identifier: Apache-2.0
  */
 
 #pragma once
@@ -20,7 +20,7 @@
 #include "soc/lp_aon_reg.h"
 
 // ESP32H2-TODO: IDF-6327
-#elif CONFIG_IDF_TARGET_ESP32H2 || CONFIG_IDF_TARGET_ESP32H21
+#elif CONFIG_IDF_TARGET_ESP32H2
 #include "soc/lp_aon_reg.h"
 #elif CONFIG_IDF_TARGET_ESP32P4 || CONFIG_IDF_TARGET_ESP32C5
 #include "soc/lp_gpio_reg.h"
@@ -30,7 +30,7 @@
 #endif
 
 // TODO: IDF-5645
-#if CONFIG_IDF_TARGET_ESP32C6 || CONFIG_IDF_TARGET_ESP32P4 || CONFIG_IDF_TARGET_ESP32C5 || CONFIG_IDF_TARGET_ESP32C61 || CONFIG_IDF_TARGET_ESP32H4 || CONFIG_IDF_TARGET_ESP32S31
+#if CONFIG_IDF_TARGET_ESP32C6 || CONFIG_IDF_TARGET_ESP32P4 || CONFIG_IDF_TARGET_ESP32C5 || CONFIG_IDF_TARGET_ESP32C61
 #include "soc/lp_analog_peri_reg.h"
 #include "soc/lp_clkrst_reg.h"
 #include "soc/lp_clkrst_struct.h"
@@ -55,12 +55,6 @@
 #include "soc/lp_clkrst_struct.h"
 #include "soc/lp_timer_reg.h"
 #include "soc/lp_timer_struct.h"
-#include "soc/lp_wdt_reg.h"
-#include "soc/lp_wdt_struct.h"
-#elif CONFIG_IDF_TARGET_ESP32H21
-#include "soc/lp_analog_peri_reg.h"
-#include "soc/lp_clkrst_reg.h"
-#include "soc/lp_clkrst_struct.h"
 #include "soc/lp_wdt_reg.h"
 #include "soc/lp_wdt_struct.h"
 #else

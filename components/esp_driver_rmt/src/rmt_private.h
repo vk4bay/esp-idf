@@ -6,33 +6,19 @@
 
 #pragma once
 
-#include <stdlib.h>
-#include <string.h>
-#include <sys/cdefs.h>
-#include <sys/param.h>
-#include <sys/lock.h>
 #include <stdatomic.h>
 #include "sdkconfig.h"
-#if CONFIG_RMT_ENABLE_DEBUG_LOG
-// The local log level must be defined before including esp_log.h
-// Set the maximum log level for rmt driver
-#define LOG_LOCAL_LEVEL ESP_LOG_VERBOSE
-#endif
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/queue.h"
 #include "freertos/idf_additions.h"
-#include "esp_log.h"
-#include "esp_check.h"
 #include "esp_err.h"
 #include "soc/soc_caps.h"
-#include "hal/rmt_periph.h"
+#include "soc/gdma_channel.h"
 #include "hal/rmt_types.h"
 #include "hal/rmt_hal.h"
-#include "hal/rmt_ll.h"
 #include "hal/dma_types.h"
 #include "hal/cache_ll.h"
-#include "hal/cache_hal.h"
 #include "hal/hal_utils.h"
 #include "esp_intr_alloc.h"
 #include "esp_heap_caps.h"
@@ -40,41 +26,31 @@
 #include "esp_pm.h"
 #include "esp_attr.h"
 #include "esp_private/gdma.h"
-#include "esp_private/gdma_link.h"
 #include "esp_private/esp_gpio_reserve.h"
 #include "esp_private/gpio.h"
 #include "esp_private/sleep_retention.h"
-#include "esp_private/periph_ctrl.h"
-#include "esp_private/esp_clk_tree_common.h"
-#include "esp_private/esp_dma_utils.h"
-#include "driver/rmt_types.h"
+#include "driver/rmt_common.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-#if CONFIG_RMT_OBJ_CACHE_SAFE
+#if CONFIG_RMT_ISR_IRAM_SAFE || CONFIG_RMT_RECV_FUNC_IN_IRAM
 #define RMT_MEM_ALLOC_CAPS      (MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT)
 #else
 #define RMT_MEM_ALLOC_CAPS      MALLOC_CAP_DEFAULT
 #endif
 
 // RMT driver object is per-channel, the interrupt source is shared between channels
-#if CONFIG_RMT_TX_ISR_CACHE_SAFE
-#define RMT_TX_INTR_ALLOC_FLAG     (ESP_INTR_FLAG_SHARED | ESP_INTR_FLAG_IRAM)
+#if CONFIG_RMT_ISR_IRAM_SAFE
+#define RMT_INTR_ALLOC_FLAG     (ESP_INTR_FLAG_SHARED | ESP_INTR_FLAG_IRAM)
 #else
-#define RMT_TX_INTR_ALLOC_FLAG     (ESP_INTR_FLAG_SHARED)
-#endif
-
-#if CONFIG_RMT_RX_ISR_CACHE_SAFE
-#define RMT_RX_INTR_ALLOC_FLAG     (ESP_INTR_FLAG_SHARED | ESP_INTR_FLAG_IRAM)
-#else
-#define RMT_RX_INTR_ALLOC_FLAG     (ESP_INTR_FLAG_SHARED)
+#define RMT_INTR_ALLOC_FLAG     (ESP_INTR_FLAG_SHARED)
 #endif
 
 // Hopefully the channel offset won't change in other targets
 #define RMT_TX_CHANNEL_OFFSET_IN_GROUP 0
-#define RMT_RX_CHANNEL_OFFSET_IN_GROUP (RMT_LL_GET(CHANS_PER_INST) - RMT_LL_GET(TX_CANDIDATES_PER_INST))
+#define RMT_RX_CHANNEL_OFFSET_IN_GROUP (SOC_RMT_CHANNELS_PER_GROUP - SOC_RMT_TX_CANDIDATES_PER_GROUP)
 
 #define RMT_ALLOW_INTR_PRIORITY_MASK ESP_INTR_FLAG_LOWMED
 
@@ -84,6 +60,7 @@ extern "C" {
 
 // RMT is a slow peripheral, it only supports AHB-GDMA
 #define RMT_DMA_DESC_ALIGN      4
+typedef dma_descriptor_align4_t rmt_dma_descriptor_t;
 
 #ifdef CACHE_LL_L2MEM_NON_CACHE_ADDR
 #define RMT_GET_NON_CACHE_ADDR(addr) (CACHE_LL_L2MEM_NON_CACHE_ADDR(addr))
@@ -96,13 +73,10 @@ extern "C" {
 
 #define RMT_USE_RETENTION_LINK  (SOC_RMT_SUPPORT_SLEEP_RETENTION && CONFIG_PM_POWER_DOWN_PERIPHERAL_IN_LIGHT_SLEEP)
 
-///!< Logging settings
-#define TAG "rmt"
-
 typedef struct {
     struct {
         rmt_symbol_word_t symbols[SOC_RMT_MEM_WORDS_PER_CHANNEL];
-    } channels[RMT_LL_GET(CHANS_PER_INST)];
+    } channels[SOC_RMT_CHANNELS_PER_GROUP];
 } rmt_block_mem_t;
 
 // RMTMEM address is declared in <target>.peripherals.ld
@@ -140,8 +114,8 @@ struct rmt_group_t {
     rmt_clock_source_t clk_src; // record the group clock source, group clock is shared by all channels
     uint32_t resolution_hz;     // resolution of group clock. clk_src_hz / prescale = resolution_hz
     uint32_t occupy_mask;       // a set bit in the mask indicates the channel is not available
-    rmt_tx_channel_t *tx_channels[RMT_LL_GET(TX_CANDIDATES_PER_INST)]; // array of RMT TX channels
-    rmt_rx_channel_t *rx_channels[RMT_LL_GET(RX_CANDIDATES_PER_INST)]; // array of RMT RX channels
+    rmt_tx_channel_t *tx_channels[SOC_RMT_TX_CANDIDATES_PER_GROUP]; // array of RMT TX channels
+    rmt_rx_channel_t *rx_channels[SOC_RMT_RX_CANDIDATES_PER_GROUP]; // array of RMT RX channels
     rmt_sync_manager_t *sync_manager; // sync manager, this can be extended into an array if there're more sync controllers in one RMT group
     int intr_priority;     // RMT interrupt priority
 };
@@ -159,8 +133,8 @@ struct rmt_channel_t {
     rmt_channel_direction_t direction; // channel direction
     rmt_symbol_word_t *hw_mem_base;    // base address of RMT channel hardware memory
     gdma_channel_handle_t dma_chan;    // DMA channel
-#if CONFIG_PM_ENABLE
     esp_pm_lock_handle_t pm_lock;      // power management lock
+#if CONFIG_PM_ENABLE
     char pm_lock_name[RMT_PM_LOCK_NAME_LEN_MAX]; // pm lock name
 #endif
     // RMT channel common interface
@@ -181,7 +155,6 @@ typedef struct {
     struct {
         uint32_t eot_level : 1;    // Set the output level for the "End Of Transmission"
         uint32_t encoding_done: 1; // Indicate whether the encoding has finished (not the encoding of transmission)
-        uint32_t need_eof_mark: 1; // Indicate whether need to insert an EOF mark (a special RMT symbol)
     } flags;
 
 } rmt_tx_trans_desc_t;
@@ -190,7 +163,7 @@ struct rmt_tx_channel_t {
     rmt_channel_t base; // channel base class
     rmt_symbol_word_t *dma_mem_base;    // base address of RMT channel DMA buffer
     rmt_symbol_word_t *dma_mem_base_nc; // base address of RMT channel DMA buffer, accessed in non-cached way
-    size_t mem_off_bytes; // runtime argument, indicating the next writing position in the RMT hardware memory, the offset unit is in bytes
+    size_t mem_off;     // runtime argument, indicating the next writing position in the RMT hardware memory
     size_t mem_end;     // runtime argument, indicating the end of current writing region
     size_t ping_pong_symbols;  // ping-pong size (half of the RMT channel memory)
     size_t queue_size;         // size of transaction queue
@@ -199,7 +172,8 @@ struct rmt_tx_channel_t {
     rmt_tx_trans_desc_t *cur_trans; // points to current transaction
     void *user_data;                // user context
     rmt_tx_done_callback_t on_trans_done; // callback, invoked on trans done
-    gdma_link_list_handle_t dma_link;    // DMA link list handle
+    rmt_dma_descriptor_t *dma_nodes;    // DMA descriptor nodes
+    rmt_dma_descriptor_t *dma_nodes_nc; // DMA descriptor nodes accessed in non-cached way
     rmt_tx_trans_desc_t trans_desc_pool[];   // transfer descriptor pool
 };
 
@@ -223,9 +197,9 @@ struct rmt_rx_channel_t {
     void *user_data;                     // user context
     rmt_rx_trans_desc_t trans_desc;      // transaction description
     size_t num_dma_nodes;                // number of DMA nodes, determined by how big the memory block that user configures
-    size_t dma_int_mem_alignment;        // DMA buffer alignment (both in size and address) for internal RX memory
-    size_t dma_ext_mem_alignment;        // DMA buffer alignment (both in size and address) for external RX memory
-    gdma_link_list_handle_t dma_link;    // DMA link list handle
+    size_t dma_int_mem_alignment;         // DMA buffer alignment (both in size and address) for internal RX memory
+    rmt_dma_descriptor_t *dma_nodes;     // DMA link nodes
+    rmt_dma_descriptor_t *dma_nodes_nc;  // DMA descriptor nodes accessed in non-cached way
 };
 
 /**
@@ -268,11 +242,11 @@ esp_err_t rmt_select_periph_clock(rmt_channel_handle_t chan, rmt_clock_source_t 
 bool rmt_set_intr_priority_to_group(rmt_group_t *group, int intr_priority);
 
 /**
- * @brief Convert the interrupt priority to flags
+ * @brief Get isr_flags to be passed to `esp_intr_alloc_intrstatus()` according to `intr_priority` set in RMT group
  * @param group RMT group
- * @return isr_flags which is compatible to `ESP_INTR_FLAG_*`
+ * @return isr_flags
  */
-int rmt_isr_priority_to_flags(rmt_group_t *group);
+int rmt_get_isr_flags(rmt_group_t *group);
 
 /**
  * @brief Create sleep retention link

@@ -7,6 +7,7 @@
 #include <stdint.h>
 #include <sys/param.h>
 #include <string.h>
+#include "sdkconfig.h"
 #include "soc/soc_caps.h"
 #include "hal/assert.h"
 #include "hal/log.h"
@@ -196,11 +197,7 @@ void isp_hal_color_config(isp_hal_context_t *hal, const isp_hal_color_cfg_t *con
     if (config) {
         isp_ll_color_set_contrast(hal->hw, config->color_contrast);
         isp_ll_color_set_saturation(hal->hw, config->color_saturation);
-#if HAL_CONFIG(CHIP_SUPPORT_MIN_REV) >= 300
-        isp_ll_color_set_hue(hal->hw, config->color_hue);
-#else
         isp_ll_color_set_hue(hal->hw, (config->color_hue * 256) / 360);
-#endif
         isp_ll_color_set_brigntness(hal->hw, (int8_t)config->color_brightness);
     } else {
         isp_color_contrast_t color_contrast_default = {

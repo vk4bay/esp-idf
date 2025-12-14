@@ -16,31 +16,15 @@ SECTIONS
     _iram_start = ABSOLUTE(.);
     /* Vectors go to start of IRAM */
     ASSERT(ABSOLUTE(.) % 0x100 == 0, "vector address must be 256 byte aligned");
-    _vector_table_start = ABSOLUTE(.);
     KEEP(*(.exception_vectors_table.text));
     KEEP(*(.exception_vectors.text));
 
     ALIGNED_SYMBOL(4, _invalid_pc_placeholder)
 
-    /* esp_tee_config_t structure: used to share information between the TEE and REE
-     * (e.g. interrupt handler addresses, REE flash text-rodata boundaries, etc.)
-     * This symbol is expected by the TEE at an offset of 0x2b0 from the vector table start.
-     */
-#if CONFIG_SECURE_ENABLE_TEE
-    ALIGNED_SYMBOL(0x10, _esp_tee_app_cfg)
-    ASSERT(ABSOLUTE(.) == _vector_table_start + 0x2b0, "esp_tee_app_cfg must be at an offset 0x2b0 from the vector table start");
-    *libesp_tee.a:(.esp_tee_app_cfg);
-#endif
-
     /* Code marked as running out of IRAM */
     _iram_text_start = ABSOLUTE(.);
 
     mapping[iram0_text]
-
-    /* mutable libs begin */
-    mutable[iram0_text]
-    FAST_REFLASHING_PADDING;
-    /* mutable libs end */
 
   } > sram_seg
 
@@ -59,10 +43,6 @@ SECTIONS
 
     mapping[iram0_data]
 
-    /* mutable libs begin */
-    mutable[iram0_data]
-    /* mutable libs end */
-
     _iram_data_end = ABSOLUTE(.);
   } > sram_seg
 
@@ -71,10 +51,6 @@ SECTIONS
     ALIGNED_SYMBOL(16, _iram_bss_start)
 
     mapping[iram0_bss]
-
-    /* mutable libs begin */
-    mutable[iram0_bss]
-    /* mutable libs end */
 
     _iram_bss_end = ABSOLUTE(.);
     ALIGNED_SYMBOL(16, _iram_end)
@@ -102,11 +78,6 @@ SECTIONS
     *(.jcr)
 
     mapping[dram0_data]
-
-    /* mutable libs begin */
-    mutable[dram0_data]
-    FAST_REFLASHING_PADDING;
-    /* mutable libs end */
 
     _data_end = ABSOLUTE(.);
   } > sram_seg
@@ -137,10 +108,6 @@ SECTIONS
      */
     mapping[dram0_bss]
 
-    /* mutable libs begin */
-    mutable[dram0_bss]
-    /* mutable libs end */
-
     ALIGNED_SYMBOL(8, _bss_end)
   } > sram_seg
 
@@ -157,11 +124,6 @@ SECTIONS
     _text_start = ABSOLUTE(.);
 
     mapping[flash_text]
-
-    /* mutable libs begin */
-    mutable[flash_text]
-    FAST_REFLASHING_PADDING;
-    /* mutable libs end */
 
     *(.stub)
     *(.gnu.linkonce.t.*)
@@ -253,13 +215,20 @@ SECTIONS
      * C++ constructor tables.
      *
      * Excluding crtbegin.o/crtend.o since IDF doesn't use the toolchain crt.
+     *
+     * RISC-V gcc is configured with --enable-initfini-array so it emits
+     * .init_array section instead. But the init_priority sections will be
+     * sorted for iteration in ascending order during startup.
+     * The rest of the init_array sections is sorted for iteration in descending
+     * order during startup, however. Hence a different section is generated for
+     * the init_priority functions which is iterated in ascending order during
+     * startup. The corresponding code can be found in startup.c.
      */
-    ALIGNED_SYMBOL(4, __preinit_array_start)
-    KEEP (*(.preinit_array))
-    __preinit_array_end = ABSOLUTE(.);
+    ALIGNED_SYMBOL(4, __init_priority_array_start)
+    KEEP (*(EXCLUDE_FILE (*crtend.* *crtbegin.*) .init_array.*))
+    __init_priority_array_end = ABSOLUTE(.);
 
     ALIGNED_SYMBOL(4, __init_array_start)
-    KEEP (*(SORT_BY_INIT_PRIORITY(EXCLUDE_FILE (*crtend.* *crtbegin.*) .init_array.*)))
     KEEP (*(EXCLUDE_FILE (*crtend.* *crtbegin.*) .init_array))
     __init_array_end = ABSOLUTE(.);
 
@@ -273,24 +242,60 @@ SECTIONS
     KEEP (*(SORT_BY_INIT_PRIORITY(.esp_system_init_fn.*)))
     _esp_system_init_fn_array_end = ABSOLUTE(.);
 
-    /* mutable libs begin */
-    mutable[flash_rodata]
-    FAST_REFLASHING_PADDING;
-    /* mutable libs end */
-
     _rodata_end = ABSOLUTE(.);
-    . = ALIGN(ALIGNOF(SECTION_AFTER_FLASH_RODATA));
+    . = ALIGN(ALIGNOF(.eh_frame_hdr));
   } > default_rodata_seg
-  ASSERT_SECTIONS_GAP(.flash.rodata, SECTION_AFTER_FLASH_RODATA)
+  ASSERT_SECTIONS_GAP(.flash.rodata, .eh_frame_hdr)
 
-#if EH_FRAME_LINKING_ENABLED
+
+  /* External RAM */
+  /**
+   * This section is required to skip flash sections, because `extern_ram_seg`
+   * and `drom_seg` / `irom_seg` are on the same bus when app build use flash sections
+   */
+  .ext_ram.dummy (NOLOAD):
+  {
+    . = ORIGIN(extern_ram_seg);
+    . = . + (_rodata_reserved_end - _flash_rodata_dummy_start);
+    . = ALIGN (_esp_mmu_page_size);
+  } > extern_ram_seg
+
+#if CONFIG_SPIRAM_ALLOW_BSS_SEG_EXTERNAL_MEMORY
+  /* This section holds .ext_ram.bss data, and will be put in PSRAM */
+  .ext_ram.bss (NOLOAD) :
+  {
+    _ext_ram_bss_start = ABSOLUTE(.);
+
+    mapping[extern_ram]
+
+    ALIGNED_SYMBOL(4, _ext_ram_bss_end)
+  } > extern_ram_seg
+#endif  //CONFIG_SPIRAM_ALLOW_BSS_SEG_EXTERNAL_MEMORY
+
+#if CONFIG_SPIRAM_ALLOW_NOINIT_SEG_EXTERNAL_MEMORY
+  /**
+   * This section holds data that won't be initialized when startup.
+   * This section locates in External RAM region.
+   */
+  .ext_ram_noinit (NOLOAD) :
+  {
+    _ext_ram_noinit_start = ABSOLUTE(.);
+
+    *(.ext_ram_noinit*)
+
+    ALIGNED_SYMBOL(4, _ext_ram_noinit_end)
+  } > extern_ram_seg
+#endif //CONFIG_SPIRAM_ALLOW_NOINIT_SEG_EXTERNAL_MEMORY
+
   .eh_frame_hdr :
   {
+#if CONFIG_COMPILER_CXX_EXCEPTIONS || CONFIG_ESP_SYSTEM_USE_EH_FRAME
     ALIGNED_SYMBOL(4, __eh_frame_hdr)
 
     KEEP (*(.eh_frame_hdr))
 
     __eh_frame_hdr_end = ABSOLUTE(.);
+#endif // CONFIG_COMPILER_CXX_EXCEPTIONS || CONFIG_ESP_SYSTEM_USE_EH_FRAME
 
     . = ALIGN(ALIGNOF(.eh_frame));
   } > default_rodata_seg
@@ -298,6 +303,7 @@ SECTIONS
 
   .eh_frame :
   {
+#if CONFIG_COMPILER_CXX_EXCEPTIONS || CONFIG_ESP_SYSTEM_USE_EH_FRAME
     ALIGNED_SYMBOL(4, __eh_frame)
 
     KEEP (*(.eh_frame))
@@ -308,11 +314,11 @@ SECTIONS
     LONG(0);
 
     __eh_frame_end = ABSOLUTE(.);
+#endif // CONFIG_COMPILER_CXX_EXCEPTIONS || CONFIG_ESP_SYSTEM_USE_EH_FRAME
 
     . = ALIGN(ALIGNOF(.flash.tdata));
   } > default_rodata_seg
   ASSERT_SECTIONS_GAP(.eh_frame, .flash.tdata)
-#endif // EH_FRAME_LINKING_ENABLED
 
   .flash.tdata :
   {
@@ -357,10 +363,6 @@ SECTIONS
     _rodata_reserved_end = ADDR(.flash.tbss);
 
     mapping[rodata_noload]
-
-    /* mutable libs begin */
-    mutable[rodata_noload]
-    /* mutable libs end */
   } > default_rodata_seg
 
   /* Marks the end of data, bss and possibly rodata */
@@ -368,49 +370,6 @@ SECTIONS
   {
     ALIGNED_SYMBOL(16, _heap_start)
   } > sram_seg
-
-  /* External RAM */
-  /**
-   * This section is required to skip flash sections, because `extern_ram_seg`
-   * and `drom_seg` / `irom_seg` are on the same bus when app build use flash sections
-   */
-  .ext_ram.dummy (NOLOAD):
-  {
-    . = ORIGIN(extern_ram_seg);
-    . = . + (_rodata_reserved_end - _flash_rodata_dummy_start);
-    . = ALIGN (_esp_mmu_page_size);
-  } > extern_ram_seg
-
-#if CONFIG_SPIRAM_ALLOW_BSS_SEG_EXTERNAL_MEMORY
-  /* This section holds .ext_ram.bss data, and will be put in PSRAM */
-  .ext_ram.bss (NOLOAD) :
-  {
-    _ext_ram_bss_start = ABSOLUTE(.);
-
-    mapping[extern_ram]
-
-    /* mutable libs begin */
-    mutable[extern_ram]
-    /* mutable libs end */
-
-    ALIGNED_SYMBOL(4, _ext_ram_bss_end)
-  } > extern_ram_seg
-#endif  //CONFIG_SPIRAM_ALLOW_BSS_SEG_EXTERNAL_MEMORY
-
-#if CONFIG_SPIRAM_ALLOW_NOINIT_SEG_EXTERNAL_MEMORY
-  /**
-   * This section holds data that won't be initialized when startup.
-   * This section locates in External RAM region.
-   */
-  .ext_ram_noinit (NOLOAD) :
-  {
-    _ext_ram_noinit_start = ABSOLUTE(.);
-
-    *(.ext_ram_noinit*)
-
-    ALIGNED_SYMBOL(4, _ext_ram_noinit_end)
-  } > extern_ram_seg
-#endif //CONFIG_SPIRAM_ALLOW_NOINIT_SEG_EXTERNAL_MEMORY
 
 #include "elf_misc.ld.in"
 }

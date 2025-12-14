@@ -1,7 +1,7 @@
 /**
- * SPDX-FileCopyrightText: 2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2024 Espressif Systems (Shanghai) CO LTD
  *
- *  SPDX-License-Identifier: Apache-2.0 OR MIT
+ *  SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
 
@@ -210,11 +210,11 @@ extern "C" {
 /** AES_MODE : R/W; bitpos: [2:0]; default: 0;
  *  Configures the key length and encryption / decryption of the AES accelerator.\\
  *  0: AES-128 encryption\\
- *  1: Reserved\\
+ *  1: AES-192 encryption\\
  *  2: AES-256 encryption\\
  *  3: Reserved\\
  *  4: AES-128 decryption\\
- *  5: Reserved\\
+ *  5: AES-192 decryption\\
  *  6: AES-256 decryption\\
  *  7: Reserved\\
  */

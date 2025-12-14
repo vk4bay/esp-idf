@@ -21,7 +21,6 @@ else()
 
     idf_component_register(SRCS "${srcs}"
                            INCLUDE_DIRS include
-                           PRIV_REQUIRES esp_hal_timg
                            PRIV_INCLUDE_DIRS private_include)
 
     # Forces the linker to include esp_timer_init.c

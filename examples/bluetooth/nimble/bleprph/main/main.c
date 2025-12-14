@@ -52,7 +52,6 @@ static uint16_t bearers;
 
 void ble_store_config_init(void);
 
-#if NIMBLE_BLE_CONNECT
 /**
  * Logs information about a connection to the console.
  */
@@ -79,7 +78,6 @@ bleprph_print_conn_desc(struct ble_gap_conn_desc *desc)
                 desc->sec_state.authenticated,
                 desc->sec_state.bonded);
 }
-#endif
 
 #if CONFIG_EXAMPLE_EXTENDED_ADV
 /**
@@ -111,7 +109,7 @@ ext_bleprph_advertise(void)
 
     params.primary_phy = BLE_HCI_LE_PHY_1M;
     params.secondary_phy = BLE_HCI_LE_PHY_2M;
-    params.tx_power = 127;
+    //params.tx_power = 127;
     params.sid = 1;
 
     params.itvl_min = BLE_GAP_ADV_FAST_INTERVAL1_MIN;
@@ -150,9 +148,7 @@ bleprph_advertise(void)
 {
     struct ble_gap_adv_params adv_params;
     struct ble_hs_adv_fields fields;
-#if CONFIG_BT_NIMBLE_GAP_SERVICE
     const char *name;
-#endif
     int rc;
 
     /**
@@ -179,12 +175,10 @@ bleprph_advertise(void)
     fields.tx_pwr_lvl_is_present = 1;
     fields.tx_pwr_lvl = BLE_HS_ADV_TX_PWR_LVL_AUTO;
 
-#if CONFIG_BT_NIMBLE_GAP_SERVICE
     name = ble_svc_gap_device_name();
     fields.name = (uint8_t *)name;
     fields.name_len = strlen(name);
     fields.name_is_complete = 1;
-#endif
 
     fields.uuids16 = (ble_uuid16_t[]) {
         BLE_UUID16_INIT(GATT_SVR_SVC_ALERT_UUID)
@@ -242,14 +236,10 @@ static void bleprph_power_control(uint16_t conn_handle)
 static int
 bleprph_gap_event(struct ble_gap_event *event, void *arg)
 {
-#if NIMBLE_BLE_CONNECT
     struct ble_gap_conn_desc desc;
     int rc;
-#endif
 
     switch (event->type) {
-
-#if NIMBLE_BLE_CONNECT
     case BLE_GAP_EVENT_CONNECT:
         /* A new connection was established or a connection attempt failed. */
         MODLOG_DFLT(INFO, "connection %s; status=%d ",
@@ -474,8 +464,8 @@ bleprph_gap_event(struct ble_gap_event *event, void *arg)
                     event->subrate_change.subrate_factor);
         return 0;
 #endif
-#endif
     }
+
     return 0;
 }
 
@@ -604,11 +594,9 @@ app_main(void)
     assert(rc == 0);
 #endif
 
-#if CONFIG_BT_NIMBLE_GAP_SERVICE
     /* Set the default device name. */
     rc = ble_svc_gap_device_name_set("nimble-bleprph");
     assert(rc == 0);
-#endif
 
     /* XXX Need to have template for store */
     ble_store_config_init();

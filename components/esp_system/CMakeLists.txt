@@ -1,5 +1,4 @@
 idf_build_get_property(target IDF_TARGET)
-idf_build_get_property(esp_tee_build ESP_TEE_BUILD)
 
 # On Linux, we only support a few features, hence this simple component registration
 if(${target} STREQUAL "linux")
@@ -23,15 +22,10 @@ if(CONFIG_IDF_ENV_FPGA OR CONFIG_ESP_BRINGUP_BYPASS_RANDOM_SETTING)
     list(APPEND srcs "fpga_overrides_rng.c")
 endif()
 
-if(BOOTLOADER_BUILD OR esp_tee_build)
-    set(include_dirs "include")
-    if(esp_tee_build)
-        list(APPEND include_dirs "port/include/private")
-    endif()
-    # "_esp_error_check_failed()" requires spi_flash module
-    # Bootloader relies on some Kconfig options defined in esp_system.
-    idf_component_register(SRCS "${srcs}" INCLUDE_DIRS "${include_dirs}"
-                           REQUIRES spi_flash)
+if(BOOTLOADER_BUILD)
+        # "_esp_error_check_failed()" requires spi_flash module
+        # Bootloader relies on some Kconfig options defined in esp_system.
+        idf_component_register(SRCS "${srcs}" REQUIRES spi_flash)
 else()
     list(APPEND srcs "crosscore_int.c"
             "esp_ipc.c"
@@ -61,10 +55,6 @@ else()
         list(APPEND srcs "eh_frame_parser.c")
     endif()
 
-    if(CONFIG_ESP_SYSTEM_USE_FRAME_POINTER)
-        list(APPEND srcs "fp_unwind.c")
-    endif()
-
     if(CONFIG_SOC_SYSTIMER_SUPPORT_ETM)
         list(APPEND srcs "systick_etm.c")
     endif()
@@ -75,25 +65,11 @@ else()
 
     idf_component_register(SRCS "${srcs}"
                         INCLUDE_DIRS include
-                        PRIV_REQUIRES spi_flash esp_timer esp_mm esp_hal_mspi
+                        PRIV_REQUIRES spi_flash esp_timer esp_mm
                                     # [refactor-todo] requirements due to init code,
                                     # should be removable once using component init functions
                                     # link-time registration is used.
-                                    bootloader_support esp_pm esp_usb_cdc_rom_console
-                                    # [REFACTOR-TODO] Provide system hook to release dependency reversion.
-                                    # IDF-13980
-                                    esp_hal_i2c
-                                    esp_hal_i2s
-                                    esp_hal_wdt
-                                    esp_hal_lcd
-                                    esp_hal_mcpwm
-                                    esp_hal_jpeg
-                                    esp_hal_emac
-                                    esp_hal_pcnt
-                                    esp_hal_rmt
-                                    esp_hal_parlio
-                                    esp_hal_cam
-                                    esp_hal_twai
+                                    bootloader_support esp_pm
                         LDFRAGMENTS "linker.lf" "app.lf")
     add_subdirectory(port)
 
@@ -113,15 +89,7 @@ else()
         PROPERTIES COMPILE_FLAGS
         -fno-stack-protector)
 
-    target_linker_script(${COMPONENT_LIB} INTERFACE "ld/${target}/memory.ld.in")
-
-    # Generate sections.ld.in and pass it through linker script generator
-    set(sections_name "ld/${target}/sections.ld.in")
-    if(CONFIG_ESP32P4_REV_MIN_300)
-        set(sections_name "ld/${target}/sections.rev3.ld.in")
-    endif()
-    target_linker_script(${COMPONENT_LIB} INTERFACE "${sections_name}"
-                        PROCESS "${CMAKE_CURRENT_BINARY_DIR}/ld/sections.ld")
+    include(${CMAKE_CURRENT_LIST_DIR}/ld/ld.cmake)
 endif()
 
 if(CONFIG_IDF_ENV_FPGA OR CONFIG_ESP_BRINGUP_BYPASS_CPU_CLK_SETTING)
@@ -142,8 +110,8 @@ target_link_libraries(${COMPONENT_LIB} INTERFACE "-u esp_system_include_startup_
 
 # [refactor-todo] requirements due to init code, should be removable
 # once link-time registration of component init functions is used.
-if(CONFIG_ESP_TRACE_ENABLE)
-    idf_component_optional_requires(PRIVATE esp_trace)
+if(CONFIG_APPTRACE_ENABLE)
+    idf_component_optional_requires(PRIVATE app_trace)
 endif()
 
 if(CONFIG_ESP_COREDUMP_ENABLE)
@@ -176,8 +144,7 @@ if(NOT BOOTLOADER_BUILD)
     endif()
 endif()
 
-# For P4, since P4 REV2, the SRAM is contiguous
-if(CONFIG_ESP32P4_SELECTS_REV_LESS_V3)
+if(CONFIG_SOC_MEM_NON_CONTIGUOUS_SRAM)
     target_link_options(${COMPONENT_LIB} INTERFACE "-Wl,--enable-non-contiguous-regions")
 endif()
 

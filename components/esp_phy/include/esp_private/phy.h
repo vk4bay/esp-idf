@@ -1,11 +1,10 @@
 /*
- * SPDX-FileCopyrightText: 2015-2024 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2015-2025 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
 
 #pragma once
-#include <sys/lock.h>
 #include "sdkconfig.h"
 #include "esp_phy_init.h"
 #include "soc/soc_caps.h"

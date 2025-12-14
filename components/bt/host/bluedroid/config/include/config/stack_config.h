@@ -12,7 +12,6 @@
 
 struct bluedroid_config {
     bool (*get_ssp_enabled)(void);
-    bool (*get_sc_enabled) (void);
 };
 
 bt_status_t bluedroid_config_init(esp_bluedroid_config_t *cfg);

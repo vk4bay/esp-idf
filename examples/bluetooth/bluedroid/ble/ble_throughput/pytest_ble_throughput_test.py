@@ -1,41 +1,35 @@
-# SPDX-FileCopyrightText: 2022-2025 Espressif Systems (Shanghai) CO LTD
+# SPDX-FileCopyrightText: 2022-2024 Espressif Systems (Shanghai) CO LTD
 # SPDX-License-Identifier: CC0-1.0
+import os.path
 import time
-from pathlib import Path
+from typing import Tuple
 
 import pytest
 from pytest_embedded_idf.dut import IdfDut
-from pytest_embedded_idf.utils import idf_parametrize
-
-CUR_DIR = Path(__file__).parent.resolve()
 
 
-# Case 1: gatt write throughput test(EXAMPLE_CI_ID = 2)
-@pytest.mark.two_duts
+# Case 1: gatt write throughput test
+@pytest.mark.esp32
+@pytest.mark.esp32c3
+@pytest.mark.esp32c6
+@pytest.mark.esp32c61
+@pytest.mark.esp32c5
+@pytest.mark.esp32h2
+@pytest.mark.esp32s3
+@pytest.mark.wifi_two_dut
 @pytest.mark.parametrize(
-    'count, app_path, config, erase_nvs',
-    [
-        (
-            2,
-            f'{str(CUR_DIR / "throughput_server")}|{str(CUR_DIR / "throughput_client")}',
-            'write',
-            'y',
-        ),
+    'count, app_path, config, erase_all', [
+        (2,
+         f'{os.path.join(os.path.dirname(__file__), "throughput_server")}|{os.path.join(os.path.dirname(__file__), "throughput_client")}',
+         'write', 'y'),
     ],
     indirect=True,
 )
-@idf_parametrize(
-    'target', ['esp32', 'esp32c3', 'esp32c6', 'esp32c61', 'esp32c5', 'esp32h2', 'esp32s3'], indirect=['target']
-)
-def test_gatt_write_throughput(app_path: str, dut: tuple[IdfDut, IdfDut]) -> None:
+def test_gatt_write_throughput(app_path: str, dut: Tuple[IdfDut, IdfDut]) -> None:
     server = dut[0]
     client = dut[1]
-    client_addr = (
-        client.expect(r'Bluetooth MAC: (([0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2})', timeout=30).group(1).decode('utf8')
-    )
-    server_addr = (
-        server.expect(r'Bluetooth MAC: (([0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2})', timeout=30).group(1).decode('utf8')
-    )
+    client_addr = client.expect(r'Bluetooth MAC: (([0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2})', timeout=30).group(1).decode('utf8')
+    server_addr = server.expect(r'Bluetooth MAC: (([0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2})', timeout=30).group(1).decode('utf8')
 
     client.expect_exact('GATT client register, status 0', timeout=30)
     server.expect_exact('GATT server register, status 0', timeout=30)
@@ -54,32 +48,23 @@ def test_gatt_write_throughput(app_path: str, dut: tuple[IdfDut, IdfDut]) -> Non
         assert throughput > 50000 or throughput < 95000
 
 
-# Case 2: gatt write throughput test for ESP32C2 26mhz xtal(EXAMPLE_CI_ID = 2)
-@pytest.mark.two_duts
+# Case 2: gatt write throughput test for ESP32C2 26mhz xtal
+@pytest.mark.esp32c2
+@pytest.mark.wifi_two_dut
 @pytest.mark.xtal_26mhz
 @pytest.mark.parametrize(
-    'count, target, baud, app_path, config, erase_nvs',
-    [
-        (
-            2,
-            'esp32c2|esp32c2',
-            '74880',
-            f'{str(CUR_DIR / "throughput_server")}|{str(CUR_DIR / "throughput_client")}',
-            'esp32c2_xtal26m_write',
-            'y',
-        ),
+    'count, target, baud, app_path, config, erase_all', [
+        (2, 'esp32c2|esp32c2', '74880',
+         f'{os.path.join(os.path.dirname(__file__), "throughput_server")}|{os.path.join(os.path.dirname(__file__), "throughput_client")}',
+         'esp32c2_xtal26m_write', 'y'),
     ],
     indirect=True,
 )
-def test_c2_26mhz_xtal_write_throughput(app_path: str, dut: tuple[IdfDut, IdfDut]) -> None:
+def test_c2_26mhz_xtal_write_throughput(app_path: str, dut: Tuple[IdfDut, IdfDut]) -> None:
     server = dut[0]
     client = dut[1]
-    client_addr = (
-        client.expect(r'Bluetooth MAC: (([0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2})', timeout=30).group(1).decode('utf8')
-    )
-    server_addr = (
-        server.expect(r'Bluetooth MAC: (([0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2})', timeout=30).group(1).decode('utf8')
-    )
+    client_addr = client.expect(r'Bluetooth MAC: (([0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2})', timeout=30).group(1).decode('utf8')
+    server_addr = server.expect(r'Bluetooth MAC: (([0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2})', timeout=30).group(1).decode('utf8')
 
     client.expect_exact('GATT client register, status 0', timeout=30)
     server.expect_exact('GATT server register, status 0', timeout=30)
@@ -98,32 +83,28 @@ def test_c2_26mhz_xtal_write_throughput(app_path: str, dut: tuple[IdfDut, IdfDut
         assert throughput > 50000 or throughput < 95000
 
 
-# Case 3: gatt notify throughput test(EXAMPLE_CI_ID = 1)
-@pytest.mark.two_duts
+# Case 3: gatt notify throughput test
+@pytest.mark.esp32
+@pytest.mark.esp32c3
+@pytest.mark.esp32c6
+@pytest.mark.esp32c61
+@pytest.mark.esp32c5
+@pytest.mark.esp32h2
+@pytest.mark.esp32s3
+@pytest.mark.wifi_two_dut
 @pytest.mark.parametrize(
-    'count, app_path, config, erase_nvs',
-    [
-        (
-            2,
-            f'{str(CUR_DIR / "throughput_server")}|{str(CUR_DIR / "throughput_client")}',
-            'notify',
-            'y',
-        ),
+    'count, app_path, config, erase_all', [
+        (2,
+         f'{os.path.join(os.path.dirname(__file__), "throughput_server")}|{os.path.join(os.path.dirname(__file__), "throughput_client")}',
+         'notify', 'y'),
     ],
     indirect=True,
 )
-@idf_parametrize(
-    'target', ['esp32', 'esp32c3', 'esp32c6', 'esp32c61', 'esp32c5', 'esp32h2', 'esp32s3'], indirect=['target']
-)
-def test_gatt_notify_throughput(app_path: str, dut: tuple[IdfDut, IdfDut]) -> None:
+def test_gatt_notify_throughput(app_path: str, dut: Tuple[IdfDut, IdfDut]) -> None:
     server = dut[0]
     client = dut[1]
-    client_addr = (
-        client.expect(r'Bluetooth MAC: (([0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2})', timeout=30).group(1).decode('utf8')
-    )
-    server_addr = (
-        server.expect(r'Bluetooth MAC: (([0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2})', timeout=30).group(1).decode('utf8')
-    )
+    client_addr = client.expect(r'Bluetooth MAC: (([0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2})', timeout=30).group(1).decode('utf8')
+    server_addr = server.expect(r'Bluetooth MAC: (([0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2})', timeout=30).group(1).decode('utf8')
 
     client.expect_exact('GATT client register, status 0', timeout=30)
     server.expect_exact('GATT server register, status 0', timeout=30)
@@ -144,32 +125,23 @@ def test_gatt_notify_throughput(app_path: str, dut: tuple[IdfDut, IdfDut]) -> No
         assert throughput > 50000 or throughput < 95000
 
 
-# Case 4: gatt notify throughput test for ESP32C2 26mhz xtal(EXAMPLE_CI_ID = 1)
-@pytest.mark.two_duts
+# Case 4: gatt notify throughput test for ESP32C2 26mhz xtal
+@pytest.mark.esp32c2
+@pytest.mark.wifi_two_dut
 @pytest.mark.xtal_26mhz
 @pytest.mark.parametrize(
-    'count, target, baud, app_path, config, erase_nvs',
-    [
-        (
-            2,
-            'esp32c2|esp32c2',
-            '74880',
-            f'{str(CUR_DIR / "throughput_server")}|{str(CUR_DIR / "throughput_client")}',
-            'esp32c2_xtal26m_notify',
-            'y',
-        ),
+    'count, target, baud, app_path, config, erase_all', [
+        (2, 'esp32c2|esp32c2', '74880',
+         f'{os.path.join(os.path.dirname(__file__), "throughput_server")}|{os.path.join(os.path.dirname(__file__), "throughput_client")}',
+         'esp32c2_xtal26m_notify', 'y'),
     ],
     indirect=True,
 )
-def test_c2_26mhz_xtal_notify_throughput(app_path: str, dut: tuple[IdfDut, IdfDut]) -> None:
+def test_c2_26mhz_xtal_notify_throughput(app_path: str, dut: Tuple[IdfDut, IdfDut]) -> None:
     server = dut[0]
     client = dut[1]
-    client_addr = (
-        client.expect(r'Bluetooth MAC: (([0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2})', timeout=30).group(1).decode('utf8')
-    )
-    server_addr = (
-        server.expect(r'Bluetooth MAC: (([0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2})', timeout=30).group(1).decode('utf8')
-    )
+    client_addr = client.expect(r'Bluetooth MAC: (([0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2})', timeout=30).group(1).decode('utf8')
+    server_addr = server.expect(r'Bluetooth MAC: (([0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2})', timeout=30).group(1).decode('utf8')
 
     client.expect_exact('GATT client register, status 0', timeout=30)
     server.expect_exact('GATT server register, status 0', timeout=30)

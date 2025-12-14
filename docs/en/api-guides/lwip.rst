@@ -38,23 +38,12 @@ Some common lwIP app APIs are supported indirectly by ESP-IDF:
 - mDNS uses a different implementation to the lwIP default mDNS, see :doc:`/api-reference/protocols/mdns`. But lwIP can look up mDNS hosts using standard APIs such as ``gethostbyname()`` and the convention ``hostname.local``, provided the :ref:`CONFIG_LWIP_DNS_SUPPORT_MDNS_QUERIES` setting is enabled.
 - The PPP implementation in lwIP can be used to create PPPoS (PPP over serial) interface in ESP-IDF. Please refer to the documentation of the :doc:`/api-reference/network/esp_netif` component to create and configure a PPP network interface, by means of the ``ESP_NETIF_DEFAULT_PPP()`` macro defined in :component_file:`esp_netif/include/esp_netif_defaults.h`. Additional runtime settings are provided via :component_file:`esp_netif/include/esp_netif_ppp.h`. PPPoS interfaces are typically used to interact with NBIoT/GSM/LTE modems. More application-level friendly API is supported by the `esp_modem <https://components.espressif.com/component/espressif/esp_modem>`_ library, which uses this PPP lwIP module behind the scenes.
 
-DHCP Address Conflict Detection
--------------------------------
-
-Usually, DHCP servers verify that a selected IPv4 address is unique on the network before offering it. However, some, including the DHCP server in ESP-IDF, do not perform verification by default to simplify operation and speed up address assignment.
-
-If you want to avoid any possible IP address conflicts and connectivity issues, the ESP-IDF DHCP client provides several options to validate the offered IPv4 address before binding it (see :ref:`CONFIG_LWIP_DHCP_CHECKS_OFFERED_ADDRESS`):
-
-- **Simple ARP check, default option** (``CONFIG_LWIP_DHCP_DOES_ARP_CHECK``): Sends two ARP probes and only declines the offer if a reply for the offered IP comes from a different MAC address than the interface MAC. This is fast (about 1–2 seconds) and avoids false conflicts on networks where the AP echoes the client's MAC in ARP replies. **Use this option if you encounter DHCP DECLINE loops where the ARP reply for the offered IP advertises the interface's own MAC.**
-- **Address Conflict Detection (ACD)** (``CONFIG_LWIP_DHCP_DOES_ACD_CHECK``): Uses upstream lwIP ACD per RFC 5227 to probe/announce addresses. Some access points respond to ARP probes with the client's own MAC for the offered IP; upstream behavior treats any matching sender IP during PROBING as a conflict, which can cause repeated DHCP DECLINEs on such networks. **Use this option only if you need full RFC 5227 compliance and are aware of the potential issues with certain access points.**
-- **No conflict detection** (``CONFIG_LWIP_DHCP_DOES_NOT_CHECK_OFFERED_IP``): Binds the address without additional checks. **Use this option for maximum compatibility when conflict detection is not required.**
-
 BSD Sockets API
 ---------------
 
 The BSD Sockets API is a common cross-platform TCP/IP sockets API that originated in the Berkeley Standard Distribution of UNIX but is now standardized in a section of the POSIX specification. BSD Sockets are sometimes called POSIX Sockets or Berkeley Sockets.
 
-As implemented in ESP-IDF, lwIP supports all of the common usages of the BSD Sockets API. However, not all operations are fully thread-safe, and simultaneous reads and writes from multiple threads may require additional synchronization mechanisms, see :ref:`lwip-limitations` for more details.
+As implemented in ESP-IDF, lwIP supports all of the common usages of the BSD Sockets API.
 
 References
 ^^^^^^^^^^
@@ -184,7 +173,7 @@ Example:
 Socket Error Reason Code
 ++++++++++++++++++++++++
 
-Below is a list of common error codes. For a more detailed list of standard POSIX/C error codes, please see `newlib errno.h <https://github.com/espressif/newlib-esp32/blob/master/newlib/libc/include/sys/errno.h>`_ and the platform-specific extensions :component_file:`esp_libc/platform_include/sys/errno.h`.
+Below is a list of common error codes. For a more detailed list of standard POSIX/C error codes, please see `newlib errno.h <https://github.com/espressif/newlib-esp32/blob/master/newlib/libc/include/sys/errno.h>`_ and the platform-specific extensions :component_file:`newlib/platform_include/errno.h`.
 
 .. list-table::
     :header-rows: 1
@@ -445,52 +434,6 @@ IPV4 network address port translation (NAPT) and port forwarding are supported. 
 - To use NAPT for forwarding packets between two interfaces, it needs to be enabled on the interface connecting to the target network. For example, to enable internet access for Ethernet traffic through the Wi-Fi interface, NAPT must be enabled on the Ethernet interface.
 - Usage of NAPT is demonstrated in :example:`network/vlan_support`.
 
-Default lwIP Hooks
-++++++++++++++++++
-
-ESP-IDF port layer provides a default hook file, which is included in the lwIP build process. This file is located at :component_file:`lwip/port/include/lwip_default_hooks.h` and defines several hooks that implement default ESP-IDF behavior of lwIP stack. These hooks could be further modified by choosing one of these options:
-
-- *None*: No hook is declared.
-- *Default*: Default IDF implementation is provided (declared as ``weak`` in most cases and can be overridden).
-- *Custom*: Only the hook declaration is provided, and the application must implement it.
-
-**DHCP Extra Option Hook**
-
-ESP-IDF allows applications to define a hook for handling extra DHCP options. This can be useful for implementing custom DHCP-based behaviors, such as retrieving specific vendor options. To enable this feature, configure :ref:`CONFIG_LWIP_HOOK_DHCP_EXTRA_OPTION` either to **Default** (``weak`` implementation is provided which could be replaced by custom implementation) or **Custom** (you will have to implement the hook and define its link dependency to lwip)
-
-**Example Usage**
-
-An application can define the following function to handle a specific DHCP option (e.g., captive portal URI):
-
-.. code-block::
-
-    #include "esp_netif.h"
-    #include "lwip/dhcp.h"
-
-    void lwip_dhcp_on_extra_option(struct dhcp *dhcp, uint8_t state,
-                                   uint8_t option, uint8_t len,
-                                   struct pbuf* p, uint16_t offset)
-    {
-        if (option == ESP_NETIF_CAPTIVEPORTAL_URI) {
-            char *uri = (char *)p->payload + offset;
-            ESP_LOGI(TAG, "Captive Portal URI: %s", uri);
-        }
-    }
-
-**Other Default Hooks**
-
-ESP-IDF provides additional lwIP hooks that can be overridden. These include:
-
-- TCP ISN Hook (:ref:`CONFIG_LWIP_HOOK_TCP_ISN`): Allows custom randomization of TCP Initial Sequence Numbers (ESP-IDF provided implementation is the default option, set to *Custom* to provide custom implementation or *None* to use lwIP implementation).
-- IPv6 Route Hook (:ref:`CONFIG_LWIP_HOOK_IP6_ROUTE`): Enables custom route selection for IPv6 packets (No hook by default, use *Default* or *Custom* to override).
-- IPv6 Get Gateway Hook (:ref:`CONFIG_LWIP_HOOK_ND6_GET_GW`): Enables defining a custom gateway selection logic (No hook by default, use *Default* or *Custom* to override).
-- IPv6 Source Address Selection Hook (:ref:`CONFIG_LWIP_HOOK_IP6_SELECT_SRC_ADDR`): Allows customization of source address selection (No hook by default, use *Default* or *Custom* to override).
-- Netconn External Resolve Hook (:ref:`CONFIG_LWIP_HOOK_NETCONN_EXTERNAL_RESOLVE`): Allows overriding the DNS resolution logic for network connections (No hook by default, use *Default* or *Custom* to override).
-- DNS External Resolve Hook (:ref:`CONFIG_LWIP_HOOK_DNS_EXTERNAL_RESOLVE`): Provides a hook for custom DNS resolution logic with callbacks (No hook by default, but could be selected by an external component to prefer the custom option; use *Default* or *Custom* to override).
-- IPv6 Packet Input Hook (:ref:`CONFIG_LWIP_HOOK_IP6_INPUT`): Provides filtering or modification of incoming IPv6 packets (ESP-IDF provided ``weak`` implementation is the default option; use *Custom* or provide a strong definition to override the *Default* option; choose *None* to disable IPv6 packet input filtering)
-
-Each of these hooks can be configured in menuconfig, allowing selection of default, custom, or no implementation.
-
 .. _lwip-custom-hooks:
 
 Customized lwIP Hooks
@@ -518,26 +461,14 @@ This approach may not work for function-like macros, as there is no guarantee th
 
 Alternatively, you can define your function-like macro in a header file which will be pre-included as an lwIP hook file, see :ref:`lwip-custom-hooks`.
 
-Network Interface Callbacks
----------------------------
-
-- Status Callback (:ref:`CONFIG_LWIP_NETIF_STATUS_CALLBACK`): Enables `netif_set_status_callback()` to notify when an interface comes up/down and when IPv4/IPv6 addresses change.
-- Link Callback (:ref:`CONFIG_LWIP_NETIF_LINK_CALLBACK`): Enables `netif_set_link_callback()` to notify when the physical link goes up/down. The callback is triggered by `netif_set_link_up()` / `netif_set_link_down()` calls in drivers or virtual interfaces. Can be used alongside `LWIP_NETIF_EXT_STATUS_CALLBACK` for richer eventing.
-
-.. _lwip-limitations:
-
 Limitations
 ^^^^^^^^^^^
-
-lwIP in ESP-IDF supports thread safety in certain scenarios, but with limitations. It is possible to perform read, write, and close operations from different threads on the same socket simultaneously. However, performing multiple reads or multiple writes from more than one thread on the same socket at the same time is not supported. Applications that require simultaneous reads or writes from multiple threads on the same socket must implement additional synchronization mechanisms, such as locking around socket operations.
 
 ESP-IDF additions to lwIP still suffer from the global DNS limitation, described in :ref:`lwip-dns-limitation`. To address this limitation from application code, the ``FALLBACK_DNS_SERVER_ADDRESS()`` macro can be utilized to define a global DNS fallback server accessible from all interfaces. Alternatively, you have the option to maintain per-interface DNS servers and reconfigure them whenever the default interface changes.
 
 The number of IP addresses returned by network database APIs such as ``getaddrinfo()`` and ``gethostbyname()`` is restricted by the macro ``DNS_MAX_HOST_IP``. By default, the value of this macro is set to 1.
 
 In the implementation of ``getaddrinfo()``, the canonical name is not available. Therefore, the ``ai_canonname`` field of the first returned ``addrinfo`` structure will always refer to the ``nodename`` argument or a string with the same contents.
-
-The ``getaddrinfo()`` system call in lwIP within ESP-IDF has a limitation when using ``AF_UNSPEC``, as it defaults to returning only an IPv4 address in dual stack mode. This can cause issues in IPv6-only networks. To handle this, a workaround involves making two sequential calls to ``getaddrinfo()``: the first with ``AF_INET`` to query for IPv4 addresses, and the second with ``AF_INET6`` to retrieve IPv6 addresses. To provide a more robust solution, the custom ``esp_getaddrinfo()`` function has been added to the lwIP port layer to handle both IPv4 and IPv6 addresses when ``AF_UNSPEC`` is used. The :ref:`CONFIG_LWIP_USE_ESP_GETADDRINFO` option, available when both IPv4 and IPv6 are enabled, controls whether ``esp_getaddrinfo()`` or ``getaddrinfo()`` is used. It is disabled by default.
 
 Calling ``send()`` or ``sendto()`` repeatedly on a UDP socket may eventually fail with ``errno`` equal to ``ENOMEM``. This failure occurs due to the limitations of buffer sizes in the lower-layer network interface drivers. If all driver transmit buffers are full, the UDP transmission will fail. For applications that transmit a high volume of UDP datagrams and aim to avoid any dropped datagrams by the sender, it is advisable to implement error code checking and employ a retransmission mechanism with a short delay.
 

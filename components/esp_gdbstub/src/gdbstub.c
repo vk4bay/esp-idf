@@ -1,32 +1,26 @@
 /*
- * SPDX-FileCopyrightText: 2015-2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2015-2022 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
 
 #include <string.h>
-#include <sys/param.h>
-#include <sys/reent.h>
-#include "sdkconfig.h"
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
 #include "esp_gdbstub.h"
 #include "esp_gdbstub_common.h"
 #include "esp_gdbstub_memory_regions.h"
+#include "sdkconfig.h"
+#include <sys/param.h>
+
+#include "soc/soc_caps.h"
+#include "soc/uart_reg.h"
+#include "soc/periph_defs.h"
 #include "esp_attr.h"
 #include "esp_cpu.h"
 #include "esp_log.h"
 #include "esp_intr_alloc.h"
-
-#include "soc/soc_caps.h"
-#include "soc/interrupts.h"
 #include "hal/wdt_hal.h"
-
-#if GDBSTUB_QXFER_FEATURES_ENABLED
-#define GDBSTUB_QXFER_SUPPORTED_STR ";qXfer:features:read+"
-#else
-#define GDBSTUB_QXFER_SUPPORTED_STR ""
-#endif
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 
 #ifdef CONFIG_ESP_GDBSTUB_SUPPORT_TASKS
 static inline int gdb_tid_to_task_index(int tid);
@@ -38,13 +32,16 @@ static int handle_task_commands(unsigned char *cmd, int len);
 static void esp_gdbstub_send_str_as_hex(const char *str);
 #endif
 
+#ifdef CONFIG_ESP_SYSTEM_GDBSTUB_RUNTIME
 static void handle_qSupported_command(const unsigned char *cmd, int len);
+#endif // CONFIG_ESP_SYSTEM_GDBSTUB_RUNTIME
 
 #if (CONFIG_ESP_SYSTEM_GDBSTUB_RUNTIME || CONFIG_ESP_GDBSTUB_SUPPORT_TASKS)
 static bool command_name_matches(const char *pattern, const unsigned char *ucmd, int len);
 #endif // (CONFIG_ESP_SYSTEM_GDBSTUB_RUNTIME || CONFIG_ESP_GDBSTUB_SUPPORT_TASKS)
 
 static void send_reason(void);
+static char gdb_packet(char *dest_buff, char *src_buff, int len);
 
 esp_gdbstub_scratch_t s_scratch;
 esp_gdbstub_gdb_regfile_t *gdb_local_regfile = &s_scratch.regfile;
@@ -122,10 +119,10 @@ static wdt_hal_context_t rtc_wdt_ctx = RWDT_HAL_CONTEXT_DEFAULT();
 static bool rtc_wdt_ctx_enabled = false;
 static wdt_hal_context_t wdt0_context = {.inst = WDT_MWDT0, .mwdt_dev = &TIMERG0};
 static bool wdt0_context_enabled = false;
-#if TIMG_LL_GET(INST_NUM) >= 2
+#if SOC_TIMER_GROUPS >= 2
 static wdt_hal_context_t wdt1_context = {.inst = WDT_MWDT1, .mwdt_dev = &TIMERG1};
 static bool wdt1_context_enabled = false;
-#endif // TIMG_LL_GET(INST_NUM)
+#endif // SOC_TIMER_GROUPS
 
 /**
  * Disable all enabled WDTs
@@ -133,7 +130,7 @@ static bool wdt1_context_enabled = false;
 static inline void disable_all_wdts(void)
 {
     wdt0_context_enabled = wdt_hal_is_enabled(&wdt0_context);
-    #if TIMG_LL_GET(INST_NUM) >= 2
+    #if SOC_TIMER_GROUPS >= 2
     wdt1_context_enabled = wdt_hal_is_enabled(&wdt1_context);
     #endif
     rtc_wdt_ctx_enabled = wdt_hal_is_enabled(&rtc_wdt_ctx);
@@ -146,7 +143,7 @@ static inline void disable_all_wdts(void)
         wdt_hal_write_protect_enable(&wdt0_context);
     }
 
-    #if TIMG_LL_GET(INST_NUM) >= 2
+    #if SOC_TIMER_GROUPS >= 2
     /* Interrupt WDT is the Main Watchdog Timer of Timer Group 1 */
     if (true == wdt1_context_enabled) {
         wdt_hal_write_protect_disable(&wdt1_context);
@@ -154,7 +151,7 @@ static inline void disable_all_wdts(void)
         wdt_hal_feed(&wdt1_context);
         wdt_hal_write_protect_enable(&wdt1_context);
     }
-    #endif // TIMG_LL_GET(INST_NUM) >= 2
+    #endif // SOC_TIMER_GROUPS >= 2
 
     if (true == rtc_wdt_ctx_enabled) {
         wdt_hal_write_protect_disable(&rtc_wdt_ctx);
@@ -175,14 +172,14 @@ static inline void enable_all_wdts(void)
         wdt_hal_enable(&wdt0_context);
         wdt_hal_write_protect_enable(&wdt0_context);
     }
-    #if TIMG_LL_GET(INST_NUM) >= 2
+    #if SOC_TIMER_GROUPS >= 2
     /* Interrupt WDT is the Main Watchdog Timer of Timer Group 1 */
     if (false == wdt1_context_enabled) {
         wdt_hal_write_protect_disable(&wdt1_context);
         wdt_hal_enable(&wdt1_context);
         wdt_hal_write_protect_enable(&wdt1_context);
     }
-    #endif // TIMG_LL_GET(INST_NUM) >= 2
+    #endif // SOC_TIMER_GROUPS >= 2
 
     if (false == rtc_wdt_ctx_enabled) {
         wdt_hal_write_protect_disable(&rtc_wdt_ctx);
@@ -195,9 +192,7 @@ int getActiveTaskNum(void);
 int __swrite(struct _reent *, void *, const char *, int);
 int gdbstub__swrite(struct _reent *data1, void *data2, const char *buff, int len);
 
-volatile esp_gdbstub_frame_t *selected_task_frame;  /* related to task that has been chosen via GDB */
-volatile esp_gdbstub_frame_t *running_task_frame;   /* related to task that was interrupted. GDBStub implements all-stop mode,
-                                                       and this frame is needed to continue executing the task that was interrupted. */
+volatile esp_gdbstub_frame_t *temp_regs_frame;
 
 #ifdef CONFIG_ESP_SYSTEM_GDBSTUB_RUNTIME
 static int bp_count = 0;
@@ -224,7 +219,7 @@ static bool gdb_debug_int = false;
  */
 void gdbstub_handle_uart_int(esp_gdbstub_frame_t *regs_frame)
 {
-    running_task_frame = selected_task_frame = regs_frame;
+    temp_regs_frame = regs_frame;
     not_send_reason = step_in_progress;
     if (step_in_progress == true) {
         esp_gdbstub_send_str_packet("S05");
@@ -242,12 +237,8 @@ void gdbstub_handle_uart_int(esp_gdbstub_frame_t *regs_frame)
     if (doDebug) {
         process_gdb_kill = false;
         /* To enable console output in GDB, we replace the default stdout->_write function */
-#if CONFIG_LIBC_NEWLIB
         stdout->_write = gdbstub__swrite;
         stderr->_write = gdbstub__swrite;
-#else
-        // TODO IDF-11287
-#endif
         /* Stall other core until GDB exit */
         esp_gdbstub_stall_other_cpus_start();
 #ifdef CONFIG_ESP_GDBSTUB_SUPPORT_TASKS
@@ -301,7 +292,7 @@ void gdbstub_handle_debug_int(esp_gdbstub_frame_t *regs_frame)
 {
     bp_count = 0;
     wp_count = 0;
-    running_task_frame = selected_task_frame = regs_frame;
+    temp_regs_frame = regs_frame;
     gdb_debug_int = true;
     not_send_reason = step_in_progress;
     if (step_in_progress == true) {
@@ -371,9 +362,6 @@ void gdbstub_handle_debug_int(esp_gdbstub_frame_t *regs_frame)
  * */
 void esp_gdbstub_init(void)
 {
-#ifdef CONFIG_ESP_GDBSTUB_SUPPORT_TASKS
-    s_scratch.paniced_task_index = GDBSTUB_CUR_TASK_INDEX_UNKNOWN;
-#endif
     esp_intr_alloc(ETS_UART0_INTR_SOURCE, 0, esp_gdbstub_int, NULL, NULL);
     esp_gdbstub_init_dports();
 }
@@ -661,7 +649,7 @@ static void handle_S_command(const unsigned char *cmd, int len)
 static void handle_s_command(const unsigned char *cmd, int len)
 {
     step_in_progress = true;
-    esp_gdbstub_do_step((esp_gdbstub_frame_t *)running_task_frame);
+    esp_gdbstub_do_step((esp_gdbstub_frame_t *)temp_regs_frame);
 }
 
 /** Step ... */
@@ -674,87 +662,45 @@ static void handle_C_command(const unsigned char *cmd, int len)
 /* Set Register ... */
 static void handle_P_command(const unsigned char *cmd, int len)
 {
-    uint32_t reg_index = esp_gdbstub_gethex(&cmd, -1);
-    if (*cmd != '=') {
-        esp_gdbstub_send_str_packet("E.unexpected P packet format");
+    uint32_t reg_index = 0;
+    if (cmd[1] == '=') {
+        reg_index = esp_gdbstub_gethex(&cmd, 4);
+        cmd++;
+    } else if (cmd[2] == '=') {
+        reg_index = esp_gdbstub_gethex(&cmd, 8);
+        cmd++;
+        cmd++;
+    } else {
+        esp_gdbstub_send_str_packet("E02");
         return;
     }
-    cmd++; /* skip '=' */
+    uint32_t addr = esp_gdbstub_gethex(&cmd, -1);
+    /* The address comes with inverted byte order.*/
+    uint8_t *addr_ptr = (uint8_t *)&addr;
+    uint32_t p_address = 0;
+    uint8_t *p_addr_ptr = (uint8_t *)&p_address;
+    p_addr_ptr[3] = addr_ptr[0];
+    p_addr_ptr[2] = addr_ptr[1];
+    p_addr_ptr[1] = addr_ptr[2];
+    p_addr_ptr[0] = addr_ptr[3];
 
-    /* In general, we operate with 32-bit sized values here.
-     * However, some registers may be larger. For example, q registers are 128-bit sized.  */
-#if GDBSTUB_MAX_REGISTER_SIZE > 4
-    uint8_t value[GDBSTUB_MAX_REGISTER_SIZE * sizeof(uint32_t)] = {0};
-    uint32_t *value_ptr = (uint32_t *)value;
-    for(int i = 0; i < sizeof(value); i++) {
-        value[i] = (uint8_t) esp_gdbstub_gethex(&cmd, 8);
-        if (*cmd == 0)
-            break;
-    }
-#else
-    uint32_t value;
-    uint32_t *value_ptr = &value;
-    value = gdbstub_hton(esp_gdbstub_gethex(&cmd, -1));
-#endif
-
-    if (*cmd != 0) {
-        esp_gdbstub_send_str_packet("E.unexpected register size");
-        return;
-    }
-
-    esp_gdbstub_set_register((esp_gdbstub_frame_t *)selected_task_frame, reg_index, value_ptr);
+    esp_gdbstub_set_register((esp_gdbstub_frame_t *)temp_regs_frame, reg_index, p_address);
     /* Convert current register file to GDB*/
-    esp_gdbstub_frame_to_regfile((esp_gdbstub_frame_t *)selected_task_frame, gdb_local_regfile);
+    esp_gdbstub_frame_to_regfile((esp_gdbstub_frame_t *)temp_regs_frame, gdb_local_regfile);
     /* Sen OK response*/
     esp_gdbstub_send_str_packet("OK");
 }
-#endif // CONFIG_ESP_SYSTEM_GDBSTUB_RUNTIME
 
 /** qSupported requests the communication with GUI
  */
 static void handle_qSupported_command(const unsigned char *cmd, int len)
 {
     esp_gdbstub_send_start();
-#if CONFIG_ESP_SYSTEM_GDBSTUB_RUNTIME
-    esp_gdbstub_send_str("qSupported:multiprocess+;swbreak-;hwbreak+;fork-events+;vfork-events+;exec-events+;vContSupported+;no-resumed+" GDBSTUB_QXFER_SUPPORTED_STR);
-#else
-    esp_gdbstub_send_str("qSupported:multiprocess+" GDBSTUB_QXFER_SUPPORTED_STR);
-#endif
+    esp_gdbstub_send_str("qSupported:multiprocess+;swbreak-;hwbreak+;qRelocInsn+;fork-events+;vfork-events+;exec-events+;vContSupported+;QThreadEvents+;no-resumed+");
     esp_gdbstub_send_end();
 }
 
-#if GDBSTUB_QXFER_FEATURES_ENABLED
-static void qXfer_data(const char *ptr, uint32_t size, uint32_t offset, uint32_t length)
-{
-	if (offset >= size) {
-		/* No data to send.  */
-		esp_gdbstub_send_str_packet("l");
-	} else {
-		size_t len = MIN(length, size - offset);
-        esp_gdbstub_send_start();
-		esp_gdbstub_send_char('m');
-		esp_gdbstub_send_str_n(ptr + offset, len);
-        esp_gdbstub_send_end();
-	}
-}
-
-static void handle_qXfer_command(const unsigned char *cmd, int len)
-{
-    uint32_t offset;
-    uint32_t length;
-    const char *target_feature_str = "qXfer:features:read:target.xml:";
-    const int target_feature_str_len = strlen(target_feature_str);
-	if (!command_name_matches(target_feature_str, cmd, target_feature_str_len)) {
-		/* Send empty packet for not supported requests.  */
-		esp_gdbstub_send_str_packet(NULL);
-	}
-	cmd += target_feature_str_len;
-	offset = esp_gdbstub_gethex(&cmd, -1);
-	cmd++; /* skip ',' */
-	length = esp_gdbstub_gethex(&cmd, -1);
-	qXfer_data(target_xml, strlen(target_xml), offset, length);
-}
-#endif // GDBSTUB_QXFER_FEATURES_ENABLED
+#endif // CONFIG_ESP_SYSTEM_GDBSTUB_RUNTIME
 
 /** Handle a command received from gdb */
 int esp_gdbstub_handle_command(unsigned char *cmd, int len)
@@ -807,12 +753,8 @@ int esp_gdbstub_handle_command(unsigned char *cmd, int len)
     } else if (cmd[0] == 'k') {
         /* Kill GDB and continue without */
         /* By exit from GDB we have to replcae stdout->_write back */
-#if CONFIG_LIBC_NEWLIB
         stdout->_write = __swrite;
         stderr->_write = __swrite;
-#else
-        // TODO IDF-11287
-#endif
         process_gdb_kill = true;
         return GDBSTUB_ST_CONT;
     } else if (cmd[0] == 's') {
@@ -829,13 +771,9 @@ int esp_gdbstub_handle_command(unsigned char *cmd, int len)
         handle_P_command(data, len - 1);
     } else if (cmd[0] == 'c') { //continue execution
         return GDBSTUB_ST_CONT;
-#endif // CONFIG_ESP_SYSTEM_GDBSTUB_RUNTIME
     } else if (command_name_matches("qSupported", cmd, 10)) {
         handle_qSupported_command(cmd, len);
-#if GDBSTUB_QXFER_FEATURES_ENABLED
-    } else if (command_name_matches("qXfer", cmd, 5)) {
-        handle_qXfer_command(cmd, len);
-#endif // GDBSTUB_QXFER_FEATURES_ENABLED
+#endif // CONFIG_ESP_SYSTEM_GDBSTUB_RUNTIME
 #if CONFIG_ESP_GDBSTUB_SUPPORT_TASKS
     } else if (s_scratch.state != GDBSTUB_TASK_SUPPORT_DISABLED) {
         return handle_task_commands(cmd, len);
@@ -846,35 +784,6 @@ int esp_gdbstub_handle_command(unsigned char *cmd, int len)
     }
     return GDBSTUB_ST_OK;
 }
-
-#if CONFIG_LIBC_NEWLIB
-/** @brief Convert to ASCI
- * Function convert byte value to two ASCI carecters
- */
-void gdb_get_asci_char(unsigned char data, char *buff)
-{
-    const char *hex_chars = "0123456789abcdef";
-    buff[0] = hex_chars[(data >> 4) & 0x0f];
-    buff[1] = hex_chars[(data) & 0x0f];
-}
-
-/** @brief Prepare GDB packet
- * Function build GDB asci packet and return checksum
- *
- * Return checksum
- */
-char gdb_packet(char *dest_buff, char *src_buff, int len)
-{
-    char s_chsum = 0;
-    for (size_t i = 0; i < len; i++) {
-        gdb_get_asci_char(src_buff[i], &dest_buff[i * 2 + 0]);
-    }
-    for (size_t i = 0; i < len * 2; i++) {
-        s_chsum += dest_buff[i];
-    }
-    return s_chsum;
-}
-
 /**
  * Replace standard __swrite function for GDB
  */
@@ -904,11 +813,37 @@ int gdbstub__swrite(struct _reent *data1, void *data2, const char *buff, int len
     }
     return len;
 }
-#else
-// TODO IDF-11287
-#endif // CONFIG_LIBC_NEWLIB
+
+
+/** @brief Convert to ASCI
+ * Function convert byte value to two ASCI carecters
+ */
+void gdb_get_asci_char(unsigned char data, char *buff)
+{
+    const char *hex_chars = "0123456789abcdef";
+    buff[0] = hex_chars[(data >> 4) & 0x0f];
+    buff[1] = hex_chars[(data) & 0x0f];
+}
+
 
 /* Everything below is related to the support for listing FreeRTOS tasks as threads in GDB */
+
+/** @brief Prepare GDB packet
+ * Function build GDB asci packet and return checksum
+ *
+ * Return checksum
+ */
+char gdb_packet(char *dest_buff, char *src_buff, int len)
+{
+    char s_chsum = 0;
+    for (size_t i = 0; i < len; i++) {
+        gdb_get_asci_char(src_buff[i], &dest_buff[i * 2 + 0]);
+    }
+    for (size_t i = 0; i < len * 2; i++) {
+        s_chsum += dest_buff[i];
+    }
+    return s_chsum;
+}
 
 #if (CONFIG_ESP_SYSTEM_GDBSTUB_RUNTIME || CONFIG_ESP_GDBSTUB_SUPPORT_TASKS)
 static bool command_name_matches(const char *pattern, const unsigned char *ucmd, int len)
@@ -1017,13 +952,12 @@ static void set_active_task(size_t index)
         esp_gdbstub_frame_to_regfile(&s_scratch.paniced_frame, &s_scratch.regfile);
     } else {
         /* Get the registers from TCB.
-         * TODO: IDF-12550. For the task currently running on the other CPU, extracting the registers from TCB
+         * FIXME: for the task currently running on the other CPU, extracting the registers from TCB
          * isn't valid. Need to use some IPC mechanism to obtain the registers of the other CPU.
          */
         TaskHandle_t handle = NULL;
         get_task_handle(index, &handle);
         if (handle != NULL) {
-            selected_task_frame = ((StaticTask_t *)handle)->pxDummy1 /* pxTopOfStack */;
             esp_gdbstub_tcb_to_regfile(handle, &s_scratch.regfile);
         }
     }

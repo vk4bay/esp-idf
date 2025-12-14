@@ -9,14 +9,14 @@
 #include <sys/param.h>
 #include "esp_sleep.h"
 #include "esp_private/esp_sleep_internal.h"
+#include "driver/rtc_io.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/semphr.h"
+#include "soc/gpio_periph.h"
 #include "hal/uart_types.h"
 #include "hal/uart_ll.h"
 #include "driver/uart.h"
-#include "driver/rtc_io.h"
-#include "driver/gpio.h"
 #include "soc/rtc.h"            // for wakeup trigger defines
 #include "soc/rtc_periph.h"     // for read rtc registers directly (cause)
 #include "soc/soc.h"            // for direct register read macros
@@ -24,7 +24,7 @@
 #include "esp_newlib.h"
 #include "test_utils.h"
 #include "sdkconfig.h"
-#include "esp_rom_serial_output.h"
+#include "esp_rom_uart.h"
 #include "esp_rom_sys.h"
 #include "esp_timer.h"
 #include "esp_private/esp_clk.h"
@@ -322,7 +322,7 @@ static void test_psram_accessible_after_lightsleep(void)
     esp_light_sleep_start();
     TEST_ASSERT_EQUAL(0, sleep_ctx.sleep_request_result);
 
-#if CONFIG_PM_POWER_DOWN_PERIPHERAL_IN_LIGHT_SLEEP && !SOC_PM_TOP_PD_NOT_ALLOWED
+#if CONFIG_PM_POWER_DOWN_PERIPHERAL_IN_LIGHT_SLEEP
     TEST_ASSERT_EQUAL(PMU_SLEEP_PD_TOP, sleep_ctx.sleep_flags & PMU_SLEEP_PD_TOP);
     TEST_ESP_OK(sleep_cpu_configure(false));
 #endif

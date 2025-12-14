@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2023-2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2023-2024 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -47,9 +47,14 @@ static inline __attribute__((always_inline)) void pau_ll_set_regdma_entry_link_b
     dev->regdma_conf.to_mem = to_mem ? 1 : 0;
 }
 
-static inline __attribute__((always_inline)) void pau_ll_set_regdma_entry_link_backup_start_enable(pau_dev_t *dev, bool enable)
+static inline __attribute__((always_inline)) void pau_ll_set_regdma_entry_link_backup_start_enable(pau_dev_t *dev)
 {
-    dev->regdma_conf.start = enable;
+    dev->regdma_conf.start = 1;
+}
+
+static inline __attribute__((always_inline)) void pau_ll_set_regdma_entry_link_backup_start_disable(pau_dev_t *dev)
+{
+    dev->regdma_conf.start = 0;
 }
 
 static inline __attribute__((always_inline)) void pau_ll_set_regdma_link0_addr(pau_dev_t *dev, void *link_addr)
@@ -97,9 +102,14 @@ static inline __attribute__((always_inline)) uint32_t pau_ll_get_regdma_intr_sta
     return dev->int_st.val;
 }
 
-static inline __attribute__((always_inline)) void pau_ll_set_regdma_backup_done_intr_enable(pau_dev_t *dev, bool enable)
+static inline __attribute__((always_inline)) void pau_ll_set_regdma_backup_done_intr_enable(pau_dev_t *dev)
 {
-    dev->int_ena.done_int_ena = enable;
+    dev->int_ena.done_int_ena = 1;
+}
+
+static inline __attribute__((always_inline)) void pau_ll_set_regdma_backup_done_intr_disable(pau_dev_t *dev)
+{
+    dev->int_ena.done_int_ena = 0;
 }
 
 static inline void pau_ll_set_regdma_backup_error_intr_enable(pau_dev_t *dev, bool enable)
@@ -109,12 +119,12 @@ static inline void pau_ll_set_regdma_backup_error_intr_enable(pau_dev_t *dev, bo
 
 static inline __attribute__((always_inline)) void pau_ll_clear_regdma_backup_done_intr_state(pau_dev_t *dev)
 {
-    dev->int_clr.val = 0x1;
+    dev->int_clr.done_int_clr = 1;
 }
 
 static inline __attribute__((always_inline)) void pau_ll_clear_regdma_backup_error_intr_state(pau_dev_t *dev)
 {
-    dev->int_clr.val = 0x2;
+    dev->int_clr.error_int_clr = 1;
 }
 
 static inline void pau_ll_set_regdma_link_wait_retry_count(pau_dev_t *dev, int count)

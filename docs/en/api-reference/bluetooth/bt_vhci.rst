@@ -37,7 +37,6 @@ The following HCI VS commands are exclusively for Espressif's Bluetooth Host (ES
     .. doxygendefine:: ESP_BT_VS_UPD_ADV_REPORT_FLOW_CTRL_NUM_OCF
     .. doxygendefine:: ESP_BT_VS_CLR_LEGACY_ADV_OCF
     .. doxygendefine:: ESP_BT_VS_ENABLE_CSA2_OCF
-    .. doxygendefine:: ESP_BT_VS_SET_LE_VENDOR_EVTS_MASK_OCF
 
 
 .. only:: esp32c5 or esp32c6 or esp32h2 or esp32c61
@@ -54,14 +53,12 @@ The following HCI VS commands are exclusively for Espressif's Bluetooth Host (ES
     .. doxygendefine:: ESP_BT_VS_ENABLE_CSA2_OCF
     .. doxygendefine:: ESP_BT_VS_SET_LOG_PARAMS_OCF
     .. doxygendefine:: ESP_BT_VS_SET_LE_VENDOR_EVTS_MASK_OCF
-    .. doxygendefine:: ESP_BT_VS_SET_CONST_PEER_SCA_OCF
 
 
 HCI VS Events for Espressif's Bluetooth Host
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The following HCI VS events are exclusively for Espressif's Bluetooth Host (ESP-Bluedroid Host or ESP-NimBLE Host). If you are using a non-ESP host or HCI UART, these events will remain disabled unless the initialization function is explicitly called from the application. Note, these init functions as well as these additional HCI VS events are intended for Espressif's Bluetooth Host use only. Application developers **should not** call the init functions in their applications.
-
 
 .. only:: esp32
 
@@ -73,20 +70,14 @@ The following HCI VS events are exclusively for Espressif's Bluetooth Host (ESP-
 
     .. doxygendefine:: ESP_BT_VS_LE_ADV_LOST_EVT_SUBCODE
 
-
 .. only:: esp32c2
 
-    .. doxygendefine:: ESP_BT_VS_LE_CONN_SCAN_REQ_RXED_EVT_SUBCODE
-    .. doxygendefine:: ESP_BT_VS_LE_CHAN_UPDATE_COMP_EVT_SUBCODE
-    .. doxygendefine:: ESP_BT_VS_LE_SLEEP_WAKEUP_EVT_SUBCODE
     .. doxygendefine:: ESP_BT_VS_LE_ADV_LOST_EVT_SUBCODE
-
 
 .. only:: esp32c6 or esp32h2 or esp32c5 or esp32c61
 
     .. doxygendefine:: ESP_BT_VS_LE_CONN_SCAN_REQ_RXED_EVT_SUBCODE
     .. doxygendefine:: ESP_BT_VS_LE_CHAN_UPDATE_COMP_EVT_SUBCODE
-    .. doxygendefine:: ESP_BT_VS_LE_SLEEP_WAKEUP_EVT_SUBCODE
     .. doxygendefine:: ESP_BT_VS_LE_ADV_LOST_EVT_SUBCODE
 
 

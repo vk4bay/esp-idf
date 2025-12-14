@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2024-2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2024 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -35,12 +35,12 @@ static esp_err_t s_isp_claim_hist_controller(isp_proc_handle_t isp_proc, isp_his
     assert(isp_proc && hist_ctlr);
 
     bool found = false;
-    esp_os_enter_critical(&isp_proc->spinlock);
+    portENTER_CRITICAL(&isp_proc->spinlock);
     if (!isp_proc->hist_ctlr) {
         isp_proc->hist_ctlr = hist_ctlr;
         found = true;
     }
-    esp_os_exit_critical(&isp_proc->spinlock);
+    portEXIT_CRITICAL(&isp_proc->spinlock);
 
     if (!found) {
         return ESP_ERR_NOT_FOUND;
@@ -51,9 +51,9 @@ static esp_err_t s_isp_claim_hist_controller(isp_proc_handle_t isp_proc, isp_his
 static void s_isp_declaim_hist_controller(isp_hist_ctlr_t hist_ctlr)
 {
     if (hist_ctlr && hist_ctlr->isp_proc) {
-        esp_os_enter_critical(&hist_ctlr->isp_proc->spinlock);
+        portENTER_CRITICAL(&hist_ctlr->isp_proc->spinlock);
         hist_ctlr->isp_proc->hist_ctlr = NULL;
-        esp_os_exit_critical(&hist_ctlr->isp_proc->spinlock);
+        portEXIT_CRITICAL(&hist_ctlr->isp_proc->spinlock);
     }
 }
 
@@ -94,7 +94,6 @@ static esp_err_t s_esp_isp_hist_config_hardware(isp_proc_handle_t isp_proc, cons
     if (hist_cfg->hist_mode == ISP_HIST_SAMPLING_RGB) {
         isp_ll_hist_set_rgb_coefficient(isp_proc->hal.hw, &hist_cfg->rgb_coefficient);
     }
-    isp_ll_hist_set_clk_ctrl_mode(isp_proc->hal.hw, ISP_LL_PIPELINE_CLK_CTRL_AUTO);
 
     return ESP_OK;
 }
@@ -159,6 +158,7 @@ esp_err_t esp_isp_hist_controller_enable(isp_hist_ctlr_t hist_ctlr)
     ESP_RETURN_ON_FALSE(atomic_compare_exchange_strong(&hist_ctlr->fsm, &expected_fsm, ISP_FSM_ENABLE),
                         ESP_ERR_INVALID_STATE, TAG, "controller not in init state");
 
+    isp_ll_hist_clk_enable(hist_ctlr->isp_proc->hal.hw, true);
     isp_ll_enable_intr(hist_ctlr->isp_proc->hal.hw, ISP_LL_EVENT_HIST_MASK, true);
 
     return ESP_OK;
@@ -173,6 +173,7 @@ esp_err_t esp_isp_hist_controller_disable(isp_hist_ctlr_t hist_ctlr)
                         ESP_ERR_INVALID_STATE, TAG, "controller not in enable state");
 
     isp_ll_enable_intr(hist_ctlr->isp_proc->hal.hw, ISP_LL_EVENT_HIST_MASK, false);
+    isp_ll_hist_clk_enable(hist_ctlr->isp_proc->hal.hw, false);
     esp_intr_disable(hist_ctlr->intr_handle);
 
     return ESP_OK;

@@ -7,18 +7,17 @@
 #include "sdkconfig.h"
 #include "esp_ieee802154.h"
 #include "esp_openthread_ncp.h"
-#include "esp_spinel_ncp_vendor_macro.h"
 #include "ncp_base.hpp"
 
 #if (CONFIG_ESP_COEX_SW_COEXIST_ENABLE || CONFIG_EXTERNAL_COEX_ENABLE)
 #include "esp_coex_i154.h"
 #endif
 
-#if (CONFIG_OPENTHREAD_RCP_UART || CONFIG_OPENTHREAD_RCP_USB_SERIAL_JTAG)
+#if CONFIG_OPENTHREAD_RCP_UART
 #include "utils/uart.h"
 #endif
 
-#if (CONFIG_OPENTHREAD_RCP_UART || CONFIG_OPENTHREAD_RCP_USB_SERIAL_JTAG)
+#if CONFIG_OPENTHREAD_RCP_UART
 extern "C" {
     static int NcpSend(const uint8_t *aBuf, uint16_t aBufLength)
     {

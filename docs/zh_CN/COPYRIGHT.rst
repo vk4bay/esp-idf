@@ -19,9 +19,7 @@
 
 以下这些第三方库包含在 ESP-IDF 生成的应用程序（固件）中。
 
-* 如 :component_file:`COPYING.NEWLIB <esp_libc/COPYING.NEWLIB>` 中所述， :component:`Newlib <esp_libc>` 经 BSD 许可证许可，版权归各方所有。如启用了 :ref:`CONFIG_LIBC_PICOLIBC<CONFIG_LIBC_PICOLIBC>`，请参阅 :component_file:`COPYING.picolibc <esp_libc/COPYING.picolibc>`。
-
-* 如 :component_file:`COPYING.picolibc <esp_libc/COPYING.NEWLIB>` 中所述， :component:`Picolibc <esp_libc>` 经 BSD 许可证许可，版权归各方所有。
+* :component:`Newlib <newlib>` 经 BSD 许可证许可，版权归各方所有，如 :component_file:`COPYING.NEWLIB <newlib/COPYING.NEWLIB>` 中所述。
 
 * :component:`Xtensa 头文件 <xtensa/include/xtensa>` 版权归 2013 Tensilica 公司所有，并根据各头文件中复制的 MIT 许可证进行许可。
 
@@ -45,6 +43,8 @@
 
 * `FatFS`_ 库，版权归 2017 ChaN 所有，并根据 :component_file:`BSD 式条款 <fatfs/src/ff.h#L1-L18>` 进行许可。
 
+* `cJSON`_ 库，版权归 2009-2017 Dave Gamble 及 cJSON 库贡献者所有，根据 :component_file:`LICENSE 文件 <json/cJSON/LICENSE>` 中描述的 MIT 许可证进行许可。
+
 * `micro-ecc`_ 库，版权归 2014 Kenneth MacKay 所有，根据二条款 BSD 许可证进行许可。
 
 * `Mbed TLS`_ 库，版权归 2006-2018 安谋控股公司所有，根据 :component_file:`LICENSE 文件 <mbedtls/mbedtls/LICENSE>` 中描述的 Apache License 2.0 进行许可。
@@ -52,6 +52,8 @@
 * `SPIFFS`_ 库，版权归 2013-2017 Peter Andersson 所有，根据 :component_file:`LICENSE 文件 <spiffs/spiffs/LICENSE>` 中描述的 MIT 许可证进行许可。
 
 * :component_file:`SD/MMC 驱动程序 <sdmmc/sdmmc_cmd.c>` 派生自 `OpenBSD SD/MMC 驱动程序`_，版权归 2006 Uwe Stuehler 所有，并根据 BSD 许可证进行许可。
+
+* :component:`ESP-MQTT <mqtt>` 包 (contiki-mqtt)，版权归 2014 Stephen Robinson 和 MQTT-ESP - Tuan PM <tuanpm at live dot com> 所有，根据 :component_file:`LICENSE 文件 <mqtt/esp-mqtt/LICENSE>` 中描述的 Apache License 2.0 进行许可。
 
 * :component:`BLE Mesh <bt/esp_ble_mesh>` 改编自 Zephyr 项目，版权归 2017-2018 英特尔公司所有，并根据 Apache License 2.0 进行许可。
 
@@ -65,7 +67,7 @@
 
 * :component:`HTTP 解析器 <http_parser>` 基于 NGINX 中的 src/http/ngx_http_parse.c 文件，版权归 Igor Sysoev 所有。任何对源代码的额外修改经过与 NGINX、Joyent 公司及其他 Node 贡献者相同条款的许可。详情请参阅 :component_file:`LICENSE 文件 <http_parser/LICENSE.txt>`。
 
-* `SEGGER SystemView`_ 目标端库，版权归 1995-2024 赛格集团所有，并根据一条款 BSD 许可证进行许可。
+* `SEGGER SystemView`_ 目标端库，版权归 1995-2021 赛格集团所有，并根据一条款 BSD 许可证进行许可。
 
 * `protobuf-c`_ 是 C 语言的 Protocol Buffers 实现，版权归 2008-2022 Dave Benson 及 protobuf-c 作者所有。详情请参阅 :component_file:`LICENSE 文件 <protobuf-c/protobuf-c/LICENSE>`。
 
@@ -83,7 +85,7 @@ ROM 源代码版权
 
 乐鑫芯片中的 Mask ROM 包含以下部分第三方软件编译的二进制文件：
 
-* :component:`Newlib <esp_libc>`，如 :component_file:`COPYING.NEWLIB <esp_libc/COPYING.NEWLIB>` 所述，由 BSD 许可证进行许可，版权归各方所有。
+* :component:`Newlib <newlib>`，如 :component_file:`COPYING.NEWLIB <newlib/COPYING.NEWLIB>` 所述，由 BSD 许可证进行许可，版权归各方所有。
 
 * Xtensa libhal，版权归 Tensilica 公司所有，并根据下述 MIT 许可证进行许可。
 
@@ -139,9 +141,8 @@ TJpgDec - Tiny JPEG 解压器 R0.01 (C) 2011 ChaN，是一个用于小型嵌入�
 
 
 .. _Newlib: https://sourceware.org/newlib/
-.. _Picolibc: https://keithp.com/picolibc/
 .. _FreeRTOS: https://freertos.org/
-.. _esptool: https://github.com/espressif/esptool
+.. _esptool.py: https://github.com/espressif/esptool
 .. _LWIP: https://savannah.nongnu.org/projects/lwip/
 .. _TinyBasic: https://github.com/BleuLlama/TinyBasicPlus
 .. _miniz: https://code.google.com/archive/p/miniz/
@@ -151,6 +152,7 @@ TJpgDec - Tiny JPEG 解压器 R0.01 (C) 2011 ChaN，是一个用于小型嵌入�
 .. _argtable3: https://github.com/argtable/argtable3
 .. _linenoise: https://github.com/antirez/linenoise
 .. _fatfs: http://elm-chan.org/fsw/ff/00index_e.html
+.. _cJSON: https://github.com/DaveGamble/cJSON
 .. _micro-ecc: https://github.com/kmackay/micro-ecc
 .. _OpenBSD SD/MMC 驱动程序: https://github.com/openbsd/src/blob/f303646/sys/dev/sdmmc/sdmmc.c
 .. _Mbed TLS: https://github.com/Mbed-TLS/mbedtls
@@ -158,6 +160,8 @@ TJpgDec - Tiny JPEG 解压器 R0.01 (C) 2011 ChaN，是一个用于小型嵌入�
 .. _CMock: https://github.com/ThrowTheSwitch/CMock
 .. _protobuf-c: https://github.com/protobuf-c/protobuf-c
 .. _Unity: https://github.com/ThrowTheSwitch/Unity
+.. _asio: https://github.com/chriskohlhoff/asio
+.. _mqtt: https://github.com/espressif/esp-mqtt
 .. _zephyr: https://github.com/zephyrproject-rtos/zephyr
 .. _mynewt-nimble: https://github.com/apache/mynewt-nimble
 .. _ESP-IDF 编程指南: https://docs.espressif.com/projects/esp-idf/zh_CN/latest/

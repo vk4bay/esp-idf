@@ -12,4 +12,5 @@
  * @brief Supported calibration schemes
  */
 
-#define ADC_CALI_SCHEME_CURVE_FITTING_SUPPORTED    1
+// TODO: [ESP32C5] IDF-8702
+// #define ADC_CALI_SCHEME_CURVE_FITTING_SUPPORTED    1

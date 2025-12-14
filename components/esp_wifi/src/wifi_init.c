@@ -27,7 +27,7 @@
 #if __has_include("esp_psram.h")
 #include "esp_psram.h"
 #endif
-#ifdef CONFIG_ESP_WIFI_NAN_SYNC_ENABLE
+#ifdef CONFIG_ESP_WIFI_NAN_ENABLE
 #include "apps_private/wifi_apps_private.h"
 #endif
 #ifdef CONFIG_ESP_WIFI_FTM_ENABLE
@@ -64,14 +64,6 @@ static esp_pm_lock_handle_t s_wifi_modem_sleep_lock;
 wifi_mac_time_update_cb_t s_wifi_mac_time_update_cb = NULL;
 #endif
 
-#if CONFIG_ESP_WIFI_SLP_BEACON_LOST_OVER_THRESHOLD_AUTO
-#define ESP_WIFI_SLP_BEACON_LOST_DROP_BEACON_MODE   WIFI_BEACON_DROP_AUTO
-#elif CONFIG_ESP_WIFI_SLP_BEACON_LOST_OVER_THRESHOLD_DROP
-#define ESP_WIFI_SLP_BEACON_LOST_DROP_BEACON_MODE   WIFI_BEACON_DROP_FORCED
-#else
-#define ESP_WIFI_SLP_BEACON_LOST_DROP_BEACON_MODE   WIFI_BEACON_DROP_DISABLED
-#endif
-
 #if SOC_PM_SUPPORT_PMU_MODEM_STATE
 # define WIFI_BEACON_MONITOR_CONFIG_DEFAULT(ena)   { \
     .enable = (ena), \
@@ -83,8 +75,7 @@ wifi_mac_time_update_cb_t s_wifi_mac_time_update_cb = NULL;
     .broadcast_wakeup = 1, \
     .tsf_time_sync_deviation = 5, \
     .modem_state_consecutive = 10, \
-    .rf_ctrl_wait_cycle = 20, \
-    .beacon_drop = ESP_WIFI_SLP_BEACON_LOST_DROP_BEACON_MODE    \
+    .rf_ctrl_wait_cycle = 20 \
 }
 #else
 # define WIFI_BEACON_MONITOR_CONFIG_DEFAULT(ena)   { \
@@ -92,17 +83,9 @@ wifi_mac_time_update_cb_t s_wifi_mac_time_update_cb = NULL;
     .loss_timeout = CONFIG_ESP_WIFI_SLP_BEACON_LOST_TIMEOUT, \
     .loss_threshold = CONFIG_ESP_WIFI_SLP_BEACON_LOST_THRESHOLD, \
     .delta_intr_early = CONFIG_ESP_WIFI_SLP_PHY_ON_DELTA_EARLY_TIME, \
-    .delta_loss_timeout = CONFIG_ESP_WIFI_SLP_PHY_OFF_DELTA_TIMEOUT_TIME, \
-    .beacon_drop = ESP_WIFI_SLP_BEACON_LOST_DROP_BEACON_MODE    \
+    .delta_loss_timeout = CONFIG_ESP_WIFI_SLP_PHY_OFF_DELTA_TIMEOUT_TIME \
 }
 #endif
-
-#define WIFI_BEACON_OFFSET_CONFIG_DEFAULT(ena)     {   \
-    .sample_period = (ena) ? CONFIG_ESP_WIFI_SLP_SAMPLE_BEACON_COUNT : 0,   \
-    .resample_period = CONFIG_ESP_WIFI_SLP_SAMPLE_BEACON_RESAMPLE_PERIOD,   \
-    .standard = CONFIG_ESP_WIFI_SLP_SAMPLE_BEACON_STANDARD_PERCENT,         \
-    .difference = CONFIG_ESP_WIFI_SLP_SAMPLE_BEACON_DIFFERENCE_PERCENT      \
-}
 
 static const char* TAG = "wifi_init";
 
@@ -187,7 +170,7 @@ static esp_err_t wifi_deinit_internal(void)
         ESP_LOGW(TAG, "Failed to unregister Rx callbacks");
     }
 
-#ifdef CONFIG_ESP_WIFI_NAN_SYNC_ENABLE
+#ifdef CONFIG_ESP_WIFI_NAN_ENABLE
     esp_nan_app_deinit();
 #endif
 
@@ -198,9 +181,8 @@ static esp_err_t wifi_deinit_internal(void)
 
     esp_supplicant_deinit();
 
-#if CONFIG_ESP_WIFI_SLP_SAMPLE_BEACON_FEATURE
-    wifi_beacon_offset_config_t offset_config = WIFI_BEACON_OFFSET_CONFIG_DEFAULT(false);
-    esp_wifi_beacon_offset_configure(&offset_config);
+#if CONFIG_ESP_WIFI_ENABLE_ROAMING_APP
+    roam_deinit_app();
 #endif
 
     err = esp_wifi_deinit_internal();
@@ -337,8 +319,7 @@ static esp_err_t esp_wifi_psram_check(const wifi_init_config_t *config)
 esp_err_t esp_wifi_init(const wifi_init_config_t *config)
 {
     if (s_wifi_inited) {
-        ESP_LOGE(TAG, "Failed to init, WiFi is initialized by esp_wifi_init");
-        return ESP_ERR_INVALID_STATE;
+        return ESP_OK;
     }
 
     esp_err_t result = ESP_OK;
@@ -349,16 +330,13 @@ esp_err_t esp_wifi_init(const wifi_init_config_t *config)
     }
 #endif
 
-#if CONFIG_ESP_WIFI_SLP_IRAM_OPT
-#if CONFIG_PM_ENABLE
+#if CONFIG_PM_ENABLE && CONFIG_ESP_WIFI_SLP_IRAM_OPT
     int min_freq_mhz = esp_pm_impl_get_cpu_freq(PM_MODE_LIGHT_SLEEP);
     int max_freq_mhz = esp_pm_impl_get_cpu_freq(PM_MODE_CPU_MAX);
     esp_wifi_internal_update_light_sleep_default_params(min_freq_mhz, max_freq_mhz);
 
     esp_pm_register_light_sleep_default_params_config_callback(esp_wifi_internal_update_light_sleep_default_params);
-#else
-    esp_wifi_internal_update_modem_sleep_default_params();
-#endif
+
 #endif
 
     uint32_t min_active_time_us = CONFIG_ESP_WIFI_SLP_DEFAULT_MIN_ACTIVE_TIME * 1000;
@@ -468,6 +446,10 @@ esp_err_t esp_wifi_init(const wifi_init_config_t *config)
             goto _deinit;
         }
 
+#if CONFIG_ESP_WIFI_ENABLE_ROAMING_APP
+        roam_init_app();
+#endif
+
     } else {
         goto _deinit;
     }
@@ -475,17 +457,11 @@ esp_err_t esp_wifi_init(const wifi_init_config_t *config)
     wifi_beacon_monitor_config_t monitor_config = WIFI_BEACON_MONITOR_CONFIG_DEFAULT(true);
     esp_wifi_beacon_monitor_configure(&monitor_config);
 #endif
-
-#if CONFIG_ESP_WIFI_SLP_SAMPLE_BEACON_FEATURE
-    wifi_beacon_offset_config_t offset_config = WIFI_BEACON_OFFSET_CONFIG_DEFAULT(true);
-    esp_wifi_beacon_offset_configure(&offset_config);
-#endif
-
     adc2_cal_include(); //This enables the ADC2 calibration constructor at start up.
 
     esp_wifi_config_info();
 
-#ifdef CONFIG_ESP_WIFI_NAN_SYNC_ENABLE
+#ifdef CONFIG_ESP_WIFI_NAN_ENABLE
     esp_nan_app_init();
 #endif
 
@@ -650,7 +626,7 @@ void create_new_bss_for_sa_query_failed_sta(uint8_t arg)
 }
 #endif /* CONFIG_ESP_WIFI_SOFTAP_SUPPORT */
 
-#ifndef CONFIG_ESP_WIFI_NAN_SYNC_ENABLE
+#ifndef CONFIG_ESP_WIFI_NAN_ENABLE
 
 esp_err_t nan_start(void)
 {
@@ -681,7 +657,7 @@ int wifi_create_nan(void)
     return 0;
 }
 
-int wifi_nan_set_config_local(wifi_nan_sync_config_t *p)
+int wifi_nan_set_config_local(wifi_nan_config_t *p)
 {
     /* Do not remove, stub to overwrite weak link in Wi-Fi Lib */
     return 0;
@@ -708,7 +684,7 @@ void nan_ndp_resp_timeout_process(void *p)
 {
     /* Do not remove, stub to overwrite weak link in Wi-Fi Lib */
 }
-#endif /* CONFIG_ESP_WIFI_NAN_SYNC_ENABLE */
+#endif /* CONFIG_ESP_WIFI_NAN_ENABLE */
 
 #if CONFIG_IDF_TARGET_ESP32C2
 #if CONFIG_ESP32C2_REV_MIN_FULL < 200
@@ -723,6 +699,5 @@ void esp32c2_eco4_rom_ptr_init(void)
 void pm_beacon_offset_funcs_init(void)
 {
     /* Do not remove, stub to overwrite weak link in Wi-Fi Lib */
-    pm_beacon_offset_funcs_empty_init();
 }
 #endif

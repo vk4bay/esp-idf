@@ -37,7 +37,6 @@
     .. doxygendefine:: ESP_BT_VS_UPD_ADV_REPORT_FLOW_CTRL_NUM_OCF
     .. doxygendefine:: ESP_BT_VS_CLR_LEGACY_ADV_OCF
     .. doxygendefine:: ESP_BT_VS_ENABLE_CSA2_OCF
-    .. doxygendefine:: ESP_BT_VS_SET_LE_VENDOR_EVTS_MASK_OCF
 
 
 .. only:: esp32c5 or esp32c6 or esp32h2 or esp32c61
@@ -54,8 +53,6 @@
     .. doxygendefine:: ESP_BT_VS_ENABLE_CSA2_OCF
     .. doxygendefine:: ESP_BT_VS_SET_LOG_PARAMS_OCF
     .. doxygendefine:: ESP_BT_VS_SET_LE_VENDOR_EVTS_MASK_OCF
-    .. doxygendefine:: ESP_BT_VS_SET_CONST_PEER_SCA_OCF
-
 
 
 乐鑫蓝牙主机专用的自定义 HCI 事件
@@ -73,12 +70,8 @@
 
     .. doxygendefine:: ESP_BT_VS_LE_ADV_LOST_EVT_SUBCODE
 
-
 .. only:: esp32c2
 
-    .. doxygendefine:: ESP_BT_VS_LE_CONN_SCAN_REQ_RXED_EVT_SUBCODE
-    .. doxygendefine:: ESP_BT_VS_LE_CHAN_UPDATE_COMP_EVT_SUBCODE
-    .. doxygendefine:: ESP_BT_VS_LE_SLEEP_WAKEUP_EVT_SUBCODE
     .. doxygendefine:: ESP_BT_VS_LE_ADV_LOST_EVT_SUBCODE
 
 
@@ -86,7 +79,6 @@
 
     .. doxygendefine:: ESP_BT_VS_LE_CONN_SCAN_REQ_RXED_EVT_SUBCODE
     .. doxygendefine:: ESP_BT_VS_LE_CHAN_UPDATE_COMP_EVT_SUBCODE
-    .. doxygendefine:: ESP_BT_VS_LE_SLEEP_WAKEUP_EVT_SUBCODE
     .. doxygendefine:: ESP_BT_VS_LE_ADV_LOST_EVT_SUBCODE
 
 

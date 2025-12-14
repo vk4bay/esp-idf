@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <stdlib.h>
+#include <string.h>
 #include <math.h>
 #include <sys/time.h>
 #include <sys/param.h>
@@ -20,13 +21,34 @@
 #include "esp_log.h"
 #include "soc/soc_caps.h"
 #include "soc/rtc.h"
-#include "esp_rtc_time.h"
 #include "esp_private/esp_clk.h"
+
+#if CONFIG_IDF_TARGET_ESP32
+#include "esp32/rtc.h"
+#elif CONFIG_IDF_TARGET_ESP32S2
+#include "esp32s2/rtc.h"
+#elif CONFIG_IDF_TARGET_ESP32S3
+#include "esp32s3/rtc.h"
+#elif CONFIG_IDF_TARGET_ESP32C3
+#include "esp32c3/rtc.h"
+#elif CONFIG_IDF_TARGET_ESP32C2
+#include "esp32c2/rtc.h"
+#elif CONFIG_IDF_TARGET_ESP32C6
+#include "esp32c6/rtc.h"
+#elif CONFIG_IDF_TARGET_ESP32C61
+#include "esp32c61/rtc.h"
+#elif CONFIG_IDF_TARGET_ESP32H2
+#include "esp32h2/rtc.h"
+#elif CONFIG_IDF_TARGET_ESP32P4
+#include "esp32p4/rtc.h"
+#elif CONFIG_IDF_TARGET_ESP32C5
+#include "esp32c5/rtc.h"
+#endif
 
 #define ALARM_PERIOD_MS 100
 #define ALARM_TIMES     200 // 200*100ms = 20s
 
-ESP_LOG_ATTR_TAG(TAG, "ESP_TIMER with DFS");
+static const char* TAG = "ESP_TIMER with DFS";
 
 static uint32_t s_current_alarm = 0;
 static uint64_t s_alarm_records[ALARM_TIMES + 1] = {0};
@@ -37,10 +59,8 @@ static uint32_t supported_freq[] = {10, 20, 40, 80, 160, 240};
 static uint32_t supported_freq[] = {10, 20, 40, 80, 120};
 #elif CONFIG_IDF_TARGET_ESP32C3 || CONFIG_IDF_TARGET_ESP32C6 || CONFIG_IDF_TARGET_ESP32C61
 static uint32_t supported_freq[] = {10, 20, 40, 80, 160};
-#elif CONFIG_IDF_TARGET_ESP32H2 || CONFIG_IDF_TARGET_ESP32H21
+#elif CONFIG_IDF_TARGET_ESP32H2
 static uint32_t supported_freq[] = {8, 16, 32, 48, 64, 96};
-#elif CONFIG_IDF_TARGET_ESP32H4
-static uint32_t supported_freq[] = {8, 16, 24, 32};
 #elif CONFIG_IDF_TARGET_ESP32P4
 static uint32_t supported_freq[] = {10, 20, 40, 90, 180, 360};
 #endif
@@ -109,7 +129,7 @@ static int64_t test_periodic_timer_accuracy_on_dfs(esp_timer_handle_t timer)
 {
     // Calibrate slow clock.
 #if !CONFIG_ESP_SYSTEM_RTC_EXT_XTAL
-    esp_clk_slowclk_cal_set(rtc_clk_cal(CLK_CAL_RTC_SLOW, 8192));
+    esp_clk_slowclk_cal_set(rtc_clk_cal(RTC_CAL_RTC_MUX, 8192));
 #endif
 
     ESP_ERROR_CHECK(esp_timer_start_periodic(timer, ALARM_PERIOD_MS * 1000));

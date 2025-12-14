@@ -28,7 +28,7 @@
 static i2s_chan_handle_t s_tx_handle = NULL;
 static i2s_chan_handle_t s_rx_handle = NULL;
 
-#if ETM_LL_SUPPORT(STATUS_REG)
+#if ETM_LL_SUPPORT_STATUS
 static void s_i2s_etm_check_status(void)
 {
     i2s_dev_t *hw = I2S_LL_GET_HW(0);
@@ -44,7 +44,7 @@ static void s_i2s_etm_check_status(void)
     TEST_ASSERT(is_tx_reach_thresh);
     TEST_ASSERT(is_rx_reach_thresh);
 }
-#endif // ETM_LL_SUPPORT(STATUS_REG)
+#endif  // ETM_LL_SUPPORT_STATUS
 
 static void s_i2s_init(void *buf)
 {
@@ -133,11 +133,11 @@ TEST_CASE("i2s_etm_event_test", "[etm]")
 
     TEST_ESP_OK(i2s_channel_read(s_rx_handle, buf, TEST_BUFF_SIZE, NULL, portMAX_DELAY));
 
-#if ETM_LL_SUPPORT(STATUS_REG)
+#if ETM_LL_SUPPORT_STATUS
     s_i2s_etm_check_status();
 #else
     TEST_ASSERT(gpio_get_level(TEST_GPIO_ETM_NUM));
-#endif  // ETM_LL_SUPPORT(STATUS_REG)
+#endif  // ETM_LL_SUPPORT_STATUS
 
     /* Test finished, free the resources */
     TEST_ESP_OK(i2s_channel_disable(s_rx_handle));

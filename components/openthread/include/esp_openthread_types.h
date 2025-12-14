@@ -11,7 +11,6 @@
 #include <sys/select.h>
 
 #include "esp_event_base.h"
-#include "esp_netif_types.h"
 #include "driver/gpio.h"
 #include "driver/spi_master.h"
 #include "driver/spi_slave.h"
@@ -151,7 +150,6 @@ typedef enum {
     HOST_CONNECTION_MODE_CLI_USB,        /*!< CLI USB connection to the host */
     HOST_CONNECTION_MODE_RCP_UART,       /*!< RCP UART connection to the host */
     HOST_CONNECTION_MODE_RCP_SPI,        /*!< RCP SPI connection to the host */
-    HOST_CONNECTION_MODE_RCP_USB,       /*!<  RCP USB Serial JTAG connection to the host */
     HOST_CONNECTION_MODE_MAX,            /*!< Using for parameter check */
 } esp_openthread_host_connection_mode_t;
 
@@ -199,15 +197,6 @@ typedef struct {
     esp_openthread_host_connection_config_t host_config;  /*!< The host connection configuration */
     esp_openthread_port_config_t            port_config;  /*!< The port configuration */
 } esp_openthread_platform_config_t;
-
-/**
- * @brief The OpenThread configuration
- *
- */
-typedef struct {
-    esp_netif_config_t                  netif_config;       /*!< The netif configuration */
-    esp_openthread_platform_config_t    platform_config;    /*!< The platform configuration */
-} esp_openthread_config_t;
 
 /**
  * @brief The OpenThread rcp failure handler

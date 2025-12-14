@@ -1,5 +1,4 @@
 idf_component_register(SRCS "fatfsgen_example_main.c"
-                    PRIV_REQUIRES vfs fatfs
                     INCLUDE_DIRS ".")
 
 # Create a FATFS image from the contents of the 'fatfs_long_name_image' directory

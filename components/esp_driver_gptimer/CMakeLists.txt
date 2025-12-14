@@ -14,7 +14,7 @@ if(CONFIG_SOC_TIMER_SUPPORT_ETM)
     list(APPEND srcs "src/gptimer_etm.c")
 endif()
 
-set(requires esp_pm esp_hal_timg)
+set(requires esp_pm)
 
 idf_component_register(SRCS ${srcs}
                        INCLUDE_DIRS ${public_include}

@@ -11,11 +11,11 @@ extern "C" {
 #endif
 
 /** Major version number (X.x.x) */
-#define ESP_IDF_VERSION_MAJOR   6
+#define ESP_IDF_VERSION_MAJOR   5
 /** Minor version number (x.X.x) */
-#define ESP_IDF_VERSION_MINOR   1
+#define ESP_IDF_VERSION_MINOR   4
 /** Patch version number (x.x.X) */
-#define ESP_IDF_VERSION_PATCH   0
+#define ESP_IDF_VERSION_PATCH   2
 
 /**
  * Macro to convert IDF version number into an integer

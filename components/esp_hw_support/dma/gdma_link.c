@@ -17,7 +17,7 @@
 #include "hal/cache_ll.h"
 #include "esp_cache.h"
 
-ESP_LOG_ATTR_TAG(TAG, "gdma-link");
+static const char *TAG = "gdma-link";
 
 #if SOC_NON_CACHEABLE_OFFSET
 #define GDMA_CACHE_ADDR_TO_NON_CACHE_ADDR(addr) ((addr) + SOC_NON_CACHEABLE_OFFSET)
@@ -51,6 +51,7 @@ struct gdma_link_list_item_t {
 typedef struct gdma_link_list_t {
     uint32_t num_items; // number of items in the link list
     size_t item_size;   // size of each item
+    size_t buffer_alignment; // Alignment of each buffer
     uint8_t *items;     // pointer to the link list items
     uint8_t *items_nc;  // pointer to the link list items, non-cached
     struct {
@@ -65,6 +66,11 @@ esp_err_t gdma_new_link_list(const gdma_link_list_config_t *config, gdma_link_li
     gdma_link_list_t *list = NULL;
     ESP_RETURN_ON_FALSE(config && ret_list, ESP_ERR_INVALID_ARG, TAG, "invalid argument");
     ESP_RETURN_ON_FALSE(config->num_items, ESP_ERR_INVALID_ARG, TAG, "invalid number of items");
+    size_t buffer_alignment = config->buffer_alignment;
+    if (buffer_alignment == 0) {
+        buffer_alignment = 1;
+    }
+    ESP_RETURN_ON_FALSE((buffer_alignment & (buffer_alignment - 1)) == 0, ESP_ERR_INVALID_ARG, TAG, "invalid buffer alignment: %zu", buffer_alignment);
 
     // the link list container is allocated from internal memory
     list = heap_caps_calloc(1, sizeof(gdma_link_list_t), MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
@@ -103,6 +109,7 @@ esp_err_t gdma_new_link_list(const gdma_link_list_config_t *config, gdma_link_li
     list->items = items;
     // calculate the non-cached address
     list->items_nc = GDMA_CACHE_ADDR_TO_NON_CACHE_ADDR(items);
+    list->buffer_alignment = buffer_alignment;
     list->flags.check_owner = config->flags.check_owner;
 
     ESP_LOGD(TAG, "new link list @%p, items @%p", list, items);
@@ -130,13 +137,13 @@ esp_err_t gdma_del_link_list(gdma_link_list_handle_t list)
 
 esp_err_t gdma_link_mount_buffers(gdma_link_list_handle_t list, int start_item_index, const gdma_buffer_mount_config_t *buf_config_array, size_t num_buf, int *end_item_index)
 {
-    if(!list || !buf_config_array || !num_buf) {
-        return ESP_ERR_INVALID_ARG;
-    }
+    ESP_RETURN_ON_FALSE(list && buf_config_array && num_buf, ESP_ERR_INVALID_ARG, TAG, "invalid argument");
+    size_t buffer_alignment = list->buffer_alignment;
     size_t item_size = list->item_size;
     uint32_t list_item_capacity = list->num_items;
     // ensure the start_item_index is between 0 and `list_item_capacity - 1`
     start_item_index = (start_item_index % list_item_capacity + list_item_capacity) % list_item_capacity;
+    size_t max_buffer_mount_length = ALIGN_DOWN(GDMA_MAX_BUFFER_SIZE_PER_LINK_ITEM, buffer_alignment);
     uint32_t begin_item_idx = start_item_index;
     gdma_link_list_item_t *lli_nc = NULL;
 
@@ -158,19 +165,13 @@ esp_err_t gdma_link_mount_buffers(gdma_link_list_handle_t list, int start_item_i
         const gdma_buffer_mount_config_t *config = &buf_config_array[bi];
         uint8_t *buf = (uint8_t *)config->buffer;
         size_t len = config->length;
-        size_t buffer_alignment = config->buffer_alignment;
-        if (buffer_alignment == 0) {
-            buffer_alignment = 1;
-        }
         // check the buffer alignment
-        ESP_RETURN_ON_FALSE_ISR((buffer_alignment & (buffer_alignment - 1)) == 0, ESP_ERR_INVALID_ARG, TAG, "invalid buffer alignment: %"PRIu32"", buffer_alignment);
-        size_t max_buffer_mount_length = ALIGN_DOWN(GDMA_MAX_BUFFER_SIZE_PER_LINK_ITEM, buffer_alignment);
         if (!config->flags.bypass_buffer_align_check) {
-            ESP_RETURN_ON_FALSE_ISR(((uintptr_t)buf & (buffer_alignment - 1)) == 0, ESP_ERR_INVALID_ARG, TAG, "buffer not aligned to %"PRIu32"", buffer_alignment);
+            ESP_RETURN_ON_FALSE(((uintptr_t)buf & (buffer_alignment - 1)) == 0, ESP_ERR_INVALID_ARG, TAG, "buffer not aligned to %zu", buffer_alignment);
         }
         uint32_t num_items_need = (len + max_buffer_mount_length - 1) / max_buffer_mount_length;
         // check if there are enough link list items
-        ESP_RETURN_ON_FALSE_ISR((begin_item_idx + num_items_need) <= (start_item_index + num_items_avail), ESP_ERR_INVALID_ARG, TAG, "no more space for buffer mounting");
+        ESP_RETURN_ON_FALSE((begin_item_idx + num_items_need) <= (start_item_index + num_items_avail), ESP_ERR_INVALID_ARG, TAG, "no more space for buffer mounting");
         begin_item_idx += num_items_need;
     }
 
@@ -183,11 +184,6 @@ esp_err_t gdma_link_mount_buffers(gdma_link_list_handle_t list, int start_item_i
         const gdma_buffer_mount_config_t *config = &buf_config_array[bi];
         uint8_t *buf = (uint8_t *)config->buffer;
         size_t len = config->length;
-        size_t buffer_alignment = config->buffer_alignment;
-        if (buffer_alignment == 0) {
-            buffer_alignment = 1;
-        }
-        size_t max_buffer_mount_length = ALIGN_DOWN(GDMA_MAX_BUFFER_SIZE_PER_LINK_ITEM, buffer_alignment);
         // skip zero-length buffer
         if (len == 0 || buf == NULL) {
             continue;
@@ -203,22 +199,9 @@ esp_err_t gdma_link_mount_buffers(gdma_link_list_handle_t list, int start_item_i
             lli_nc->dw0.size = lli_nc->dw0.length;
             // mark the EOF node
             lli_nc->dw0.suc_eof = (config->flags.mark_eof == 1) && (i == num_items_need - 1);
-            if (i == num_items_need - 1) {
-                // mark the final node
-                switch (config->flags.mark_final) {
-                    case GDMA_FINAL_LINK_TO_NULL:
-                        lli_nc->next = NULL;
-                        break;
-                    case GDMA_FINAL_LINK_TO_HEAD:
-                        lli_nc->next = (gdma_link_list_item_t *)(list->items);
-                        break;
-                    case GDMA_FINAL_LINK_TO_START:
-                        lli_nc->next = (gdma_link_list_item_t *)(list->items + start_item_index * item_size);
-                        break;
-                    default:
-                        lli_nc->next = (gdma_link_list_item_t *)(list->items + (i + begin_item_idx + 1) % list_item_capacity * item_size);
-                        break;
-                }
+            // mark the final node
+            if ((config->flags.mark_final == 1) && (i == num_items_need - 1)) {
+                lli_nc->next = NULL;
             } else {
                 lli_nc->next = (gdma_link_list_item_t *)(list->items + (i + begin_item_idx + 1) % list_item_capacity * item_size);
             }
@@ -238,39 +221,29 @@ esp_err_t gdma_link_mount_buffers(gdma_link_list_handle_t list, int start_item_i
 
 uintptr_t gdma_link_get_head_addr(gdma_link_list_handle_t list)
 {
-    if (!list) {
-        return 0;
-    }
+    ESP_RETURN_ON_FALSE(list, 0, TAG, "invalid argument");
     return (uintptr_t)(list->items);
 }
 
 esp_err_t gdma_link_concat(gdma_link_list_handle_t first_link, int first_link_item_index, gdma_link_list_handle_t second_link, int second_link_item_index)
 {
-    if(!first_link) {
-        return ESP_ERR_INVALID_ARG;
-    }
+    ESP_RETURN_ON_FALSE(first_link && second_link, ESP_ERR_INVALID_ARG, TAG, "invalid argument");
     gdma_link_list_item_t *lli_nc = NULL;
     // ensure the first_link_item_index is between 0 and `num_items - 1`
     int num_items = first_link->num_items;
     first_link_item_index = (first_link_item_index % num_items + num_items) % num_items;
     lli_nc = (gdma_link_list_item_t *)(first_link->items_nc + first_link_item_index * first_link->item_size);
-    if (second_link == NULL) {
-        lli_nc->next = NULL;
-    } else {
-        // ensure the second_link_item_index is between 0 and `num_items - 1`
-        num_items = second_link->num_items;
-        second_link_item_index = (second_link_item_index % num_items + num_items) % num_items;
-        // concatenate the two link lists
-        lli_nc->next = (gdma_link_list_item_t *)(second_link->items + second_link_item_index * second_link->item_size);
-    }
+    // ensure the second_link_item_index is between 0 and `num_items - 1`
+    num_items = second_link->num_items;
+    second_link_item_index = (second_link_item_index % num_items + num_items) % num_items;
+    // concatenate the two link lists
+    lli_nc->next = (gdma_link_list_item_t *)(second_link->items + second_link_item_index * second_link->item_size);
     return ESP_OK;
 }
 
 esp_err_t gdma_link_set_owner(gdma_link_list_handle_t list, int item_index, gdma_lli_owner_t owner)
 {
-    if (!list) {
-        return ESP_ERR_INVALID_ARG;
-    }
+    ESP_RETURN_ON_FALSE_ISR(list, ESP_ERR_INVALID_ARG, TAG, "invalid argument");
     int num_items = list->num_items;
     // ensure the item_index is between 0 and `num_items - 1`
     item_index = (item_index % num_items + num_items) % num_items;
@@ -281,9 +254,7 @@ esp_err_t gdma_link_set_owner(gdma_link_list_handle_t list, int item_index, gdma
 
 esp_err_t gdma_link_get_owner(gdma_link_list_handle_t list, int item_index, gdma_lli_owner_t *owner)
 {
-    if(!list || !owner) {
-        return ESP_ERR_INVALID_ARG;
-    }
+    ESP_RETURN_ON_FALSE_ISR(list && owner, ESP_ERR_INVALID_ARG, TAG, "invalid argument");
     int num_items = list->num_items;
     // ensure the item_index is between 0 and `num_items - 1`
     item_index = (item_index % num_items + num_items) % num_items;
@@ -311,53 +282,4 @@ size_t gdma_link_count_buffer_size_till_eof(gdma_link_list_handle_t list, int st
         }
     }
     return buf_size;
-}
-
-void* gdma_link_get_buffer(gdma_link_list_handle_t list, int item_index)
-{
-    if (!list) {
-        return NULL;
-    }
-    int num_items = list->num_items;
-    // ensure the item_index is between 0 and `num_items - 1`
-    item_index = (item_index % num_items + num_items) % num_items;
-    gdma_link_list_item_t *lli = (gdma_link_list_item_t *)(list->items_nc + item_index * list->item_size);
-    return lli->buffer;
-}
-
-size_t gdma_link_get_length(gdma_link_list_handle_t list, int item_index)
-{
-    if (!list) {
-        return 0;
-    }
-    int num_items = list->num_items;
-    // ensure the item_index is between 0 and `num_items - 1`
-    item_index = (item_index % num_items + num_items) % num_items;
-    gdma_link_list_item_t *lli = (gdma_link_list_item_t *)(list->items_nc + item_index * list->item_size);
-    return lli->dw0.length;
-}
-
-esp_err_t gdma_link_set_length(gdma_link_list_handle_t list, int item_index, size_t length)
-{
-    if(!list) {
-        return ESP_ERR_INVALID_ARG;
-    }
-    int num_items = list->num_items;
-    // ensure the item_index is between 0 and `num_items - 1`
-    item_index = (item_index % num_items + num_items) % num_items;
-    gdma_link_list_item_t *lli = (gdma_link_list_item_t *)(list->items_nc + item_index * list->item_size);
-    lli->dw0.length = length;
-    return ESP_OK;
-}
-
-bool gdma_link_check_end(gdma_link_list_handle_t list, int item_index)
-{
-    if (!list) {
-        return false;
-    }
-    int num_items = list->num_items;
-    // ensure the item_index is between 0 and `num_items - 1`
-    item_index = (item_index % num_items + num_items) % num_items;
-    gdma_link_list_item_t *lli = (gdma_link_list_item_t *)(list->items_nc + item_index * list->item_size);
-    return lli->next == NULL;
 }

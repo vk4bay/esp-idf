@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2023-2024 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2023-2025 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -146,7 +146,7 @@ static inline esp_aes_state_t aes_ll_get_state(void)
  *
  * @note Only used for DMA transforms
  *
- * @param mode Mode of operation to set (e.g., ECB, CBC, CTR, etc.)
+ * @param mode
  */
 static inline void aes_ll_set_block_mode(esp_aes_mode_t mode)
 {

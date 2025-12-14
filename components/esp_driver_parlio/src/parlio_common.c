@@ -1,18 +1,32 @@
 /*
- * SPDX-FileCopyrightText: 2023-2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2023-2024 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#include <sys/lock.h>
+#include "sdkconfig.h"
+#if CONFIG_PARLIO_ENABLE_DEBUG_LOG
+// The local log level must be defined before including esp_log.h
+// Set the maximum log level for this source file
+#define LOG_LOCAL_LEVEL ESP_LOG_DEBUG
+#endif
+#include "esp_log.h"
+#include "esp_check.h"
 #include "clk_ctrl_os.h"
+#include "soc/rtc.h"
+#include "soc/parlio_periph.h"
+#include "hal/parlio_ll.h"
 #include "esp_private/esp_clk.h"
 #include "esp_private/sleep_retention.h"
-#include "parlio_priv.h"
+#include "parlio_private.h"
+
+static const char *TAG = "parlio";
 
 typedef struct parlio_platform_t {
     _lock_t mutex;                             // platform level mutex lock
-    parlio_group_t *groups[PARLIO_LL_GET(INST_NUM)]; // array of parallel IO group instances
-    int group_ref_counts[PARLIO_LL_GET(INST_NUM)];   // reference count used to protect group install/uninstall
+    parlio_group_t *groups[SOC_PARLIO_GROUPS]; // array of parallel IO group instances
+    int group_ref_counts[SOC_PARLIO_GROUPS];   // reference count used to protect group install/uninstall
 } parlio_platform_t;
 
 static parlio_platform_t s_platform; // singleton platform
@@ -110,12 +124,12 @@ esp_err_t parlio_register_unit_to_group(parlio_unit_base_handle_t unit)
 {
     parlio_group_t *group = NULL;
     int unit_id = -1;
-    for (int i = 0; i < PARLIO_LL_GET(INST_NUM); i++) {
+    for (int i = 0; i < SOC_PARLIO_GROUPS; i++) {
         group = parlio_acquire_group_handle(i);
         ESP_RETURN_ON_FALSE(group, ESP_ERR_NO_MEM, TAG, "no memory for group (%d)", i);
         portENTER_CRITICAL(&group->spinlock);
         if (unit->dir == PARLIO_DIR_TX) {
-            for (int j = 0; j < PARLIO_LL_GET(TX_UNITS_PER_INST); j++) {
+            for (int j = 0; j < SOC_PARLIO_TX_UNITS_PER_GROUP; j++) {
                 if (!group->tx_units[j]) {
                     group->tx_units[j] = unit;
                     unit_id = j;
@@ -123,7 +137,7 @@ esp_err_t parlio_register_unit_to_group(parlio_unit_base_handle_t unit)
                 }
             }
         } else {
-            for (int j = 0; j < PARLIO_LL_GET(RX_UNITS_PER_INST); j++) {
+            for (int j = 0; j < SOC_PARLIO_RX_UNITS_PER_GROUP; j++) {
                 if (!group->rx_units[j]) {
                     group->rx_units[j] = unit;
                     unit_id = j;
@@ -190,11 +204,3 @@ void parlio_create_retention_module(parlio_group_t *group)
     _lock_release(&s_platform.mutex);
 }
 #endif // PARLIO_USE_RETENTION_LINK
-
-#if CONFIG_PARLIO_ENABLE_DEBUG_LOG
-__attribute__((constructor))
-static void parlio_override_default_log_level(void)
-{
-    esp_log_level_set(TAG, ESP_LOG_VERBOSE);
-}
-#endif

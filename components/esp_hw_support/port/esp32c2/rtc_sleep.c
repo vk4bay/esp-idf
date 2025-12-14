@@ -210,7 +210,6 @@ uint32_t rtc_sleep_start(uint32_t wakeup_opt, uint32_t reject_opt, uint32_t lslp
 
     SET_PERI_REG_MASK(RTC_CNTL_INT_CLR_REG,
                       RTC_CNTL_SLP_REJECT_INT_CLR | RTC_CNTL_SLP_WAKEUP_INT_CLR);
-    REG_SET_BIT(RTC_CNTL_STATE0_REG, RTC_CNTL_SLP_REJECT_CAUSE_CLR);
 
     /* Start entry into sleep mode */
     SET_PERI_REG_MASK(RTC_CNTL_STATE0_REG, RTC_CNTL_SLEEP_EN);
@@ -223,7 +222,7 @@ uint32_t rtc_sleep_start(uint32_t wakeup_opt, uint32_t reject_opt, uint32_t lslp
     return rtc_sleep_finish(lslp_mem_inf_fpu);
 }
 
-static IRAM_ATTR uint32_t rtc_sleep_finish(uint32_t lslp_mem_inf_fpu)
+static uint32_t rtc_sleep_finish(uint32_t lslp_mem_inf_fpu)
 {
     /* In deep sleep mode, we never get here */
     uint32_t reject = REG_GET_FIELD(RTC_CNTL_INT_RAW_REG, RTC_CNTL_SLP_REJECT_INT_RAW);

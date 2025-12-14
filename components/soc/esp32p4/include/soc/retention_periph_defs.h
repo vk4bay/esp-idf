@@ -1,7 +1,7 @@
 /*
- * SPDX-FileCopyrightText: 2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2024 Espressif Systems (Shanghai) CO LTD
  *
- * SPDX-License-Identifier: Apache-2.0 OR MIT
+ * SPDX-License-Identifier: Apache-2.0
  */
 
 #pragma once
@@ -59,8 +59,7 @@ typedef enum periph_retention_module {
     SLEEP_RETENTION_MODULE_LEDC         = 33,
     SLEEP_RETENTION_MODULE_MCPWM0       = 34,
     SLEEP_RETENTION_MODULE_MCPWM1       = 35,
-    SLEEP_RETENTION_MODULE_SDM0         = 36,
-    SLEEP_RETENTION_MODULE_EMAC         = 37,
+    SLEEP_RETENTION_MODULE_PCNT0        = 36,
 
     SLEEP_RETENTION_MODULE_MAX          = SOC_PM_RETENTION_MODULE_NUM - 1
 } periph_retention_module_t;
@@ -102,7 +101,7 @@ typedef enum periph_retention_module {
     : ((m) == SLEEP_RETENTION_MODULE_LEDC)         ? true \
     : ((m) == SLEEP_RETENTION_MODULE_MCPWM0)       ? true \
     : ((m) == SLEEP_RETENTION_MODULE_MCPWM1)       ? true \
-    : ((m) == SLEEP_RETENTION_MODULE_SDM0)         ? true \
+    : ((m) == SLEEP_RETENTION_MODULE_PCNT0)        ? true \
     : false)
 
 #ifdef __cplusplus

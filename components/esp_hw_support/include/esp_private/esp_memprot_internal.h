@@ -13,7 +13,7 @@
 #include "hal/memprot_types.h"
 #include "esp_memprot_types.h"
 #include "sdkconfig.h"
-#if CONFIG_ESP_SYSTEM_MEMPROT && CONFIG_ESP_SYSTEM_MEMPROT_PMS
+#if CONFIG_ESP_SYSTEM_MEMPROT_FEATURE
 #include "soc_memprot_types.h"
 #endif
 

@@ -51,6 +51,8 @@ TEST_CASE("ana_cmpr unit install/uninstall", "[ana_cmpr]")
 
 TEST_CASE("ana_cmpr internal reference", "[ana_cmpr]")
 {
+    int src_chan = test_init_src_chan_gpio(TEST_ANA_CMPR_UNIT_ID);
+
     uint32_t cnt = 0;
     ana_cmpr_handle_t cmpr = NULL;
     ana_cmpr_config_t config = {
@@ -58,9 +60,9 @@ TEST_CASE("ana_cmpr internal reference", "[ana_cmpr]")
         .clk_src = ANA_CMPR_CLK_SRC_DEFAULT,
         .ref_src = ANA_CMPR_REF_SRC_INTERNAL,
         .cross_type = ANA_CMPR_CROSS_ANY,
+        .flags.io_loop_back = 1,
     };
     TEST_ESP_OK(ana_cmpr_new_unit(&config, &cmpr));
-    int src_chan_io = test_init_src_chan_gpio(TEST_ANA_CMPR_UNIT_ID, 0);
     ana_cmpr_internal_ref_config_t ref_cfg = {
         .ref_volt = ANA_CMPR_REF_VOLT_50_PCT_VDD,
     };
@@ -73,14 +75,12 @@ TEST_CASE("ana_cmpr internal reference", "[ana_cmpr]")
         .on_cross = test_ana_cmpr_on_cross_callback,
     };
 
-    printf("register ana_cmpr event callbacks\r\n");
     TEST_ESP_OK(ana_cmpr_register_event_callbacks(cmpr, &cbs, &cnt));
     TEST_ESP_OK(ana_cmpr_enable(cmpr));
     cnt = 0;
     for (uint32_t i = 1; i <= 10; i++) {
-        gpio_set_level(src_chan_io, i % 2);
-        esp_rom_delay_us(100); // must be larger than the debounce time
-        // we assume the cross event was triggered already, and the value of cnt should be updated
+        test_simulate_src_signal(src_chan, i % 2);
+        esp_rom_delay_us(100);
         TEST_ASSERT_EQUAL_UINT32(i, cnt);
     }
     TEST_ESP_OK(ana_cmpr_disable(cmpr));

@@ -1,15 +1,14 @@
-# SPDX-FileCopyrightText: 2022-2025 Espressif Systems (Shanghai) CO LTD
+# SPDX-FileCopyrightText: 2022-2024 Espressif Systems (Shanghai) CO LTD
 # SPDX-License-Identifier: Unlicense OR CC0-1.0
 from datetime import datetime
 from typing import List
 
 import pytest
 from pytest_embedded import Dut
-from pytest_embedded_idf.utils import idf_parametrize
 
 
+@pytest.mark.esp32
 @pytest.mark.generic
-@idf_parametrize('target', ['esp32'], indirect=['target'])
 def test_examples_fatfs_fs_operations(config: str, dut: Dut) -> None:
     # Expects list of strings sequentially
     def expect_all(msg_list: List[str], to: int) -> None:
@@ -39,7 +38,7 @@ def test_examples_fatfs_fs_operations(config: str, dut: Dut) -> None:
             'example: File stats:',
             'File size:',
         ],
-        5,
+        5
     )
 
     original = parse_date()
@@ -51,7 +50,7 @@ def test_examples_fatfs_fs_operations(config: str, dut: Dut) -> None:
             'example: Force cached data and metadata to the filesystem',
             'File size:',
         ],
-        5,
+        5
     )
 
     updated = parse_date()
@@ -77,5 +76,5 @@ def test_examples_fatfs_fs_operations(config: str, dut: Dut) -> None:
             'example: Listing files in /spiflash/new_dir:',
             'hello_renamed.txt',
         ],
-        5,
+        5
     )

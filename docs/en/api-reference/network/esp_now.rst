@@ -18,9 +18,8 @@ ESP-NOW uses a vendor-specific action frame to transmit ESP-NOW data. The defaul
 Currently, ESP-NOW supports two versions: v1.0 and v2.0. The maximum packet length supported by v2.0 devices is 1470 (``ESP_NOW_MAX_DATA_LEN_V2``) bytes, while the maximum packet length supported by v1.0 devices is 250 (``ESP_NOW_MAX_DATA_LEN``)  bytes.
 
 The v2.0 devices are capable of receiving packets from both v2.0 and v1.0 devices. In contrast, v1.0 devices can only receive packets from other v1.0 devices.
-
-However, v1.0 devices can receive v2.0 packets if the packet length is less than or equal to 250 (``ESP_NOW_MAX_IE_DATA_LEN``).For packets exceeding this length, the v1.0 devices will either truncate the data to the first 250 (``ESP_NOW_MAX_IE_DATA_LEN``) bytes or discard the packet entirely.
-
+However, v1.0 devices can receive v2.0 packets if the packet length is less than or equal to ESP_NOW_MAX_IE_DATA_LEN.
+For packets exceeding this length, the v1.0 devices will either truncate the data to the first ESP_NOW_MAX_IE_DATA_LEN bytes or discard the packet entirely.
 For detailed behavior, please refer to the documentation corresponding to the specific IDF version.
 
 The format of the vendor-specific action frame is as follows:
@@ -92,15 +91,7 @@ Call :cpp:func:`esp_now_add_peer()` to add the device to the paired device list 
 
 You can send ESP-NOW data via both the Station and the SoftAP interface. Make sure that the interface is enabled before sending ESP-NOW data.
 
-.. only:: esp32 or esp32c2 or esp32s2 or esp32s3 or esp32c3 or esp32c6
-
-    The range of the channel of paired devices is from 0 to 14. If the channel is set to 0, data will be sent on the current channel. Otherwise, the channel must be set as the channel that the local device is on.
-
-.. only:: esp32c5
-
-    The channel range for paired devices in the 2.4 GHz band is from 1 to 14. The channel range for paired devices in the 5 GHz band includes the following channels: [36, 40, 44, 48, 52, 56, 60, 64, 100, 112, 116, 120, 124, 128, 132, 136, 140, 144, 149, 153, 157, 161, 165, 169, 173, 177].
-
-    If the channel is set to 0, data will be transmitted on the current channel. Otherwise, the channel must correspond to the local device's current channel.
+The range of the channel of paired devices is from 0 to 14. If the channel is set to 0, data will be sent on the current channel. Otherwise, the channel must be set as the channel that the local device is on.
 
 For the receiving device, calling :cpp:func:`esp_now_add_peer()` is not required. If no paired device is added, it can only receive broadcast packets and unencrypted unicast packets. To receive encrypted unicast packets, a paired device must be added, and the same LMK must be set.
 
@@ -108,7 +99,7 @@ For the receiving device, calling :cpp:func:`esp_now_add_peer()` is not required
 
     The maximum number of paired devices is 20, and the paired encryption devices are no more than 4, the default is 2. If you want to change the number of paired encryption devices, set :ref:`CONFIG_ESP_WIFI_ESPNOW_MAX_ENCRYPT_NUM` in the Wi-Fi component configuration menu.
 
-.. only:: esp32 or esp32s2 or esp32s3 or esp32c3 or esp32c6 or esp32c5
+.. only:: esp32 or esp32s2 or esp32s3 or esp32c3 or esp32c6
 
     The maximum number of paired devices is 20, and the paired encryption devices are no more than 17, the default is 7. If you want to change the number of paired encryption devices, set :ref:`CONFIG_ESP_WIFI_ESPNOW_MAX_ENCRYPT_NUM` in the Wi-Fi component configuration menu.
 
@@ -128,7 +119,17 @@ Instead, post the necessary data to a queue and handle it from a lower priority 
 Config ESP-NOW Rate
 -------------------
 
-Call :cpp:func:`esp_now_set_peer_rate_config()` to configure ESP-NOW rate of each peer. Make sure that the peer is added before configuring the rate. This API should be called after :cpp:func:`esp_wifi_start()` and :cpp:func:`esp_now_add_peer()`.
+.. only:: esp32 or esp32s2 or esp32s3 or esp32c2 or esp32c3
+
+    Call :cpp:func:`esp_wifi_config_espnow_rate()` to config ESP-NOW rate of specified interface. Make sure that the interface is enabled before config rate. This API should be called after :cpp:func:`esp_wifi_start()`.
+
+.. only:: esp32c6
+
+    Call :cpp:func:`esp_now_set_peer_rate_config()` to configure ESP-NOW rate of each peer. Make sure that the peer is added before configuring the rate. This API should be called after :cpp:func:`esp_wifi_start()` and :cpp:func:`esp_now_add_peer()`.
+
+    .. note::
+
+        :cpp:func:`esp_wifi_config_espnow_rate()` is deprecated, please use cpp::func:`esp_now_set_peer_rate_config()` instead.
 
 Config ESP-NOW Power-saving Parameter
 --------------------------------------------

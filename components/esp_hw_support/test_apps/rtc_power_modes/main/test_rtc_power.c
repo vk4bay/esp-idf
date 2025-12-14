@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2021-2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2021-2024 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -19,7 +19,7 @@
 #include "esp_private/esp_sleep_internal.h"
 #include "sdkconfig.h"
 
-ESP_LOG_ATTR_TAG(TAG, "rtc_power");
+static const char TAG[] = "rtc_power";
 
 static void check_deepsleep_reset(void)
 {
@@ -91,7 +91,18 @@ static void test_lightsleep(void)
 
         /* Enter sleep mode */
         esp_light_sleep_start();
-        printf("Returned from light sleep, reason: %s\n", (esp_sleep_get_wakeup_causes() & BIT(ESP_SLEEP_WAKEUP_TIMER)) ? "timer" : "other");
+
+        /* Determine wake up reason */
+        const char* wakeup_reason;
+        switch (esp_sleep_get_wakeup_cause()) {
+            case ESP_SLEEP_WAKEUP_TIMER:
+                wakeup_reason = "timer";
+                break;
+            default:
+                wakeup_reason = "other";
+                break;
+        }
+        printf("Returned from light sleep, reason: %s\n", wakeup_reason);
 
         vTaskDelay(1000/portTICK_PERIOD_MS);
     }

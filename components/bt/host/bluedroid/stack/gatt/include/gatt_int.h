@@ -76,12 +76,9 @@ typedef UINT8 tGATT_SEC_ACTION;
 
 #define GATT_HDR_SIZE           3 /* 1B opcode + 2B handle */
 
-/**
- * Wait for ATT cmd response timeout value (40 seconds).
- * The max connection supervision timeout is 32 seconds,
- * And The ATT cmd may not be sent out by controller immediately.
- */
-#define GATT_WAIT_FOR_RSP_TOUT       40
+/* wait for ATT cmd response timeout value */
+#define GATT_WAIT_FOR_RSP_TOUT       30
+#define GATT_WAIT_FOR_DISC_RSP_TOUT  15
 #define GATT_REQ_RETRY_LIMIT         2
 #define GATT_WAIT_FOR_IND_ACK_TOUT   5
 
@@ -600,8 +597,8 @@ extern void gatt_free(void);
 
 /* from gatt_main.c */
 extern BOOLEAN gatt_disconnect (tGATT_TCB *p_tcb);
-extern BOOLEAN gatt_act_connect (tGATT_REG *p_reg, BD_ADDR bd_addr, tBLE_ADDR_TYPE bd_addr_type, tBT_TRANSPORT transport, BOOLEAN is_aux, BOOLEAN is_pawr_synced, UINT8 adv_handle, UINT8 subevent);
-extern BOOLEAN gatt_connect (BD_ADDR rem_bda, tBLE_ADDR_TYPE bd_addr_type, tGATT_TCB *p_tcb, tBT_TRANSPORT transport, BOOLEAN is_aux, BOOLEAN is_pawr_synced, UINT8 adv_handle, UINT8 subevent);
+extern BOOLEAN gatt_act_connect (tGATT_REG *p_reg, BD_ADDR bd_addr, tBLE_ADDR_TYPE bd_addr_type, tBT_TRANSPORT transport, BOOLEAN is_aux);
+extern BOOLEAN gatt_connect (BD_ADDR rem_bda, tBLE_ADDR_TYPE bd_addr_type, tGATT_TCB *p_tcb, tBT_TRANSPORT transport, BOOLEAN is_aux);
 extern void gatt_data_process (tGATT_TCB *p_tcb, BT_HDR *p_buf);
 extern void gatt_update_app_use_link_flag ( tGATT_IF gatt_if, tGATT_TCB *p_tcb, BOOLEAN is_add, BOOLEAN check_acl_link);
 

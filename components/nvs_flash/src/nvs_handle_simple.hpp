@@ -1,9 +1,10 @@
 /*
- * SPDX-FileCopyrightText: 2015-2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2015-2022 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-#pragma once
+#ifndef NVS_HANDLE_SIMPLE_HPP_
+#define NVS_HANDLE_SIMPLE_HPP_
 
 #include "intrusive_list.h"
 #include "nvs_storage.hpp"
@@ -103,3 +104,5 @@ private:
 };
 
 } // nvs
+
+#endif // NVS_HANDLE_SIMPLE_HPP_

@@ -9,12 +9,10 @@
 
 #if CONFIG_ESP_ROM_HAS_LP_ROM
 /* With LP-ROM memory layout is different due to LP ROM stack/data */
-/* For P4 ECO5 we also reserve some RTC MEM at the first for MSPI workaround */
-#define ULP_MEM_START_ADDRESS SOC_RTC_DRAM_LOW + RESERVE_RTC_MEM + MSPI_WORKAROUND_SIZE
+#define ULP_MEM_START_ADDRESS SOC_RTC_DRAM_LOW + RESERVE_RTC_MEM
 #else
 #define ULP_MEM_START_ADDRESS (SOC_RTC_DRAM_LOW)
 #endif
-
 
 #define ALIGN_DOWN(SIZE, AL)   (SIZE & ~(AL - 1))
 /* Ensure the end where the shared memory starts is aligned to 8 bytes

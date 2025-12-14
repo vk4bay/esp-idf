@@ -24,6 +24,10 @@ void example_deep_sleep_register_ext0_wakeup(void);
 void example_deep_sleep_register_ext1_wakeup(void);
 #endif
 
+#if CONFIG_EXAMPLE_TOUCH_WAKEUP
+void example_deep_sleep_register_touch_wakeup(void);
+#endif
+
 #ifdef __cplusplus
 }
 #endif

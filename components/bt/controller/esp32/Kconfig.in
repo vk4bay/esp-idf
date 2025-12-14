@@ -454,12 +454,11 @@ config BTDM_CTRL_SCAN_BACKOFF_UPPERLIMITMAX
     default n
     help
         Disable active scan backoff. The bluetooth spec requires that scanners should run a backoff procedure to
-        minimize collision of scan request PDUs from multiple scanners. If scan backoff is disabled, in active
+        minimize collision of scan request PDUs from nultiple scanners. If scan backoff is disabled, in active
         scanning, scan request PDU will be sent every time when HW receives scannable ADV PDU.
 
 config BTDM_CTRL_CHECK_CONNECT_IND_ACCESS_ADDRESS
     bool "Enable enhanced Access Address check in CONNECT_IND"
-    depends on (BTDM_CTRL_MODE_BLE_ONLY || BTDM_CTRL_MODE_BTDM)
     default n
     help
         Enabling this option will add stricter verification of the Access Address in the CONNECT_IND PDU.

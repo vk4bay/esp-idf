@@ -132,7 +132,7 @@ static int create_hid_db(int device_index)
     return rc;
 }
 
-static int ble_hid_create_info_db(void)
+static int ble_hid_create_info_db()
 {
     int rc;
 

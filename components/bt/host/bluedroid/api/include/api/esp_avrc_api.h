@@ -145,7 +145,6 @@ typedef enum {
     ESP_AVRC_CT_SET_ABSOLUTE_VOLUME_RSP_EVT = 7, /*!< set absolute volume response event */
     ESP_AVRC_CT_COVER_ART_STATE_EVT = 8,         /*!< cover art client connection state changed event */
     ESP_AVRC_CT_COVER_ART_DATA_EVT = 9,          /*!< cover art client data event */
-    ESP_AVRC_CT_PROF_STATE_EVT = 10,             /*!< Indicate AVRCP controller init or deinit complete */
 } esp_avrc_ct_cb_event_t;
 
 /// AVRC Target callback events
@@ -156,7 +155,6 @@ typedef enum {
     ESP_AVRC_TG_SET_ABSOLUTE_VOLUME_CMD_EVT = 3,   /*!< set absolute volume command from remote device */
     ESP_AVRC_TG_REGISTER_NOTIFICATION_EVT = 4,     /*!< register notification event */
     ESP_AVRC_TG_SET_PLAYER_APP_VALUE_EVT = 5,      /*!< set application attribute value, attribute refer to esp_avrc_ps_attr_ids_t */
-    ESP_AVRC_TG_PROF_STATE_EVT = 6,                /*!< Indicate AVRCP target init or deinit complete */
 } esp_avrc_tg_cb_event_t;
 
 /// AVRC metadata attribute mask
@@ -305,18 +303,6 @@ typedef struct {
     uint8_t ct_cover_art_conn_num;         /*!< Number of cover art client connections */
 } esp_avrc_profile_status_t;
 
-/**
- * @brief Bluetooth AVRCP Initiation states
- */
-typedef enum {
-    ESP_AVRC_INIT_SUCCESS = 0,                /*!< Indicate init successful */
-    ESP_AVRC_INIT_ALREADY,                    /*!< Indicate init repeated */
-    ESP_AVRC_INIT_FAIL,                       /*!< Indicate init fail */
-    ESP_AVRC_DEINIT_SUCCESS,                  /*!< Indicate deinit successful */
-    ESP_AVRC_DEINIT_ALREADY,                  /*!< Indicate deinit repeated */
-    ESP_AVRC_DEINIT_FAIL,                     /*!< Indicate deinit fail */
-} esp_avrc_init_state_t;
-
 /// AVRC controller callback parameters
 typedef union {
     /**
@@ -345,15 +331,6 @@ typedef union {
         uint8_t *attr_text;                      /*!< attribute itself */
         int attr_length;                         /*!< attribute character length */
     } meta_rsp;                                  /*!< metadata attributes response */
-
-    /**
-     * @brief ESP_AVRC_CT_PLAY_STATUS_RSP_EVT
-     */
-    struct avrc_ct_get_play_status_rsp_param {
-        uint32_t song_length;                    /*!< total length of the playing song in milliseconds */
-        uint32_t song_position;                  /*!< current position of the playing song in milliseconds elapsed */
-        esp_avrc_playback_stat_t play_status;    /*!< current status of playing */
-    } play_status_rsp;                           /*!< get play status command response */
 
     /**
      * @brief ESP_AVRC_CT_CHANGE_NOTIFY_EVT
@@ -404,14 +381,6 @@ typedef union {
         uint16_t data_len;                      /*!< the data length of this data event, in bytes */
         uint8_t *p_data;                        /*!< pointer to data, should copy to other buff before event callback return */
     } cover_art_data;                           /*!< AVRC Cover Art data event */
-
-    /**
-     * @brief ESP_AVRC_CT_PROF_STATE_EVT
-     */
-    struct avrc_ct_init_stat_param {
-        esp_avrc_init_state_t state;            /*!< avrc ct initialization param */
-    } avrc_ct_init_stat;                        /*!< status to indicate avrcp ct init or deinit */
-
 } esp_avrc_ct_cb_param_t;
 
 /// AVRC target callback parameters
@@ -464,13 +433,6 @@ typedef union {
         esp_avrc_set_app_value_param_t *p_vals; /*!< point to the id and value of player application attribute */
     } set_app_value;                            /*!< set player application value */
 
-    /**
-     * @brief ESP_AVRC_TG_PROF_STATE_EVT
-     */
-    struct avrc_tg_init_stat_param {
-        esp_avrc_init_state_t state;            /*!< avrc tg initialization param */
-    } avrc_tg_init_stat;                        /*!< status to indicate avrcp tg init or deinit */
-
 } esp_avrc_tg_cb_param_t;
 
 /**
@@ -511,7 +473,6 @@ esp_err_t esp_avrc_ct_register_callback(esp_avrc_ct_cb_t callback);
  * @brief           Initialize the bluetooth AVRCP controller module, This function should be called
  *                  after esp_bluedroid_enable() completes successfully. Note: AVRC cannot work independently,
  *                  AVRC should be used along with A2DP and AVRC should be initialized before A2DP.
- *                  ESP_AVRC_CT_PROF_STATE_EVT with ESP_AVRC_INIT_SUCCESS will reported to the APP layer.
  *
  * @return
  *                  - ESP_OK: success
@@ -526,7 +487,6 @@ esp_err_t esp_avrc_ct_init(void);
  * @brief           De-initialize AVRCP controller module. This function should be called after
  *                  after esp_bluedroid_enable() completes successfully. Note: AVRC cannot work independently,
  *                  AVRC should be used along with A2DP and AVRC should be deinitialized before A2DP.
- *                  ESP_AVRC_CT_PROF_STATE_EVT with ESP_AVRC_DEINIT_SUCCESS will reported to the APP layer.
  *
  * @return
  *                  - ESP_OK: success
@@ -635,18 +595,6 @@ esp_err_t esp_avrc_ct_send_metadata_cmd(uint8_t tl, uint8_t attr_mask);
  */
 esp_err_t esp_avrc_ct_send_passthrough_cmd(uint8_t tl, uint8_t key_code, uint8_t key_state);
 
-/**
- * @brief           Send get play status command to AVRCP target. This function should be called after
- *                  ESP_AVRC_CT_CONNECTION_STATE_EVT is received and AVRCP connection is established.
- *
- * @param[in]       tl : transaction label, 0 to 15, consecutive commands should use different values.
- *
- * @return
- *                  - ESP_OK: success
- *                  - ESP_ERR_INVALID_STATE: if bluetooth stack is not yet enabled
- *                  - ESP_FAIL: others
- */
-esp_err_t esp_avrc_ct_send_get_play_status_cmd(uint8_t tl);
 
 /**
  * @brief           Register application callbacks to AVRCP target module. This function should be
@@ -667,7 +615,6 @@ esp_err_t esp_avrc_tg_register_callback(esp_avrc_tg_cb_t callback);
  * @brief           Initialize the bluetooth AVRCP target module, This function should be called
  *                  after esp_bluedroid_enable() completes successfully. Note: AVRC cannot work independently,
  *                  AVRC should be used along with A2DP and AVRC should be initialized before A2DP.
- *                  ESP_AVRC_TG_PROF_STATE_EVT with ESP_AVRC_INIT_SUCCESS will reported to the APP layer.
  *
  * @return
  *                  - ESP_OK: success
@@ -682,7 +629,6 @@ esp_err_t esp_avrc_tg_init(void);
  * @brief           De-initialize AVRCP target module. This function should be called after
  *                  after esp_bluedroid_enable() completes successfully. Note: AVRC cannot work independently,
  *                  AVRC should be used along with A2DP and AVRC should be deinitialized before A2DP.
- *                  ESP_AVRC_TG_PROF_STATE_EVT with ESP_AVRC_DEINIT_SUCCESS will reported to the APP layer.
  *
  * @return
  *                  - ESP_OK: success

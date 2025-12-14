@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2024-2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2024 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -19,8 +19,6 @@
 #include "hal/key_mgr_types.h"
 #include "soc/keymng_reg.h"
 #include "soc/pcr_struct.h"
-#include "soc/pcr_reg.h"
-#include "hal/efuse_hal.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -36,38 +34,29 @@ static inline esp_key_mgr_state_t key_mgr_ll_get_state(void)
     return (esp_key_mgr_state_t) REG_GET_FIELD(KEYMNG_STATE_REG, KEYMNG_STATE);
 }
 
-static inline void key_mgr_ll_power_up(void)
-{
-    /* Power up the Key Manager peripheral (default state is power-down) */
-    REG_CLR_BIT(PCR_KM_PD_CTRL_REG, PCR_KM_MEM_FORCE_PD);
-    REG_SET_BIT(PCR_KM_PD_CTRL_REG, PCR_KM_MEM_FORCE_PU);
-}
-
-#define key_mgr_ll_enable_bus_clock(...) do { \
-        _key_mgr_ll_enable_bus_clock(__VA_ARGS__); \
-    } while(0)
-
-static inline void key_mgr_ll_power_down(void)
-{
-    /* Power down the Key Manager peripheral */
-    REG_CLR_BIT(PCR_KM_PD_CTRL_REG, PCR_KM_MEM_FORCE_PU);
-    REG_SET_BIT(PCR_KM_PD_CTRL_REG, PCR_KM_MEM_FORCE_PD);
-}
-
 /**
  * @brief Enable the bus clock for Key Manager peripheral
- *
+ * Note: Please use key_mgr_ll_enable_bus_clock which requires the critical section
+ *       and do not use _key_mgr_ll_enable_bus_clock
  * @param true to enable, false to disable
  */
 static inline void _key_mgr_ll_enable_bus_clock(bool enable)
 {
+    // Set the force power down bit to 0 to enable key manager
+    PCR.km_pd_ctrl.km_mem_force_pd = 0;
     // Enable key manager clock
-    PCR.km_conf.km_clk_en = enable;
+    PCR.km_conf.km_clk_en = 1;
 }
+
+/// use a macro to wrap the function, force the caller to use it in a critical section
+/// the critical section needs to declare the __DECLARE_RCC_ATOMIC_ENV variable in advance
+#define key_mgr_ll_enable_bus_clock(...) (void)__DECLARE_RCC_ATOMIC_ENV; _key_mgr_ll_enable_bus_clock(__VA_ARGS__)
 
 /**
  * @brief Enable the peripheral clock for Key Manager
  *
+ * Note: Please use key_mgr_ll_enable_peripheral_clock which requires the critical section
+ *       and do not use _key_mgr_ll_enable_peripheral_clock
  * @param true to enable, false to disable
  */
 static inline void _key_mgr_ll_enable_peripheral_clock(bool enable)
@@ -75,13 +64,12 @@ static inline void _key_mgr_ll_enable_peripheral_clock(bool enable)
     ;    /* Nothing to do here, Kept for compatibility with other SoC */
 }
 
-#define key_mgr_ll_enable_peripheral_clock(...) do { \
-        _key_mgr_ll_enable_peripheral_clock(__VA_ARGS__); \
-    } while(0)
+#define key_mgr_ll_enable_peripheral_clock(...) (void)__DECLARE_RCC_ATOMIC_ENV; _key_mgr_ll_enable_peripheral_clock(__VA_ARGS__)
 
 /**
  * @brief Reset the Key Manager peripheral
- *
+ * Note: Please use key_mgr_ll_reset_register which requires the critical section
+ *       and do not use _key_mgr_ll_reset_register
  */
 static inline void _key_mgr_ll_reset_register(void)
 {
@@ -96,9 +84,9 @@ static inline void _key_mgr_ll_reset_register(void)
 
 }
 
-#define key_mgr_ll_reset_register(...) do { \
-        _key_mgr_ll_reset_register(__VA_ARGS__); \
-    } while(0)
+/// use a macro to wrap the function, force the caller to use it in a critical section
+/// the critical section needs to declare the __DECLARE_RCC_ATOMIC_ENV variable in advance
+#define key_mgr_ll_reset_register(...) (void)__DECLARE_RCC_ATOMIC_ENV; _key_mgr_ll_reset_register(__VA_ARGS__)
 
 /* @brief Start the key manager at IDLE state */
 static inline void key_mgr_ll_start(void)
@@ -170,8 +158,8 @@ static inline void key_mgr_ll_set_key_usage(const esp_key_mgr_key_type_t key_typ
                 REG_CLR_BIT(KEYMNG_STATIC_REG, KEYMNG_USE_EFUSE_KEY_ECDSA);
             }
             break;
-
-        case ESP_KEY_MGR_FLASH_XTS_AES_KEY:
+        case ESP_KEY_MGR_XTS_AES_128_KEY:
+        case ESP_KEY_MGR_XTS_AES_256_KEY:
             if (key_usage == ESP_KEY_MGR_USE_EFUSE_KEY) {
                 REG_SET_BIT(KEYMNG_STATIC_REG, KEYMNG_USE_EFUSE_KEY_FLASH);
             } else {
@@ -179,31 +167,8 @@ static inline void key_mgr_ll_set_key_usage(const esp_key_mgr_key_type_t key_typ
             }
             break;
 
-        case ESP_KEY_MGR_HMAC_KEY:
-            if (key_usage == ESP_KEY_MGR_USE_EFUSE_KEY) {
-                REG_SET_BIT(KEYMNG_STATIC_REG, KEYMNG_USE_EFUSE_KEY_HMAC);
-            } else {
-                REG_CLR_BIT(KEYMNG_STATIC_REG, KEYMNG_USE_EFUSE_KEY_HMAC);
-            }
-            break;
-
-        case ESP_KEY_MGR_DS_KEY:
-            if (key_usage == ESP_KEY_MGR_USE_EFUSE_KEY) {
-                REG_SET_BIT(KEYMNG_STATIC_REG, KEYMNG_USE_EFUSE_KEY_DS);
-            } else {
-                REG_CLR_BIT(KEYMNG_STATIC_REG, KEYMNG_USE_EFUSE_KEY_DS);
-            }
-            break;
-
-        case ESP_KEY_MGR_PSRAM_XTS_AES_KEY:
-            if (key_usage == ESP_KEY_MGR_USE_EFUSE_KEY) {
-                REG_SET_BIT(KEYMNG_STATIC_REG, KEYMNG_USE_EFUSE_KEY_PSRAM);
-            } else {
-                REG_CLR_BIT(KEYMNG_STATIC_REG, KEYMNG_USE_EFUSE_KEY_PSRAM);
-            }
-            break;
         default:
-            HAL_ASSERT(false && "Unsupported key type");
+            HAL_ASSERT(false && "Unsupported mode");
             return;
     }
 }
@@ -215,26 +180,16 @@ static inline esp_key_mgr_key_usage_t key_mgr_ll_get_key_usage(esp_key_mgr_key_t
             return (esp_key_mgr_key_usage_t) (REG_GET_BIT(KEYMNG_STATIC_REG, KEYMNG_USE_EFUSE_KEY_ECDSA));
             break;
 
-        case ESP_KEY_MGR_FLASH_XTS_AES_KEY:
+        case ESP_KEY_MGR_XTS_AES_128_KEY:
+        case ESP_KEY_MGR_XTS_AES_256_KEY:
             return (esp_key_mgr_key_usage_t) (REG_GET_BIT(KEYMNG_STATIC_REG, KEYMNG_USE_EFUSE_KEY_FLASH));
             break;
 
-        case ESP_KEY_MGR_HMAC_KEY:
-            return (esp_key_mgr_key_usage_t) (REG_GET_BIT(KEYMNG_STATIC_REG, KEYMNG_USE_EFUSE_KEY_HMAC));
-            break;
-
-        case ESP_KEY_MGR_DS_KEY:
-            return (esp_key_mgr_key_usage_t) (REG_GET_BIT(KEYMNG_STATIC_REG, KEYMNG_USE_EFUSE_KEY_DS));
-            break;
-
-        case ESP_KEY_MGR_PSRAM_XTS_AES_KEY:
-            return (esp_key_mgr_key_usage_t) (REG_GET_BIT(KEYMNG_STATIC_REG, KEYMNG_USE_EFUSE_KEY_PSRAM));
-            break;
-
         default:
-            HAL_ASSERT(false && "Unsupported key type");
+            HAL_ASSERT(false && "Unsupported mode");
             return ESP_KEY_MGR_USAGE_INVALID;
     }
+    return ESP_KEY_MGR_USAGE_INVALID;
 }
 
 /**
@@ -258,25 +213,12 @@ static inline void key_mgr_ll_lock_use_efuse_key_reg(esp_key_mgr_key_type_t key_
         case ESP_KEY_MGR_ECDSA_KEY:
             REG_SET_BIT(KEYMNG_LOCK_REG, KEYMNG_USE_EFUSE_KEY_LOCK_ECDSA);
             break;
-
-        case ESP_KEY_MGR_FLASH_XTS_AES_KEY:
+        case ESP_KEY_MGR_XTS_AES_128_KEY:
+        case ESP_KEY_MGR_XTS_AES_256_KEY:
             REG_SET_BIT(KEYMNG_LOCK_REG, KEYMNG_USE_EFUSE_KEY_LOCK_FLASH);
             break;
-
-        case ESP_KEY_MGR_HMAC_KEY:
-            REG_SET_BIT(KEYMNG_LOCK_REG, KEYMNG_USE_EFUSE_KEY_LOCK_HMAC);
-            break;
-
-        case ESP_KEY_MGR_DS_KEY:
-            REG_SET_BIT(KEYMNG_LOCK_REG, KEYMNG_USE_EFUSE_KEY_LOCK_DS);
-            break;
-
-        case ESP_KEY_MGR_PSRAM_XTS_AES_KEY:
-            REG_SET_BIT(KEYMNG_LOCK_REG, KEYMNG_USE_EFUSE_KEY_LOCK_PSRAM);
-            break;
-
         default:
-            HAL_ASSERT(false && "Unsupported key type");
+            HAL_ASSERT(false && "Unsupported mode");
             return;
     }
 }
@@ -310,50 +252,18 @@ static inline bool key_mgr_ll_is_result_success(void)
  * @return  1 for Success
  *          0 for failure
  */
-static inline bool key_mgr_ll_is_key_deployment_valid(const esp_key_mgr_key_type_t key_type, const esp_key_mgr_key_len_t key_len)
+static inline bool key_mgr_ll_is_key_deployment_valid(const esp_key_mgr_key_type_t key_type)
 {
     switch (key_type) {
+
         case ESP_KEY_MGR_ECDSA_KEY:
-            switch (key_len) {
-                case ESP_KEY_MGR_ECDSA_LEN_192:
-                    return REG_GET_FIELD(KEYMNG_KEY_VLD_REG, KEYMNG_KEY_ECDSA_192_VLD);
-                case ESP_KEY_MGR_ECDSA_LEN_256:
-                    return REG_GET_FIELD(KEYMNG_KEY_VLD_REG, KEYMNG_KEY_ECDSA_256_VLD);
-                case ESP_KEY_MGR_ECDSA_LEN_384:
-                    return REG_GET_FIELD(KEYMNG_KEY_VLD_REG, KEYMNG_KEY_ECDSA_384_VLD);
-                default:
-                    HAL_ASSERT(false && "Unsupported key type");
-                    return 0;
-            }
-        case ESP_KEY_MGR_FLASH_XTS_AES_KEY:
-            switch (key_len) {
-                case ESP_KEY_MGR_XTS_AES_LEN_128:
-                case ESP_KEY_MGR_XTS_AES_LEN_256:
-                    return REG_GET_FIELD(KEYMNG_KEY_VLD_REG, KEYMNG_KEY_FLASH_VLD);
-                default:
-                    HAL_ASSERT(false && "Unsupported key type");
-                    return 0;
-            }
+            return REG_GET_FIELD(KEYMNG_KEY_VLD_REG, KEYMNG_KEY_ECDSA_VLD);
+            break;
+
+        case ESP_KEY_MGR_XTS_AES_128_KEY:
+        case ESP_KEY_MGR_XTS_AES_256_KEY:
             return REG_GET_FIELD(KEYMNG_KEY_VLD_REG, KEYMNG_KEY_FLASH_VLD);
             break;
-
-        case ESP_KEY_MGR_HMAC_KEY:
-            return REG_GET_FIELD(KEYMNG_KEY_VLD_REG, KEYMNG_KEY_HMAC_VLD);
-            break;
-
-        case ESP_KEY_MGR_DS_KEY:
-            return REG_GET_FIELD(KEYMNG_KEY_VLD_REG, KEYMNG_KEY_DS_VLD);
-            break;
-
-        case ESP_KEY_MGR_PSRAM_XTS_AES_KEY:
-            switch (key_len) {
-                case ESP_KEY_MGR_XTS_AES_LEN_128:
-                case ESP_KEY_MGR_XTS_AES_LEN_256:
-                    return REG_GET_FIELD(KEYMNG_KEY_VLD_REG, KEYMNG_KEY_PSRAM_VLD);
-                default:
-                    HAL_ASSERT(false && "Unsupported key type");
-                    return 0;
-            }
 
         default:
             HAL_ASSERT(false && "Unsupported mode");
@@ -424,55 +334,15 @@ static inline bool key_mgr_ll_is_huk_valid(void)
 }
 
 /* @brief Set the XTS-AES (Flash Encryption) key length for the Key Manager */
-static inline void key_mgr_ll_set_xts_aes_key_len(const esp_key_mgr_key_type_t key_type, const esp_key_mgr_key_len_t key_len)
+static inline void key_mgr_ll_set_xts_aes_key_len(const esp_key_mgr_xts_aes_key_len_t key_len)
 {
-    uint32_t key_len_bit_mask;
-
-    if (key_type == ESP_KEY_MGR_FLASH_XTS_AES_KEY) {
-        key_len_bit_mask = KEYMNG_FLASH_KEY_LEN;
-    } else if (key_type == ESP_KEY_MGR_PSRAM_XTS_AES_KEY) {
-        key_len_bit_mask = KEYMNG_PSRAM_KEY_LEN;
-    } else {
-        HAL_ASSERT(false && "Unsupported key type");
-        return;
-    }
-
-    switch (key_len) {
-        case ESP_KEY_MGR_XTS_AES_LEN_128:
-            REG_CLR_BIT(KEYMNG_STATIC_REG, key_len_bit_mask);
-            break;
-        case ESP_KEY_MGR_XTS_AES_LEN_256:
-            REG_SET_BIT(KEYMNG_STATIC_REG, key_len_bit_mask);
-            break;
-        default:
-            HAL_ASSERT(false && "Unsupported key length");
-            return;
-    }
+    REG_SET_FIELD(KEYMNG_STATIC_REG, KEYMNG_FLASH_KEY_LEN, key_len);
 }
 
 /* @brief Get the XTS-AES (Flash Encryption) key length for the Key Manager */
-static inline esp_key_mgr_key_len_t key_mgr_ll_get_xts_aes_key_len(const esp_key_mgr_key_type_t key_type)
+static inline esp_key_mgr_xts_aes_key_len_t key_mgr_ll_get_xts_aes_key_len(void)
 {
-    uint32_t key_len_bit = 0;
-
-    if (key_type == ESP_KEY_MGR_FLASH_XTS_AES_KEY) {
-        key_len_bit = REG_GET_BIT(KEYMNG_STATIC_REG, KEYMNG_FLASH_KEY_LEN);
-    } else if (key_type == ESP_KEY_MGR_PSRAM_XTS_AES_KEY) {
-        key_len_bit = REG_GET_BIT(KEYMNG_STATIC_REG, KEYMNG_PSRAM_KEY_LEN);
-    } else {
-        HAL_ASSERT(false && "Unsupported key type");
-        return (esp_key_mgr_key_len_t) key_len_bit;
-    }
-
-    switch (key_len_bit) {
-        case 0:
-            return ESP_KEY_MGR_XTS_AES_LEN_128;
-        case 1:
-            return ESP_KEY_MGR_XTS_AES_LEN_256;
-        default:
-            HAL_ASSERT(false && "Unsupported key length");
-            return (esp_key_mgr_key_len_t) key_len_bit;
-    }
+    return (esp_key_mgr_xts_aes_key_len_t) REG_GET_FIELD(KEYMNG_STATIC_REG, KEYMNG_FLASH_KEY_LEN);
 }
 
 /**
@@ -482,19 +352,6 @@ static inline uint32_t key_mgr_ll_get_date_info(void)
 {
     // Only the least significant 28 bits have desired information
     return (uint32_t)(0x0FFFFFFF & REG_READ(KEYMNG_DATE_REG));
-}
-
-static inline bool key_mgr_ll_is_supported(void)
-{
-    return true;
-}
-
-static inline bool key_mgr_ll_flash_encryption_supported(void)
-{
-    if (!key_mgr_ll_is_supported() || efuse_hal_chip_revision() <= 100) {
-        return false;
-    }
-    return true;
 }
 
 #ifdef __cplusplus

@@ -1,7 +1,7 @@
 /**
- * SPDX-FileCopyrightText: 2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2024 Espressif Systems (Shanghai) CO LTD
  *
- *  SPDX-License-Identifier: Apache-2.0 OR MIT
+ *  SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
 
@@ -11,15 +11,13 @@
 extern "C" {
 #endif
 
-#define REG_SPI_BASE(i) (((i)==2) ? (DR_REG_SPI2_BASE) : (0))    // only one GPSPI on C61
-
 /** SPI_CMD_REG register
  *  Command control register
  */
 #define SPI_CMD_REG(i) (REG_SPI_BASE(i) + 0x0)
 /** SPI_CONF_BITLEN : R/W; bitpos: [17:0]; default: 0;
  *  Configures the SPI_CLK cycles of SPI CONF state.
- *  Measurement unit: SPI_CLK clock cycle.
+ *  Measurement unit: SPI_CLK clock cycle.\\
  *  Can be configured in CONF state.
  */
 #define SPI_CONF_BITLEN    0x0003FFFFU
@@ -28,9 +26,9 @@ extern "C" {
 #define SPI_CONF_BITLEN_S  0
 /** SPI_UPDATE : WT; bitpos: [23]; default: 0;
  *  Configures whether or not to synchronize SPI registers from APB clock domain into
- *  SPI module clock domain.
- *  0: Not synchronize
- *  1: Synchronize
+ *  SPI module clock domain. \\
+ *  0: Not synchronize \\
+ *  1: Synchronize \\
  *  This bit is only used in SPI master transfer.
  */
 #define SPI_UPDATE    (BIT(23))
@@ -38,9 +36,9 @@ extern "C" {
 #define SPI_UPDATE_V  0x00000001U
 #define SPI_UPDATE_S  23
 /** SPI_USR : R/W/SC; bitpos: [24]; default: 0;
- *  Configures whether or not to enable user-defined command.
- *  0: Not enable
- *  1: Enable
+ *  Configures whether or not to enable user-defined command. \\
+ *  0: Not enable \\
+ *  1: Enable \\
  *  An SPI operation will be triggered when the bit is set. This bit will be cleared
  *  once the operation is done. Can not be changed by CONF_buf.
  */
@@ -67,9 +65,9 @@ extern "C" {
  */
 #define SPI_CTRL_REG(i) (REG_SPI_BASE(i) + 0x8)
 /** SPI_DUMMY_OUT : R/W; bitpos: [3]; default: 0;
- *  Configures whether or not to output the FSPI bus signals in DUMMY state.
- *  0: Not output
- *  1: Output
+ *  Configures whether or not to output the FSPI bus signals in DUMMY state. \\
+ *  0: Not output \\
+ *  1: Output \\
  *  Can be configured in CONF state.
  */
 #define SPI_DUMMY_OUT    (BIT(3))
@@ -77,9 +75,9 @@ extern "C" {
 #define SPI_DUMMY_OUT_V  0x00000001U
 #define SPI_DUMMY_OUT_S  3
 /** SPI_FADDR_DUAL : R/W; bitpos: [5]; default: 0;
- *  Configures whether or not to enable 2-bit mode during address (ADDR) state.
- *  0: Disable
- *  1: Enable
+ *  Configures whether or not to enable 2-bit mode during address (ADDR) state.\\
+ *  0: Disable \\
+ *  1: Enable \\
  *  Can be configured in CONF state.
  */
 #define SPI_FADDR_DUAL    (BIT(5))
@@ -87,9 +85,9 @@ extern "C" {
 #define SPI_FADDR_DUAL_V  0x00000001U
 #define SPI_FADDR_DUAL_S  5
 /** SPI_FADDR_QUAD : R/W; bitpos: [6]; default: 0;
- *  Configures whether or not to enable 4-bit mode during address (ADDR) state.
- *  0: Disable
- *  1: Enable
+ *  Configures whether or not to enable 4-bit mode during address (ADDR) state. \\
+ *  0: Disable \\
+ *  1: Enable \\
  *  Can be configured in CONF state.
  */
 #define SPI_FADDR_QUAD    (BIT(6))
@@ -97,9 +95,9 @@ extern "C" {
 #define SPI_FADDR_QUAD_V  0x00000001U
 #define SPI_FADDR_QUAD_S  6
 /** SPI_FADDR_OCT : HRO; bitpos: [7]; default: 0;
- *  Configures whether or not to enable 8-bit mode during address (ADDR) state.
- *  0: Disable
- *  1: Enable
+ *  Configures whether or not to enable 8-bit mode during address (ADDR) state. \\
+ *  0: Disable \\
+ *  1: Enable \\
  *  Can be configured in CONF state.
  */
 #define SPI_FADDR_OCT    (BIT(7))
@@ -107,9 +105,9 @@ extern "C" {
 #define SPI_FADDR_OCT_V  0x00000001U
 #define SPI_FADDR_OCT_S  7
 /** SPI_FCMD_DUAL : R/W; bitpos: [8]; default: 0;
- *  Configures whether or not to enable 2-bit mode during command (CMD) state.
- *  0: Disable
- *  1: Enable
+ *  Configures whether or not to enable 2-bit mode during command (CMD) state. \\
+ *  0: Disable \\
+ *  1: Enable \\
  *  Can be configured in CONF state.
  */
 #define SPI_FCMD_DUAL    (BIT(8))
@@ -117,9 +115,9 @@ extern "C" {
 #define SPI_FCMD_DUAL_V  0x00000001U
 #define SPI_FCMD_DUAL_S  8
 /** SPI_FCMD_QUAD : R/W; bitpos: [9]; default: 0;
- *  Configures whether or not to enable 4-bit mode during command (CMD) state.
- *  0: Disable
- *  1: Enable
+ *  Configures whether or not to enable 4-bit mode during command (CMD) state. \\
+ *  0: Disable \\
+ *  1: Enable \\
  *  Can be configured in CONF state.
  */
 #define SPI_FCMD_QUAD    (BIT(9))
@@ -127,9 +125,9 @@ extern "C" {
 #define SPI_FCMD_QUAD_V  0x00000001U
 #define SPI_FCMD_QUAD_S  9
 /** SPI_FCMD_OCT : HRO; bitpos: [10]; default: 0;
- *  Configures whether or not to enable 8-bit mode during command (CMD) state.
- *  0: Disable
- *  1: Enable
+ *  Configures whether or not to enable 8-bit mode during command (CMD) state. \\
+ *  0: Disable \\
+ *  1: Enable \\
  *  Can be configured in CONF state.
  */
 #define SPI_FCMD_OCT    (BIT(10))
@@ -138,9 +136,9 @@ extern "C" {
 #define SPI_FCMD_OCT_S  10
 /** SPI_FREAD_DUAL : R/W; bitpos: [14]; default: 0;
  *  Configures whether or not to enable the 2-bit mode of read-data (DIN) state in read
- *  operations.
- *  0: Disable
- *  1: Enable
+ *  operations. \\
+ *  0: Disable \\
+ *  1: Enable \\
  *  Can be configured in CONF state.
  */
 #define SPI_FREAD_DUAL    (BIT(14))
@@ -149,9 +147,9 @@ extern "C" {
 #define SPI_FREAD_DUAL_S  14
 /** SPI_FREAD_QUAD : R/W; bitpos: [15]; default: 0;
  *  Configures whether or not to enable the 4-bit mode of read-data (DIN) state in read
- *  operations.
- *  0: Disable
- *  1: Enable
+ *  operations. \\
+ *  0: Disable \\
+ *  1: Enable \\
  *  Can be configured in CONF state.
  */
 #define SPI_FREAD_QUAD    (BIT(15))
@@ -160,9 +158,9 @@ extern "C" {
 #define SPI_FREAD_QUAD_S  15
 /** SPI_FREAD_OCT : HRO; bitpos: [16]; default: 0;
  *  Configures whether or not to enable the 8-bit mode of read-data (DIN) state in read
- *  operations.
- *  0: Disable
- *  1: Enable
+ *  operations. \\
+ *  0: Disable \\
+ *  1: Enable \\
  *  Can be configured in CONF state.
  */
 #define SPI_FREAD_OCT    (BIT(16))
@@ -170,9 +168,9 @@ extern "C" {
 #define SPI_FREAD_OCT_V  0x00000001U
 #define SPI_FREAD_OCT_S  16
 /** SPI_Q_POL : R/W; bitpos: [18]; default: 1;
- *  Configures MISO line polarity.
- *  0: Low
- *  1: High
+ *  Configures MISO line polarity. \\
+ *  0: Low \\
+ *  1: High \\
  *  Can be configured in CONF state.
  */
 #define SPI_Q_POL    (BIT(18))
@@ -180,9 +178,9 @@ extern "C" {
 #define SPI_Q_POL_V  0x00000001U
 #define SPI_Q_POL_S  18
 /** SPI_D_POL : R/W; bitpos: [19]; default: 1;
- *  Configures MOSI line polarity.
- *  0: Low
- *  1: High
+ *  Configures MOSI line polarity. \\
+ *  0: Low \\
+ *  1: High \\
  *  Can be configured in CONF state.
  */
 #define SPI_D_POL    (BIT(19))
@@ -190,9 +188,9 @@ extern "C" {
 #define SPI_D_POL_V  0x00000001U
 #define SPI_D_POL_S  19
 /** SPI_HOLD_POL : R/W; bitpos: [20]; default: 1;
- *  Configures SPI_HOLD output value when SPI is in idle.
- *  0: Output low
- *  1: Output high
+ *  Configures SPI_HOLD output value when SPI is in idle. \\
+ *  0: Output low \\
+ *  1: Output high \\
  *  Can be configured in CONF state.
  */
 #define SPI_HOLD_POL    (BIT(20))
@@ -200,9 +198,9 @@ extern "C" {
 #define SPI_HOLD_POL_V  0x00000001U
 #define SPI_HOLD_POL_S  20
 /** SPI_WP_POL : R/W; bitpos: [21]; default: 1;
- *  Configures the output value of write-protect signal when SPI is in idle.
- *  0: Output low
- *  1: Output high
+ *  Configures the output value of write-protect signal when SPI is in idle. \\
+ *  0: Output low \\
+ *  1: Output high \\
  *  Can be configured in CONF state.
  */
 #define SPI_WP_POL    (BIT(21))
@@ -210,9 +208,9 @@ extern "C" {
 #define SPI_WP_POL_V  0x00000001U
 #define SPI_WP_POL_S  21
 /** SPI_RD_BIT_ORDER : R/W; bitpos: [24:23]; default: 0;
- *  Configures the bit order in read-data (MISO) state.
- *  0: MSB first
- *  1: LSB first
+ *  Configures the bit order in read-data (MISO) state. \\
+ *  0: MSB first \\
+ *  1: LSB first \\
  *  Can be configured in CONF state.
  */
 #define SPI_RD_BIT_ORDER    0x00000003U
@@ -221,9 +219,9 @@ extern "C" {
 #define SPI_RD_BIT_ORDER_S  23
 /** SPI_WR_BIT_ORDER : R/W; bitpos: [26:25]; default: 0;
  *  Configures the bit order in command (CMD), address (ADDR), and write-data (MOSI)
- *  states.
- *  0: MSB first
- *  1: LSB first
+ *  states. \\
+ *  0: MSB first \\
+ *  1: LSB first \\
  *  Can be configured in CONF state.
  */
 #define SPI_WR_BIT_ORDER    0x00000003U
@@ -247,7 +245,7 @@ extern "C" {
  *  Configures the duty cycle of SPI_CLK (high level) in master transfer.
  *  It's recommended to configure this value to floor((SPI_CLKCNT_N + 1)/2 - 1).
  *  floor() here is to round a number down, e.g., floor(2.2) = 2. In slave mode, it
- *  must be 0.
+ *  must be 0. \\
  *  Can be configured in CONF state.
  */
 #define SPI_CLKCNT_H    0x0000003FU
@@ -257,7 +255,7 @@ extern "C" {
 /** SPI_CLKCNT_N : R/W; bitpos: [17:12]; default: 3;
  *  Configures the divider of SPI_CLK in master transfer.
  *  SPI_CLK frequency is $f_{\textrm{apb_clk}}$/(SPI_CLKDIV_PRE + 1)/(SPI_CLKCNT_N +
- *  1).
+ *  1). \\
  *  Can be configured in CONF state.
  */
 #define SPI_CLKCNT_N    0x0000003FU
@@ -272,21 +270,10 @@ extern "C" {
 #define SPI_CLKDIV_PRE_M  (SPI_CLKDIV_PRE_V << SPI_CLKDIV_PRE_S)
 #define SPI_CLKDIV_PRE_V  0x0000000FU
 #define SPI_CLKDIV_PRE_S  18
-/** SPI_CLK_EDGE_SEL : R/W; bitpos: [30]; default: 0;
- *  Configures use standard clock sampling edge or delay the sampling edge by half a
- *  cycle in master transfer.
- *  0: clock sampling edge is delayed by half a cycle.
- *  1: clock sampling edge is standard.
- *  Can be configured in CONF state.
- */
-#define SPI_CLK_EDGE_SEL    (BIT(30))
-#define SPI_CLK_EDGE_SEL_M  (SPI_CLK_EDGE_SEL_V << SPI_CLK_EDGE_SEL_S)
-#define SPI_CLK_EDGE_SEL_V  0x00000001U
-#define SPI_CLK_EDGE_SEL_S  30
 /** SPI_CLK_EQU_SYSCLK : R/W; bitpos: [31]; default: 1;
- *  Configures whether or not the SPI_CLK is equal to APB_CLK in master transfer.
- *  0: SPI_CLK is divided from APB_CLK.
- *  1: SPI_CLK is equal to APB_CLK.
+ *  Configures whether or not the SPI_CLK is equal to APB_CLK in master transfer.\\
+ *  0: SPI_CLK is divided from APB_CLK.\\
+ *  1: SPI_CLK is equal to APB_CLK.\\
  *  Can be configured in CONF state.
  */
 #define SPI_CLK_EQU_SYSCLK    (BIT(31))
@@ -299,9 +286,9 @@ extern "C" {
  */
 #define SPI_USER_REG(i) (REG_SPI_BASE(i) + 0x10)
 /** SPI_DOUTDIN : R/W; bitpos: [0]; default: 0;
- *  Configures whether or not to enable full-duplex communication.
- *  0: Disable
- *  1: Enable
+ *  Configures whether or not to enable full-duplex communication. \\
+ *  0: Disable \\
+ *  1: Enable \\
  *  Can be configured in CONF state.
  */
 #define SPI_DOUTDIN    (BIT(0))
@@ -309,9 +296,9 @@ extern "C" {
 #define SPI_DOUTDIN_V  0x00000001U
 #define SPI_DOUTDIN_S  0
 /** SPI_QPI_MODE : R/W/SS/SC; bitpos: [3]; default: 0;
- *  Configures whether or not to enable QPI mode.
- *  0: Disable
- *  1: Enable
+ *  Configures whether or not to enable QPI mode. \\
+ *  0: Disable \\
+ *  1: Enable \\
  *  This configuration is applicable when the SPI controller works as master or slave.
  *  Can be configured in CONF state.
  */
@@ -328,18 +315,18 @@ extern "C" {
 #define SPI_OPI_MODE_V  0x00000001U
 #define SPI_OPI_MODE_S  4
 /** SPI_TSCK_I_EDGE : R/W; bitpos: [5]; default: 0;
- *  Configures whether or not to change the polarity of TSCK in slave transfer.
- *  0: TSCK = SPI_CK_I
- *  1: TSCK = !SPI_CK_I
+ *  Configures whether or not to change the polarity of TSCK in slave transfer. \\
+ *  0: TSCK = SPI_CK_I \\
+ *  1: TSCK = !SPI_CK_I \\
  */
 #define SPI_TSCK_I_EDGE    (BIT(5))
 #define SPI_TSCK_I_EDGE_M  (SPI_TSCK_I_EDGE_V << SPI_TSCK_I_EDGE_S)
 #define SPI_TSCK_I_EDGE_V  0x00000001U
 #define SPI_TSCK_I_EDGE_S  5
 /** SPI_CS_HOLD : R/W; bitpos: [6]; default: 1;
- *  Configures whether or not to keep SPI CS low when SPI is in DONE state.
- *  0: Not keep low
- *  1: Keep low
+ *  Configures whether or not to keep SPI CS low when SPI is in DONE state. \\
+ *  0: Not keep low \\
+ *  1: Keep low \\
  *  Can be configured in CONF state.
  */
 #define SPI_CS_HOLD    (BIT(6))
@@ -347,9 +334,9 @@ extern "C" {
 #define SPI_CS_HOLD_V  0x00000001U
 #define SPI_CS_HOLD_S  6
 /** SPI_CS_SETUP : R/W; bitpos: [7]; default: 1;
- *  Configures whether or not to enable SPI CS when SPI is in prepare (PREP) state.
- *  0: Disable
- *  1: Enable
+ *  Configures whether or not to enable SPI CS when SPI is in prepare (PREP) state. \\
+ *  0: Disable \\
+ *  1: Enable \\
  *  Can be configured in CONF state.
  */
 #define SPI_CS_SETUP    (BIT(7))
@@ -357,9 +344,9 @@ extern "C" {
 #define SPI_CS_SETUP_V  0x00000001U
 #define SPI_CS_SETUP_S  7
 /** SPI_RSCK_I_EDGE : R/W; bitpos: [8]; default: 0;
- *  Configures whether or not to change the polarity of RSCK in slave transfer.
- *  0: RSCK = !SPI_CK_I
- *  1: RSCK = SPI_CK_I
+ *  Configures whether or not to change the polarity of RSCK in slave transfer. \\
+ *  0: RSCK = !SPI_CK_I \\
+ *  1: RSCK = SPI_CK_I \\
  */
 #define SPI_RSCK_I_EDGE    (BIT(8))
 #define SPI_RSCK_I_EDGE_M  (SPI_RSCK_I_EDGE_V << SPI_RSCK_I_EDGE_S)
@@ -367,7 +354,8 @@ extern "C" {
 #define SPI_RSCK_I_EDGE_S  8
 /** SPI_CK_OUT_EDGE : R/W; bitpos: [9]; default: 0;
  *  Configures SPI clock mode together with SPI_CK_IDLE_EDGE.
- *  Can be configured in CONF state. For more information, see Section .
+ *  Can be configured in CONF state. For more information, see Section <a href="GP-SPI2
+ *  master clock control">link</a>.
  */
 #define SPI_CK_OUT_EDGE    (BIT(9))
 #define SPI_CK_OUT_EDGE_M  (SPI_CK_OUT_EDGE_V << SPI_CK_OUT_EDGE_S)
@@ -375,9 +363,9 @@ extern "C" {
 #define SPI_CK_OUT_EDGE_S  9
 /** SPI_FWRITE_DUAL : R/W; bitpos: [12]; default: 0;
  *  Configures whether or not to enable the 2-bit mode of read-data phase in write
- *  operations.
- *  0: Not enable
- *  1: Enable
+ *  operations.\\
+ *  0: Not enable \\
+ *  1: Enable \\
  *  Can be configured in CONF state.
  */
 #define SPI_FWRITE_DUAL    (BIT(12))
@@ -386,9 +374,9 @@ extern "C" {
 #define SPI_FWRITE_DUAL_S  12
 /** SPI_FWRITE_QUAD : R/W; bitpos: [13]; default: 0;
  *  Configures whether or not to enable the 4-bit mode of read-data phase in write
- *  operations.
- *  0: Not enable
- *  1: Enable
+ *  operations. \\
+ *  0: Not enable \\
+ *  1: Enable \\
  *  Can be configured in CONF state.
  */
 #define SPI_FWRITE_QUAD    (BIT(13))
@@ -405,11 +393,11 @@ extern "C" {
 #define SPI_FWRITE_OCT_S  14
 /** SPI_USR_CONF_NXT : R/W; bitpos: [15]; default: 0;
  *  Configures whether or not to enable the CONF state for the next transaction
- *  (segment) in a configurable segmented transfer.
+ *  (segment) in a configurable segmented transfer. \\
  *  0: this transfer will end after the current transaction (segment) is finished. Or
- *  this is not a configurable segmented transfer.
+ *  this is not a configurable segmented transfer. \\
  *  1: this configurable segmented transfer will continue its next transaction
- *  (segment).
+ *  (segment). \\
  *  Can be configured in CONF state.
  */
 #define SPI_USR_CONF_NXT    (BIT(15))
@@ -418,9 +406,9 @@ extern "C" {
 #define SPI_USR_CONF_NXT_S  15
 /** SPI_SIO : R/W; bitpos: [17]; default: 0;
  *  Configures whether or not to enable 3-line half-duplex communication, where MOSI
- *  and MISO signals share the same pin.
- *  0: Disable
- *  1: Enable
+ *  and MISO signals share the same pin.\\
+ *  0: Disable \\
+ *  1: Enable \\
  *  Can be configured in CONF state.
  */
 #define SPI_SIO    (BIT(17))
@@ -429,9 +417,9 @@ extern "C" {
 #define SPI_SIO_S  17
 /** SPI_USR_MISO_HIGHPART : R/W; bitpos: [24]; default: 0;
  *  Configures whether or not to enable high part mode, i.e., only access to high part
- *  of the buffers: SPI_W8_REG ~ SPI_W15_REG in read-data phase.
- *  0: Disable
- *  1: Enable
+ *  of the buffers: SPI_W8_REG ~ SPI_W15_REG in read-data phase. \\
+ *  0: Disable \\
+ *  1: Enable \\
  *  Can be configured in CONF state.
  */
 #define SPI_USR_MISO_HIGHPART    (BIT(24))
@@ -440,9 +428,9 @@ extern "C" {
 #define SPI_USR_MISO_HIGHPART_S  24
 /** SPI_USR_MOSI_HIGHPART : R/W; bitpos: [25]; default: 0;
  *  Configures whether or not to enable high part mode, i.e., only access to high part
- *  of the buffers: SPI_W8_REG ~ SPI_W15_REG in write-data phase.
- *  0: Disable
- *  1: Enable
+ *  of the buffers: SPI_W8_REG ~ SPI_W15_REG in write-data phase. \\
+ *  0: Disable \\
+ *  1: Enable \\
  *  Can be configured in CONF state.
  */
 #define SPI_USR_MOSI_HIGHPART    (BIT(25))
@@ -450,9 +438,9 @@ extern "C" {
 #define SPI_USR_MOSI_HIGHPART_V  0x00000001U
 #define SPI_USR_MOSI_HIGHPART_S  25
 /** SPI_USR_DUMMY_IDLE : R/W; bitpos: [26]; default: 0;
- *  Configures whether or not to disable SPI clock in DUMMY state.
- *  0: Not disable
- *  1: Disable
+ *  Configures whether or not to disable SPI clock in DUMMY state. \\
+ *  0: Not disable \\
+ *  1: Disable \\
  *  Can be configured in CONF state.
  */
 #define SPI_USR_DUMMY_IDLE    (BIT(26))
@@ -460,9 +448,9 @@ extern "C" {
 #define SPI_USR_DUMMY_IDLE_V  0x00000001U
 #define SPI_USR_DUMMY_IDLE_S  26
 /** SPI_USR_MOSI : R/W; bitpos: [27]; default: 0;
- *  Configures whether or not to enable the write-data (DOUT) state of an operation.
- *  0: Disable
- *  1: Enable
+ *  Configures whether or not to enable the write-data (DOUT) state of an operation. \\
+ *  0: Disable \\
+ *  1: Enable \\
  *  Can be configured in CONF state.
  */
 #define SPI_USR_MOSI    (BIT(27))
@@ -470,9 +458,9 @@ extern "C" {
 #define SPI_USR_MOSI_V  0x00000001U
 #define SPI_USR_MOSI_S  27
 /** SPI_USR_MISO : R/W; bitpos: [28]; default: 0;
- *  Configures whether or not to enable the read-data (DIN) state of an operation.
- *  0: Disable
- *  1: Enable
+ *  Configures whether or not to enable the read-data (DIN) state of an operation. \\
+ *  0: Disable \\
+ *  1: Enable \\
  *  Can be configured in CONF state.
  */
 #define SPI_USR_MISO    (BIT(28))
@@ -480,9 +468,9 @@ extern "C" {
 #define SPI_USR_MISO_V  0x00000001U
 #define SPI_USR_MISO_S  28
 /** SPI_USR_DUMMY : R/W; bitpos: [29]; default: 0;
- *  Configures whether or not to enable the DUMMY state of an operation.
- *  0: Disable
- *  1: Enable
+ *  Configures whether or not to enable the DUMMY state of an operation. \\
+ *  0: Disable \\
+ *  1: Enable \\
  *  Can be configured in CONF state.
  */
 #define SPI_USR_DUMMY    (BIT(29))
@@ -490,9 +478,9 @@ extern "C" {
 #define SPI_USR_DUMMY_V  0x00000001U
 #define SPI_USR_DUMMY_S  29
 /** SPI_USR_ADDR : R/W; bitpos: [30]; default: 0;
- *  Configures whether or not to enable the address (ADDR) state of an operation.
- *  0: Disable
- *  1: Enable
+ *  Configures whether or not to enable the address (ADDR) state of an operation. \\
+ *  0: Disable \\
+ *  1: Enable \\
  *  Can be configured in CONF state.
  */
 #define SPI_USR_ADDR    (BIT(30))
@@ -500,9 +488,9 @@ extern "C" {
 #define SPI_USR_ADDR_V  0x00000001U
 #define SPI_USR_ADDR_S  30
 /** SPI_USR_COMMAND : R/W; bitpos: [31]; default: 1;
- *  Configures whether or not to enable the command (CMD) state of an operation.
- *  0: Disable
- *  1: Enable
+ *  Configures whether or not to enable the command (CMD) state of an operation. \\
+ *  0: Disable \\
+ *  1: Enable \\
  *  Can be configured in CONF state.
  */
 #define SPI_USR_COMMAND    (BIT(31))
@@ -516,7 +504,7 @@ extern "C" {
 #define SPI_USER1_REG(i) (REG_SPI_BASE(i) + 0x14)
 /** SPI_USR_DUMMY_CYCLELEN : R/W; bitpos: [7:0]; default: 7;
  *  Configures the length of DUMMY state.
- *  Measurement unit: SPI_CLK clock cycles.
+ *  Measurement unit: SPI_CLK clock cycles.\\
  *  This value is (the expected cycle number - 1). Can be configured in CONF state.
  */
 #define SPI_USR_DUMMY_CYCLELEN    0x000000FFU
@@ -525,9 +513,9 @@ extern "C" {
 #define SPI_USR_DUMMY_CYCLELEN_S  0
 /** SPI_MST_WFULL_ERR_END_EN : R/W; bitpos: [16]; default: 1;
  *  Configures whether or not to end the SPI transfer when SPI RX AFIFO wfull error
- *  occurs in master full-/half-duplex transfers.
- *  0: Not end
- *  1: End
+ *  occurs in master full-/half-duplex transfers. \\
+ *  0: Not end \\
+ *  1: End \\
  */
 #define SPI_MST_WFULL_ERR_END_EN    (BIT(16))
 #define SPI_MST_WFULL_ERR_END_EN_M  (SPI_MST_WFULL_ERR_END_EN_V << SPI_MST_WFULL_ERR_END_EN_S)
@@ -535,7 +523,7 @@ extern "C" {
 #define SPI_MST_WFULL_ERR_END_EN_S  16
 /** SPI_CS_SETUP_TIME : R/W; bitpos: [21:17]; default: 0;
  *  Configures the length of prepare (PREP) state.
- *  Measurement unit: SPI_CLK clock cycles.
+ *  Measurement unit: SPI_CLK clock cycles.\\
  *  This value is equal to the expected cycles - 1. This field is used together with
  *  SPI_CS_SETUP. Can be configured in CONF state.
  */
@@ -545,7 +533,7 @@ extern "C" {
 #define SPI_CS_SETUP_TIME_S  17
 /** SPI_CS_HOLD_TIME : R/W; bitpos: [26:22]; default: 1;
  *  Configures the delay cycles of CS pin.
- *  Measurement unit: SPI_CLK clock cycles.
+ *  Measurement unit: SPI_CLK clock cycles. \\
  *  This field is used together with SPI_CS_HOLD. Can be configured in CONF state.
  */
 #define SPI_CS_HOLD_TIME    0x0000001FU
@@ -575,9 +563,9 @@ extern "C" {
 #define SPI_USR_COMMAND_VALUE_S  0
 /** SPI_MST_REMPTY_ERR_END_EN : R/W; bitpos: [27]; default: 1;
  *  Configures whether or not to end the SPI transfer when SPI TX AFIFO read empty
- *  error occurs in master full-/half-duplex transfers.
- *  0: Not end
- *  1: End
+ *  error occurs in master full-/half-duplex transfers. \\
+ *  0: Not end \\
+ *  1: End \\
  */
 #define SPI_MST_REMPTY_ERR_END_EN    (BIT(27))
 #define SPI_MST_REMPTY_ERR_END_EN_M  (SPI_MST_REMPTY_ERR_END_EN_V << SPI_MST_REMPTY_ERR_END_EN_S)
@@ -612,9 +600,9 @@ extern "C" {
  */
 #define SPI_MISC_REG(i) (REG_SPI_BASE(i) + 0x20)
 /** SPI_CS0_DIS : R/W; bitpos: [0]; default: 0;
- *  Configures whether or not to disable SPI_CS$n pin.
- *  0: SPI_CS$n signal is from/to SPI_CS$n pin.
- *  1: Disable SPI_CS$n pin.
+ *  Configures whether or not to disable SPI_CS$n pin.\\
+ *  0: SPI_CS$n signal is from/to SPI_CS$n pin.\\
+ *  1: Disable SPI_CS$n pin.\\
  *  Can be configured in CONF state.
  */
 #define SPI_CS0_DIS    (BIT(0))
@@ -622,9 +610,9 @@ extern "C" {
 #define SPI_CS0_DIS_V  0x00000001U
 #define SPI_CS0_DIS_S  0
 /** SPI_CS1_DIS : R/W; bitpos: [1]; default: 1;
- *  Configures whether or not to disable SPI_CS$n pin.
- *  0: SPI_CS$n signal is from/to SPI_CS$n pin.
- *  1: Disable SPI_CS$n pin.
+ *  Configures whether or not to disable SPI_CS$n pin.\\
+ *  0: SPI_CS$n signal is from/to SPI_CS$n pin.\\
+ *  1: Disable SPI_CS$n pin.\\
  *  Can be configured in CONF state.
  */
 #define SPI_CS1_DIS    (BIT(1))
@@ -632,9 +620,9 @@ extern "C" {
 #define SPI_CS1_DIS_V  0x00000001U
 #define SPI_CS1_DIS_S  1
 /** SPI_CS2_DIS : R/W; bitpos: [2]; default: 1;
- *  Configures whether or not to disable SPI_CS$n pin.
- *  0: SPI_CS$n signal is from/to SPI_CS$n pin.
- *  1: Disable SPI_CS$n pin.
+ *  Configures whether or not to disable SPI_CS$n pin.\\
+ *  0: SPI_CS$n signal is from/to SPI_CS$n pin.\\
+ *  1: Disable SPI_CS$n pin.\\
  *  Can be configured in CONF state.
  */
 #define SPI_CS2_DIS    (BIT(2))
@@ -642,9 +630,9 @@ extern "C" {
 #define SPI_CS2_DIS_V  0x00000001U
 #define SPI_CS2_DIS_S  2
 /** SPI_CS3_DIS : R/W; bitpos: [3]; default: 1;
- *  Configures whether or not to disable SPI_CS$n pin.
- *  0: SPI_CS$n signal is from/to SPI_CS$n pin.
- *  1: Disable SPI_CS$n pin.
+ *  Configures whether or not to disable SPI_CS$n pin.\\
+ *  0: SPI_CS$n signal is from/to SPI_CS$n pin.\\
+ *  1: Disable SPI_CS$n pin.\\
  *  Can be configured in CONF state.
  */
 #define SPI_CS3_DIS    (BIT(3))
@@ -652,9 +640,9 @@ extern "C" {
 #define SPI_CS3_DIS_V  0x00000001U
 #define SPI_CS3_DIS_S  3
 /** SPI_CS4_DIS : R/W; bitpos: [4]; default: 1;
- *  Configures whether or not to disable SPI_CS$n pin.
- *  0: SPI_CS$n signal is from/to SPI_CS$n pin.
- *  1: Disable SPI_CS$n pin.
+ *  Configures whether or not to disable SPI_CS$n pin.\\
+ *  0: SPI_CS$n signal is from/to SPI_CS$n pin.\\
+ *  1: Disable SPI_CS$n pin.\\
  *  Can be configured in CONF state.
  */
 #define SPI_CS4_DIS    (BIT(4))
@@ -662,9 +650,9 @@ extern "C" {
 #define SPI_CS4_DIS_V  0x00000001U
 #define SPI_CS4_DIS_S  4
 /** SPI_CS5_DIS : R/W; bitpos: [5]; default: 1;
- *  Configures whether or not to disable SPI_CS$n pin.
- *  0: SPI_CS$n signal is from/to SPI_CS$n pin.
- *  1: Disable SPI_CS$n pin.
+ *  Configures whether or not to disable SPI_CS$n pin.\\
+ *  0: SPI_CS$n signal is from/to SPI_CS$n pin.\\
+ *  1: Disable SPI_CS$n pin.\\
  *  Can be configured in CONF state.
  */
 #define SPI_CS5_DIS    (BIT(5))
@@ -672,9 +660,9 @@ extern "C" {
 #define SPI_CS5_DIS_V  0x00000001U
 #define SPI_CS5_DIS_S  5
 /** SPI_CK_DIS : R/W; bitpos: [6]; default: 0;
- *  Configures whether or not to disable SPI_CLK output.
- *  0: Enable
- *  1: Disable
+ *  Configures whether or not to disable SPI_CLK output.\\
+ *  0: Enable\\
+ *  1: Disable\\
  *  Can be configured in CONF state.
  */
 #define SPI_CK_DIS    (BIT(6))
@@ -682,9 +670,9 @@ extern "C" {
 #define SPI_CK_DIS_V  0x00000001U
 #define SPI_CK_DIS_S  6
 /** SPI_MASTER_CS_POL : R/W; bitpos: [12:7]; default: 0;
- *  Configures the polarity of SPI_CS$n ($n = 0-5) line in master transfer.
- *  0: SPI_CS$n is low active.
- *  1: SPI_CS$n is high active.
+ *  Configures the polarity of SPI_CS$n ($n = 0-5) line in master transfer.\\
+ *  0: SPI_CS$n is low active.\\
+ *  1: SPI_CS$n is high active.\\
  *  Can be configured in CONF state.
  */
 #define SPI_MASTER_CS_POL    0x0000003FU
@@ -727,9 +715,9 @@ extern "C" {
 #define SPI_CMD_DTR_EN_V  0x00000001U
 #define SPI_CMD_DTR_EN_S  19
 /** SPI_SLAVE_CS_POL : R/W; bitpos: [23]; default: 0;
- *  Configures whether or not invert SPI slave input CS polarity.
- *  0: Not change
- *  1: Invert
+ *  Configures whether or not invert SPI slave input CS polarity.\\
+ *  0: Not change\\
+ *  1: Invert\\
  *  Can be configured in CONF state.
  */
 #define SPI_SLAVE_CS_POL    (BIT(23))
@@ -744,9 +732,9 @@ extern "C" {
 #define SPI_DQS_IDLE_EDGE_V  0x00000001U
 #define SPI_DQS_IDLE_EDGE_S  24
 /** SPI_CK_IDLE_EDGE : R/W; bitpos: [29]; default: 0;
- *  Configures the level of SPI_CLK line when GP-SPI2 is in idle.
- *  0: Low
- *  1: High
+ *  Configures the level of SPI_CLK line when GP-SPI2 is in idle.\\
+ *  0: Low\\
+ *  1: High\\
  *  Can be configured in CONF state.
  */
 #define SPI_CK_IDLE_EDGE    (BIT(29))
@@ -754,9 +742,9 @@ extern "C" {
 #define SPI_CK_IDLE_EDGE_V  0x00000001U
 #define SPI_CK_IDLE_EDGE_S  29
 /** SPI_CS_KEEP_ACTIVE : R/W; bitpos: [30]; default: 0;
- *  Configures whether or not to keep the SPI_CS line low.
- *  0: Not keep low
- *  1: Keep low
+ *  Configures whether or not to keep the SPI_CS line low.\\
+ *  0: Not keep low\\
+ *  1: Keep low\\
  *  Can be configured in CONF state.
  */
 #define SPI_CS_KEEP_ACTIVE    (BIT(30))
@@ -777,13 +765,13 @@ extern "C" {
  */
 #define SPI_DIN_MODE_REG(i) (REG_SPI_BASE(i) + 0x24)
 /** SPI_DIN0_MODE : R/W; bitpos: [1:0]; default: 0;
- *  Configures the input mode for FSPID signal.
- *  0: Input without delay
- *  1: Input at the (SPI_DIN0_NUM + 1)th falling edge of clk_spi_mst
+ *  Configures the input mode for FSPID signal.\\
+ *  0: Input without delay\\
+ *  1: Input at the (SPI_DIN0_NUM + 1)th falling edge of clk_spi_mst\\
  *  2: Input at the (SPI_DIN0_NUM + 1)th rising edge of clk_hclk plus one clk_spi_mst
- *  rising edge cycle
+ *  rising edge cycle\\
  *  3: Input at the (SPI_DIN0_NUM + 1)th rising edge of clk_hclk plus one clk_spi_mst
- *  falling edge cycle
+ *  falling edge cycle\\
  *  Can be configured in CONF state.
  */
 #define SPI_DIN0_MODE    0x00000003U
@@ -791,13 +779,13 @@ extern "C" {
 #define SPI_DIN0_MODE_V  0x00000003U
 #define SPI_DIN0_MODE_S  0
 /** SPI_DIN1_MODE : R/W; bitpos: [3:2]; default: 0;
- *  Configures the input mode for FSPIQ signal.
- *  0: Input without delay
- *  1: Input at the (SPI_DIN1_NUM+1)th falling edge of clk_spi_mst
+ *  Configures the input mode for FSPIQ signal.\\
+ *  0: Input without delay\\
+ *  1: Input at the (SPI_DIN1_NUM+1)th falling edge of clk_spi_mst\\
  *  2: Input at the (SPI_DIN1_NUM + 1)th rising edge of clk_hclk plus one clk_spi_mst
- *  rising edge cycle
+ *  rising edge cycle\\
  *  3: Input at the (SPI_DIN1_NUM + 1)th rising edge of clk_hclk plus one clk_spi_mst
- *  falling edge cycle
+ *  falling edge cycle\\
  *  Can be configured in CONF state.
  */
 #define SPI_DIN1_MODE    0x00000003U
@@ -805,13 +793,13 @@ extern "C" {
 #define SPI_DIN1_MODE_V  0x00000003U
 #define SPI_DIN1_MODE_S  2
 /** SPI_DIN2_MODE : R/W; bitpos: [5:4]; default: 0;
- *  Configures the input mode for FSPIWP signal.
- *  0: Input without delay
- *  1: Input at the (SPI_DIN2_NUM + 1)th falling edge of clk_spi_mst
+ *  Configures the input mode for FSPIWP signal.\\
+ *  0: Input without delay\\
+ *  1: Input at the (SPI_DIN2_NUM + 1)th falling edge of clk_spi_mst\\
  *  2: Input at the (SPI_DIN2_NUM + 1)th rising edge of clk_hclk plus one clk_spi_mst
- *  rising edge cycle
+ *  rising edge cycle\\
  *  3: Input at the (SPI_DIN2_NUM + 1)th rising edge of clk_hclk plus one clk_spi_mst
- *  falling edge cycle
+ *  falling edge cycle\\
  *  Can be configured in CONF state.
  */
 #define SPI_DIN2_MODE    0x00000003U
@@ -819,13 +807,13 @@ extern "C" {
 #define SPI_DIN2_MODE_V  0x00000003U
 #define SPI_DIN2_MODE_S  4
 /** SPI_DIN3_MODE : R/W; bitpos: [7:6]; default: 0;
- *  Configures the input mode for FSPIHD signal.
- *  0: Input without delay
- *  1: Input at the (SPI_DIN3_NUM + 1)th falling edge of clk_spi_mst
+ *  Configures the input mode for FSPIHD signal.\\
+ *  0: Input without delay\\
+ *  1: Input at the (SPI_DIN3_NUM + 1)th falling edge of clk_spi_mst\\
  *  2: Input at the (SPI_DIN3_NUM + 1)th rising edge of clk_hclk plus one clk_spi_mst
- *  rising edge cycle
+ *  rising edge cycle\\
  *  3: Input at the (SPI_DIN3_NUM + 1)th rising edge of clk_hclk plus one clk_spi_mst
- *  falling edge cycle
+ *  falling edge cycle\\
  *  Can be configured in CONF state.
  *
  */
@@ -871,9 +859,9 @@ extern "C" {
 #define SPI_DIN7_MODE_S  14
 /** SPI_TIMING_HCLK_ACTIVE : R/W; bitpos: [16]; default: 0;
  *  Configures whether or not to enable HCLK (high-frequency clock) in SPI input timing
- *  module.
- *  0: Disable
- *  1: Enable
+ *  module.\\
+ *  0: Disable\\
+ *  1: Enable\\
  *  Can be configured in CONF state.
  */
 #define SPI_TIMING_HCLK_ACTIVE    (BIT(16))
@@ -886,11 +874,11 @@ extern "C" {
  */
 #define SPI_DIN_NUM_REG(i) (REG_SPI_BASE(i) + 0x28)
 /** SPI_DIN0_NUM : R/W; bitpos: [1:0]; default: 0;
- *  Configures the delays to input signal FSPID based on the setting of SPI_DIN0_MODE.
- *  0: Delayed by 1 clock cycle
- *  1: Delayed by 2 clock cycles
- *  2: Delayed by 3 clock cycles
- *  3: Delayed by 4 clock cycles
+ *  Configures the delays to input signal FSPID based on the setting of SPI_DIN0_MODE.\\
+ *  0: Delayed by 1 clock cycle\\
+ *  1: Delayed by 2 clock cycles\\
+ *  2: Delayed by 3 clock cycles\\
+ *  3: Delayed by 4 clock cycles\\
  *  Can be configured in CONF state.
  */
 #define SPI_DIN0_NUM    0x00000003U
@@ -898,11 +886,11 @@ extern "C" {
 #define SPI_DIN0_NUM_V  0x00000003U
 #define SPI_DIN0_NUM_S  0
 /** SPI_DIN1_NUM : R/W; bitpos: [3:2]; default: 0;
- *  Configures the delays to input signal FSPIQ based on the setting of SPI_DIN1_MODE.
- *  0: Delayed by 1 clock cycle
- *  1: Delayed by 2 clock cycles
- *  2: Delayed by 3 clock cycles
- *  3: Delayed by 4 clock cycles
+ *  Configures the delays to input signal FSPIQ based on the setting of SPI_DIN1_MODE.\\
+ *  0: Delayed by 1 clock cycle\\
+ *  1: Delayed by 2 clock cycles\\
+ *  2: Delayed by 3 clock cycles\\
+ *  3: Delayed by 4 clock cycles\\
  *  Can be configured in CONF state.
  */
 #define SPI_DIN1_NUM    0x00000003U
@@ -910,11 +898,12 @@ extern "C" {
 #define SPI_DIN1_NUM_V  0x00000003U
 #define SPI_DIN1_NUM_S  2
 /** SPI_DIN2_NUM : R/W; bitpos: [5:4]; default: 0;
- *  Configures the delays to input signal FSPIWP based on the setting of SPI_DIN2_MODE.
- *  0: Delayed by 1 clock cycle
- *  1: Delayed by 2 clock cycles
- *  2: Delayed by 3 clock cycles
- *  3: Delayed by 4 clock cycles
+ *  Configures the delays to input signal FSPIWP based on the setting of
+ *  SPI_DIN2_MODE.\\
+ *  0: Delayed by 1 clock cycle\\
+ *  1: Delayed by 2 clock cycles\\
+ *  2: Delayed by 3 clock cycles\\
+ *  3: Delayed by 4 clock cycles\\
  *  Can be configured in CONF state.
  */
 #define SPI_DIN2_NUM    0x00000003U
@@ -922,11 +911,12 @@ extern "C" {
 #define SPI_DIN2_NUM_V  0x00000003U
 #define SPI_DIN2_NUM_S  4
 /** SPI_DIN3_NUM : R/W; bitpos: [7:6]; default: 0;
- *  Configures the delays to input signal FSPIHD based on the setting of SPI_DIN3_MODE.
- *  0: Delayed by 1 clock cycle
- *  1: Delayed by 2 clock cycles
- *  2: Delayed by 3 clock cycles
- *  3: Delayed by 4 clock cycles
+ *  Configures the delays to input signal FSPIHD based on the setting of
+ *  SPI_DIN3_MODE.\\
+ *  0: Delayed by 1 clock cycle\\
+ *  1: Delayed by 2 clock cycles\\
+ *  2: Delayed by 3 clock cycles\\
+ *  3: Delayed by 4 clock cycles\\
  *  Can be configured in CONF state.
  */
 #define SPI_DIN3_NUM    0x00000003U
@@ -971,9 +961,9 @@ extern "C" {
  */
 #define SPI_DOUT_MODE_REG(i) (REG_SPI_BASE(i) + 0x2c)
 /** SPI_DOUT0_MODE : R/W; bitpos: [0]; default: 0;
- *  Configures the output mode for FSPID signal.
- *  0: Output without delay
- *  1: Output with a delay of a SPI module clock cycle at its falling edge
+ *  Configures the output mode for FSPID signal.\\
+ *  0: Output without delay\\
+ *  1: Output with a delay of a SPI module clock cycle at its falling edge\\
  *  Can be configured in CONF state.
  */
 #define SPI_DOUT0_MODE    (BIT(0))
@@ -981,9 +971,9 @@ extern "C" {
 #define SPI_DOUT0_MODE_V  0x00000001U
 #define SPI_DOUT0_MODE_S  0
 /** SPI_DOUT1_MODE : R/W; bitpos: [1]; default: 0;
- *  Configures the output mode for FSPIQ signal.
- *  0: Output without delay
- *  1: Output with a delay of a SPI module clock cycle at its falling edge
+ *  Configures the output mode for FSPIQ signal.\\
+ *  0: Output without delay\\
+ *  1: Output with a delay of a SPI module clock cycle at its falling edge\\
  *  Can be configured in CONF state.
  */
 #define SPI_DOUT1_MODE    (BIT(1))
@@ -991,9 +981,9 @@ extern "C" {
 #define SPI_DOUT1_MODE_V  0x00000001U
 #define SPI_DOUT1_MODE_S  1
 /** SPI_DOUT2_MODE : R/W; bitpos: [2]; default: 0;
- *  Configures the output mode for FSPIWP signal.
- *  0: Output without delay
- *  1: Output with a delay of a SPI module clock cycle at its falling edge
+ *  Configures the output mode for FSPIWP signal.\\
+ *  0: Output without delay\\
+ *  1: Output with a delay of a SPI module clock cycle at its falling edge\\
  *  Can be configured in CONF state.
  */
 #define SPI_DOUT2_MODE    (BIT(2))
@@ -1001,9 +991,9 @@ extern "C" {
 #define SPI_DOUT2_MODE_V  0x00000001U
 #define SPI_DOUT2_MODE_S  2
 /** SPI_DOUT3_MODE : R/W; bitpos: [3]; default: 0;
- *  Configures the output mode for FSPIHD signal.
- *  0: Output without delay
- *  1: Output with a delay of a SPI module clock cycle at its falling edge
+ *  Configures the output mode for FSPIHD signal.\\
+ *  0: Output without delay\\
+ *  1: Output with a delay of a SPI module clock cycle at its falling edge\\
  *  Can be configured in CONF state.
  */
 #define SPI_DOUT3_MODE    (BIT(3))
@@ -1061,18 +1051,18 @@ extern "C" {
  */
 #define SPI_DMA_CONF_REG(i) (REG_SPI_BASE(i) + 0x30)
 /** SPI_DMA_OUTFIFO_EMPTY : RO; bitpos: [0]; default: 1;
- *  Represents whether or not the DMA TX FIFO is ready for sending data.
- *  0: Ready
- *  1: Not ready
+ *  Represents whether or not the DMA TX FIFO is ready for sending data.\\
+ *  0: Ready\\
+ *  1: Not ready\\
  */
 #define SPI_DMA_OUTFIFO_EMPTY    (BIT(0))
 #define SPI_DMA_OUTFIFO_EMPTY_M  (SPI_DMA_OUTFIFO_EMPTY_V << SPI_DMA_OUTFIFO_EMPTY_S)
 #define SPI_DMA_OUTFIFO_EMPTY_V  0x00000001U
 #define SPI_DMA_OUTFIFO_EMPTY_S  0
 /** SPI_DMA_INFIFO_FULL : RO; bitpos: [1]; default: 1;
- *  Represents whether or not the DMA RX FIFO is ready for receiving data.
- *  0: Ready
- *  1: Not ready
+ *  Represents whether or not the DMA RX FIFO is ready for receiving data.\\
+ *  0: Ready\\
+ *  1: Not ready\\
  */
 #define SPI_DMA_INFIFO_FULL    (BIT(1))
 #define SPI_DMA_INFIFO_FULL_M  (SPI_DMA_INFIFO_FULL_V << SPI_DMA_INFIFO_FULL_S)
@@ -1080,9 +1070,9 @@ extern "C" {
 #define SPI_DMA_INFIFO_FULL_S  1
 /** SPI_DMA_SLV_SEG_TRANS_EN : R/W; bitpos: [18]; default: 0;
  *  Configures whether or not to enable DMA-controlled segmented transfer in slave
- *  half-duplex communication.
- *  0: Disable
- *  1: Enable
+ *  half-duplex communication.\\
+ *  0: Disable\\
+ *  1: Enable\\
  */
 #define SPI_DMA_SLV_SEG_TRANS_EN    (BIT(18))
 #define SPI_DMA_SLV_SEG_TRANS_EN_M  (SPI_DMA_SLV_SEG_TRANS_EN_V << SPI_DMA_SLV_SEG_TRANS_EN_S)
@@ -1090,10 +1080,10 @@ extern "C" {
 #define SPI_DMA_SLV_SEG_TRANS_EN_S  18
 /** SPI_SLV_RX_SEG_TRANS_CLR_EN : R/W; bitpos: [19]; default: 0;
  *  In slave segmented transfer, if the size of the DMA RX buffer is smaller than the
- *  size of the received data,
- *  1: the data in all the following Wr_DMA transactions will not be received
- *  0: the data in this Wr_DMA transaction will not be received, but in the following
- *  transactions,
+ *  size of the received data, \\1: the data in all the following Wr_DMA transactions
+ *  will not be received\\ 0: the data in this Wr_DMA transaction will not be received,
+ *  but in the following transactions,\\
+ *
  *  - if the size of DMA RX buffer is not 0, the data in following Wr_DMA transactions
  *  will be received.
  *  - if the size of DMA RX buffer is 0, the data in following Wr_DMA transactions will
@@ -1105,11 +1095,12 @@ extern "C" {
 #define SPI_SLV_RX_SEG_TRANS_CLR_EN_S  19
 /** SPI_SLV_TX_SEG_TRANS_CLR_EN : R/W; bitpos: [20]; default: 0;
  *  In slave segmented transfer, if the size of the DMA TX buffer is smaller than the
- *  size of the transmitted data,
+ *  size of the transmitted data,\\
  *  1: the data in the following transactions will not be updated, i.e. the old data is
- *  transmitted repeatedly.
+ *  transmitted repeatedly.\\
  *  0: the data in this transaction will not be updated. But in the following
- *  transactions,
+ *  transactions,\\
+ *
  *  - if new data is filled in DMA TX FIFO, new data will be transmitted.
  *  - if no new data is filled in DMA TX FIFO, no new data will be transmitted.
  */
@@ -1129,27 +1120,29 @@ extern "C" {
 #define SPI_RX_EOF_EN_V  0x00000001U
 #define SPI_RX_EOF_EN_S  21
 /** SPI_DMA_RX_ENA : R/W; bitpos: [27]; default: 0;
- *  Configures whether or not to enable DMA-controlled receive data transfer.
- *  0: Disable
- *  1: Enable
+ *  Configures whether or not to enable DMA-controlled receive data transfer.\\
+ *  0: Disable\\
+ *  1: Enable\\
  */
 #define SPI_DMA_RX_ENA    (BIT(27))
 #define SPI_DMA_RX_ENA_M  (SPI_DMA_RX_ENA_V << SPI_DMA_RX_ENA_S)
 #define SPI_DMA_RX_ENA_V  0x00000001U
 #define SPI_DMA_RX_ENA_S  27
 /** SPI_DMA_TX_ENA : R/W; bitpos: [28]; default: 0;
- *  Configures whether or not to enable DMA-controlled send data transfer.
- *  0: Disable
- *  1: Enable
+ *  Configures whether or not to enable DMA-controlled send data transfer.\\
+ *  0: Disable\\
+ *  1: Enable\\
  */
 #define SPI_DMA_TX_ENA    (BIT(28))
 #define SPI_DMA_TX_ENA_M  (SPI_DMA_TX_ENA_V << SPI_DMA_TX_ENA_S)
 #define SPI_DMA_TX_ENA_V  0x00000001U
 #define SPI_DMA_TX_ENA_S  28
 /** SPI_RX_AFIFO_RST : WT; bitpos: [29]; default: 0;
- *  Configures whether or not to reset spi_rx_afifo as shown in Figure .
- *  0: Not reset
- *  1: Reset
+ *  Configures whether or not to reset spi_rx_afifo as shown in Figure <a
+ *  href="fig:spi-master-data-flow-control">link</a> and in Figure  <a
+ *  href="fig:spi-slave-data-flow-control">link</a>.\\
+ *  0: Not reset\\
+ *  1: Reset\\
  *  spi_rx_afifo is used to receive data in SPI master and slave transfer.
  */
 #define SPI_RX_AFIFO_RST    (BIT(29))
@@ -1157,9 +1150,11 @@ extern "C" {
 #define SPI_RX_AFIFO_RST_V  0x00000001U
 #define SPI_RX_AFIFO_RST_S  29
 /** SPI_BUF_AFIFO_RST : WT; bitpos: [30]; default: 0;
- *  Configures whether or not to reset buf_tx_afifo as shown in Figure .
- *  0: Not reset
- *  1: Reset
+ *  Configures whether or not to reset buf_tx_afifo as shown in Figure <a
+ *  href="fig:spi-master-data-flow-control">link</a> and in Figure  <a
+ *  href="fig:spi-slave-data-flow-control">link</a>.\\
+ *  0: Not reset\\
+ *  1: Reset\\
  *  buf_tx_afifo is used to send data out in CPU-controlled master and slave transfer.
  */
 #define SPI_BUF_AFIFO_RST    (BIT(30))
@@ -1167,9 +1162,11 @@ extern "C" {
 #define SPI_BUF_AFIFO_RST_V  0x00000001U
 #define SPI_BUF_AFIFO_RST_S  30
 /** SPI_DMA_AFIFO_RST : WT; bitpos: [31]; default: 0;
- *  Configures whether or not to reset dma_tx_afifo as shown in Figure .
- *  0: Not reset
- *  1: Reset
+ *  Configures whether or not to reset dma_tx_afifo as shown in Figure <a
+ *  href="fig:spi-master-data-flow-control">link</a> and in Figure  <a
+ *  href="fig:spi-slave-data-flow-control">link</a>.\\
+ *  0: Not reset\\
+ *  1: Reset\\
  *  dma_tx_afifo is used to send data out in DMA-controlled slave transfer.
  */
 #define SPI_DMA_AFIFO_RST    (BIT(31))
@@ -2138,11 +2135,11 @@ extern "C" {
  */
 #define SPI_SLAVE_REG(i) (REG_SPI_BASE(i) + 0xe0)
 /** SPI_CLK_MODE : R/W; bitpos: [1:0]; default: 0;
- *  Configures SPI clock mode.
- *  0: SPI clock is off when CS becomes inactive.
- *  1: SPI clock is delayed one cycle after CS becomes inactive.
- *  2: SPI clock is delayed two cycles after CS becomes inactive.
- *  3: SPI clock is always on.
+ *  Configures SPI clock mode.\\
+ *  0: SPI clock is off when CS becomes inactive.\\
+ *  1: SPI clock is delayed one cycle after CS becomes inactive.\\
+ *  2: SPI clock is delayed two cycles after CS becomes inactive.\\
+ *  3: SPI clock is always on.\\
  *  Can be configured in CONF state.
  */
 #define SPI_CLK_MODE    0x00000003U
@@ -2150,18 +2147,20 @@ extern "C" {
 #define SPI_CLK_MODE_V  0x00000003U
 #define SPI_CLK_MODE_S  0
 /** SPI_CLK_MODE_13 : R/W; bitpos: [2]; default: 0;
- *  Configure clock mode.
- *  0: Support SPI clock mode 0 or 2. See Table .
- *  1: Support SPI clock mode 1 or 3. See Table .
+ *  Configure clock mode.\\
+ *  0: Support SPI clock mode 0 or 2. See Table <a
+ *  href="table:clock_pol_slave">link</a>.\\
+ *  1: Support SPI clock mode 1 or 3. See Table <a
+ *  href="table:clock_pol_slave">link</a>.\\
  */
 #define SPI_CLK_MODE_13    (BIT(2))
 #define SPI_CLK_MODE_13_M  (SPI_CLK_MODE_13_V << SPI_CLK_MODE_13_S)
 #define SPI_CLK_MODE_13_V  0x00000001U
 #define SPI_CLK_MODE_13_S  2
 /** SPI_RSCK_DATA_OUT : R/W; bitpos: [3]; default: 0;
- *  Configures the edge of output data.
- *  0: Output data at TSCK rising edge.
- *  1: Output data at RSCK rising edge.
+ *  Configures the edge of output data.\\
+ *  0: Output data at TSCK rising edge.\\
+ *  1: Output data at RSCK rising edge.\\
  */
 #define SPI_RSCK_DATA_OUT    (BIT(3))
 #define SPI_RSCK_DATA_OUT_M  (SPI_RSCK_DATA_OUT_V << SPI_RSCK_DATA_OUT_S)
@@ -2169,9 +2168,9 @@ extern "C" {
 #define SPI_RSCK_DATA_OUT_S  3
 /** SPI_SLV_RDDMA_BITLEN_EN : R/W; bitpos: [8]; default: 0;
  *  Configures whether or not to use SPI_SLV_DATA_BITLEN to store the data bit length
- *  of Rd_DMA transfer.
- *  0: Not use
- *  1: Use
+ *  of Rd_DMA transfer.\\
+ *  0: Not use\\
+ *  1: Use\\
  */
 #define SPI_SLV_RDDMA_BITLEN_EN    (BIT(8))
 #define SPI_SLV_RDDMA_BITLEN_EN_M  (SPI_SLV_RDDMA_BITLEN_EN_V << SPI_SLV_RDDMA_BITLEN_EN_S)
@@ -2179,9 +2178,9 @@ extern "C" {
 #define SPI_SLV_RDDMA_BITLEN_EN_S  8
 /** SPI_SLV_WRDMA_BITLEN_EN : R/W; bitpos: [9]; default: 0;
  *  Configures whether or not to use SPI_SLV_DATA_BITLEN to store the data bit length
- *  of Wr_DMA transfer.
- *  0: Not use
- *  1: Use
+ *  of Wr_DMA transfer.\\
+ *  0: Not use\\
+ *  1: Use\\
  */
 #define SPI_SLV_WRDMA_BITLEN_EN    (BIT(9))
 #define SPI_SLV_WRDMA_BITLEN_EN_M  (SPI_SLV_WRDMA_BITLEN_EN_V << SPI_SLV_WRDMA_BITLEN_EN_S)
@@ -2189,9 +2188,9 @@ extern "C" {
 #define SPI_SLV_WRDMA_BITLEN_EN_S  9
 /** SPI_SLV_RDBUF_BITLEN_EN : R/W; bitpos: [10]; default: 0;
  *  Configures whether or not to use SPI_SLV_DATA_BITLEN to store the data bit length
- *  of Rd_BUF transfer.
- *  0: Not use
- *  1: Use
+ *  of Rd_BUF transfer.\\
+ *  0: Not use\\
+ *  1: Use\\
  */
 #define SPI_SLV_RDBUF_BITLEN_EN    (BIT(10))
 #define SPI_SLV_RDBUF_BITLEN_EN_M  (SPI_SLV_RDBUF_BITLEN_EN_V << SPI_SLV_RDBUF_BITLEN_EN_S)
@@ -2199,9 +2198,9 @@ extern "C" {
 #define SPI_SLV_RDBUF_BITLEN_EN_S  10
 /** SPI_SLV_WRBUF_BITLEN_EN : R/W; bitpos: [11]; default: 0;
  *  Configures whether or not to use SPI_SLV_DATA_BITLEN to store the data bit length
- *  of Wr_BUF transfer.
- *  0: Not use
- *  1: Use
+ *  of Wr_BUF transfer.\\
+ *  0: Not use\\
+ *  1: Use\\
  */
 #define SPI_SLV_WRBUF_BITLEN_EN    (BIT(11))
 #define SPI_SLV_WRBUF_BITLEN_EN_M  (SPI_SLV_WRBUF_BITLEN_EN_V << SPI_SLV_WRBUF_BITLEN_EN_S)
@@ -2224,18 +2223,19 @@ extern "C" {
 #define SPI_DMA_SEG_MAGIC_VALUE_V  0x0000000FU
 #define SPI_DMA_SEG_MAGIC_VALUE_S  22
 /** SPI_SLAVE_MODE : R/W; bitpos: [26]; default: 0;
- *  Configures SPI work mode.
- *  0: Master
- *  1: Slave
+ *  Configures SPI work mode.\\
+ *  0: Master\\
+ *  1: Slave\\
  */
 #define SPI_SLAVE_MODE    (BIT(26))
 #define SPI_SLAVE_MODE_M  (SPI_SLAVE_MODE_V << SPI_SLAVE_MODE_S)
 #define SPI_SLAVE_MODE_V  0x00000001U
 #define SPI_SLAVE_MODE_S  26
 /** SPI_SOFT_RESET : WT; bitpos: [27]; default: 0;
- *  Configures whether to reset the SPI clock line, CS line, and data line via software.
- *  0: Not reset
- *  1: Reset
+ *  Configures whether to reset the SPI clock line, CS line, and data line via
+ *  software.\\
+ *  0: Not reset\\
+ *  1: Reset\\
  *  Can be configured in CONF state.
  */
 #define SPI_SOFT_RESET    (BIT(27))
@@ -2244,10 +2244,10 @@ extern "C" {
 #define SPI_SOFT_RESET_S  27
 /** SPI_USR_CONF : R/W; bitpos: [28]; default: 0;
  *  Configures whether or not to enable the CONF state of current DMA-controlled
- *  configurable segmented transfer.
+ *  configurable segmented transfer.\\
  *  0: No effect, which means the current transfer is not a configurable segmented
- *  transfer.
- *  1: Enable, which means a configurable segmented transfer is started.
+ *  transfer.\\
+ *  1: Enable, which means a configurable segmented transfer is started.\\
  */
 #define SPI_USR_CONF    (BIT(28))
 #define SPI_USR_CONF_M  (SPI_USR_CONF_V << SPI_USR_CONF_S)
@@ -2255,9 +2255,9 @@ extern "C" {
 #define SPI_USR_CONF_S  28
 /** SPI_MST_FD_WAIT_DMA_TX_DATA : R/W; bitpos: [29]; default: 0;
  *  Configures whether or not to wait DMA TX data gets ready before starting SPI
- *  transfer in master full-duplex transfer.
- *  0: Not wait
- *  1: Wait
+ *  transfer in master full-duplex transfer.\\
+ *  0: Not wait\\
+ *  1: Wait\\
  */
 #define SPI_MST_FD_WAIT_DMA_TX_DATA    (BIT(29))
 #define SPI_MST_FD_WAIT_DMA_TX_DATA_M  (SPI_MST_FD_WAIT_DMA_TX_DATA_V << SPI_MST_FD_WAIT_DMA_TX_DATA_S)
@@ -2295,9 +2295,9 @@ extern "C" {
  */
 #define SPI_CLK_GATE_REG(i) (REG_SPI_BASE(i) + 0xe8)
 /** SPI_CLK_EN : R/W; bitpos: [0]; default: 0;
- *  Configures whether or not to enable clock gate.
- *  0: Disable
- *  1: Enable
+ *  Configures whether or not to enable clock gate.\\
+ *  0: Disable\\
+ *  1: Enable\\
  */
 #define SPI_CLK_EN    (BIT(0))
 #define SPI_CLK_EN_M  (SPI_CLK_EN_V << SPI_CLK_EN_S)
@@ -2323,7 +2323,7 @@ extern "C" {
  *  Version control
  */
 #define SPI_DATE_REG(i) (REG_SPI_BASE(i) + 0xf0)
-/** SPI_DATE : R/W; bitpos: [27:0]; default: 37761424;
+/** SPI_DATE : R/W; bitpos: [27:0]; default: 36716931;
  *  Version control register.
  */
 #define SPI_DATE    0x0FFFFFFFU

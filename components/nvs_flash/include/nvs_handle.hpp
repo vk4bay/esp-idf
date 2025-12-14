@@ -1,9 +1,5 @@
-/*
- * SPDX-FileCopyrightText: 2019-2025 Espressif Systems (Shanghai) CO LTD
- *
- * SPDX-License-Identifier: Apache-2.0
- */
-#pragma once
+#ifndef NVS_HANDLE_HPP_
+#define NVS_HANDLE_HPP_
 
 #include <string>
 #include <memory>
@@ -311,3 +307,5 @@ esp_err_t NVSHandle::get_item(const char *key, T &value) {
 }
 
 } // nvs
+
+#endif // NVS_HANDLE_HPP_

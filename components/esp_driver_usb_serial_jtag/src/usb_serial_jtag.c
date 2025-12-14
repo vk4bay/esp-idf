@@ -183,7 +183,7 @@ esp_err_t usb_serial_jtag_driver_install(usb_serial_jtag_driver_config_t *usb_se
     }
 
     p_usb_serial_jtag_obj->tx_ring_buf = xRingbufferCreate(usb_serial_jtag_config->tx_buffer_size, RINGBUF_TYPE_BYTEBUF);
-    if (p_usb_serial_jtag_obj->tx_ring_buf == NULL) {
+    if (p_usb_serial_jtag_obj->rx_ring_buf == NULL) {
         ESP_LOGE(USB_SERIAL_JTAG_TAG, "ringbuffer create error");
         err = ESP_ERR_NO_MEM;
         goto _exit;
@@ -239,7 +239,7 @@ _exit:
     return err;
 }
 
-int usb_serial_jtag_read_bytes(void* buf, uint32_t length, uint32_t ticks_to_wait)
+int usb_serial_jtag_read_bytes(void* buf, uint32_t length, TickType_t ticks_to_wait)
 {
     uint8_t *data = NULL;
     size_t data_read_len = 0;
@@ -262,7 +262,7 @@ int usb_serial_jtag_read_bytes(void* buf, uint32_t length, uint32_t ticks_to_wai
     return data_read_len;
 }
 
-int usb_serial_jtag_write_bytes(const void* src, size_t size, uint32_t ticks_to_wait)
+int usb_serial_jtag_write_bytes(const void* src, size_t size, TickType_t ticks_to_wait)
 {
     ESP_RETURN_ON_FALSE(src && size, 0, USB_SERIAL_JTAG_TAG, "invalid buffer or size");
     ESP_RETURN_ON_FALSE(p_usb_serial_jtag_obj != NULL, 0, USB_SERIAL_JTAG_TAG, "driver is not initialized yet");
@@ -288,7 +288,7 @@ int usb_serial_jtag_write_bytes(const void* src, size_t size, uint32_t ticks_to_
     return (result == pdFALSE) ? 0 : size;
 }
 
-esp_err_t usb_serial_jtag_wait_tx_done(uint32_t ticks_to_wait)
+esp_err_t usb_serial_jtag_wait_tx_done(TickType_t ticks_to_wait)
 {
     int r;
     TimeOut_t timeout;
@@ -366,23 +366,12 @@ void usb_serial_jtag_set_select_notif_callback(usj_select_notif_callback_t usj_s
     }
 }
 
-size_t usb_serial_jtag_get_read_bytes_available(void)
-{
-    // sign the the driver is read ready is that data is waiting in the RX ringbuffer
-    UBaseType_t bytes_available = 0;
-    if (usb_serial_jtag_is_driver_installed()) {
-        vRingbufferGetInfo(p_usb_serial_jtag_obj->rx_ring_buf, NULL, NULL, NULL, NULL, &bytes_available);
-        if (bytes_available <= 0) {
-            return 0;
-        }
-    }
-
-    return (size_t)bytes_available;
-}
-
 bool usb_serial_jtag_read_ready(void)
 {
-    return usb_serial_jtag_get_read_bytes_available() != 0;
+    // sign the the driver is read ready is that data is waiting in the RX ringbuffer
+    UBaseType_t items_waiting = 0;
+    vRingbufferGetInfo(p_usb_serial_jtag_obj->rx_ring_buf, NULL, NULL, NULL, NULL, &items_waiting);
+    return items_waiting != 0;
 }
 
 bool usb_serial_jtag_write_ready(void)

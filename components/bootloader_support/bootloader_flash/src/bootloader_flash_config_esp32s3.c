@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2020-2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2020-2024 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -99,7 +99,7 @@ void IRAM_ATTR bootloader_flash_dummy_config(const esp_image_header_t *pfhdr)
     bootloader_flash_set_dummy_out();
 }
 
-ESP_LOG_ATTR_TAG(TAG, "boot.esp32s3");
+static const char *TAG = "boot.esp32s3";
 
 void IRAM_ATTR bootloader_configure_spi_pins(int drv)
 {
@@ -125,10 +125,10 @@ void IRAM_ATTR bootloader_configure_spi_pins(int drv)
     esp_rom_gpio_pad_set_drv(q_gpio_num,   drv);
     esp_rom_gpio_pad_set_drv(d_gpio_num,   drv);
     esp_rom_gpio_pad_set_drv(cs0_gpio_num, drv);
-    if (hd_gpio_num < SOC_GPIO_PIN_COUNT) {
+    if (hd_gpio_num <= MAX_PAD_GPIO_NUM) {
         esp_rom_gpio_pad_set_drv(hd_gpio_num, drv);
     }
-    if (wp_gpio_num < SOC_GPIO_PIN_COUNT) {
+    if (wp_gpio_num <= MAX_PAD_GPIO_NUM) {
         esp_rom_gpio_pad_set_drv(wp_gpio_num, drv);
     }
 }
@@ -182,19 +182,19 @@ static void print_flash_info(const esp_image_header_t *bootloader_hdr)
     const char *str;
     switch (bootloader_hdr->spi_speed) {
     case ESP_IMAGE_SPI_SPEED_DIV_2:
-        str = ESP_LOG_ATTR_STR("40MHz");
+        str = "40MHz";
         break;
     case ESP_IMAGE_SPI_SPEED_DIV_3:
-        str = ESP_LOG_ATTR_STR("26.7MHz");
+        str = "26.7MHz";
         break;
     case ESP_IMAGE_SPI_SPEED_DIV_4:
-        str = ESP_LOG_ATTR_STR("20MHz");
+        str = "20MHz";
         break;
     case ESP_IMAGE_SPI_SPEED_DIV_1:
-        str = ESP_LOG_ATTR_STR("80MHz");
+        str = "80MHz";
         break;
     default:
-        str = ESP_LOG_ATTR_STR("20MHz");
+        str = "20MHz";
         break;
     }
     ESP_EARLY_LOGI(TAG, "Boot SPI Speed : %s", str);
@@ -204,53 +204,53 @@ static void print_flash_info(const esp_image_header_t *bootloader_hdr)
     esp_rom_spiflash_read_mode_t spi_mode = bootloader_flash_get_spi_mode();
     switch (spi_mode) {
     case ESP_ROM_SPIFLASH_QIO_MODE:
-        str = ESP_LOG_ATTR_STR("QIO");
+        str = "QIO";
         break;
     case ESP_ROM_SPIFLASH_QOUT_MODE:
-        str = ESP_LOG_ATTR_STR("QOUT");
+        str = "QOUT";
         break;
     case ESP_ROM_SPIFLASH_DIO_MODE:
-        str = ESP_LOG_ATTR_STR("DIO");
+        str = "DIO";
         break;
     case ESP_ROM_SPIFLASH_DOUT_MODE:
-        str = ESP_LOG_ATTR_STR("DOUT");
+        str = "DOUT";
         break;
     case ESP_ROM_SPIFLASH_FASTRD_MODE:
-        str = ESP_LOG_ATTR_STR("FAST READ");
+        str = "FAST READ";
         break;
     default:
-        str = ESP_LOG_ATTR_STR("SLOW READ");
+        str = "SLOW READ";
         break;
     }
     ESP_EARLY_LOGI(TAG, "SPI Mode       : %s", str);
 
     switch (bootloader_hdr->spi_size) {
     case ESP_IMAGE_FLASH_SIZE_1MB:
-        str = ESP_LOG_ATTR_STR("1MB");
+        str = "1MB";
         break;
     case ESP_IMAGE_FLASH_SIZE_2MB:
-        str = ESP_LOG_ATTR_STR("2MB");
+        str = "2MB";
         break;
     case ESP_IMAGE_FLASH_SIZE_4MB:
-        str = ESP_LOG_ATTR_STR("4MB");
+        str = "4MB";
         break;
     case ESP_IMAGE_FLASH_SIZE_8MB:
-        str = ESP_LOG_ATTR_STR("8MB");
+        str = "8MB";
         break;
     case ESP_IMAGE_FLASH_SIZE_16MB:
-        str = ESP_LOG_ATTR_STR("16MB");
+        str = "16MB";
         break;
     case ESP_IMAGE_FLASH_SIZE_32MB:
-        str = ESP_LOG_ATTR_STR("32MB");
+        str = "32MB";
         break;
     case ESP_IMAGE_FLASH_SIZE_64MB:
-        str = ESP_LOG_ATTR_STR("64MB");
+        str = "64MB";
         break;
     case ESP_IMAGE_FLASH_SIZE_128MB:
-        str = ESP_LOG_ATTR_STR("128MB");
+        str = "128MB";
         break;
     default:
-        str = ESP_LOG_ATTR_STR("2MB");
+        str = "2MB";
         break;
     }
     ESP_EARLY_LOGI(TAG, "SPI Flash Size : %s", str);
@@ -272,6 +272,13 @@ static void bootloader_spi_flash_resume(void)
 esp_err_t bootloader_init_spi_flash(void)
 {
     bootloader_init_flash_configure();
+#ifndef CONFIG_SPI_FLASH_ROM_DRIVER_PATCH
+    const uint32_t spiconfig = esp_rom_efuse_get_flash_gpio_info();
+    if (spiconfig != ESP_ROM_EFUSE_FLASH_DEFAULT_SPI && spiconfig != ESP_ROM_EFUSE_FLASH_DEFAULT_HSPI) {
+        ESP_EARLY_LOGE(TAG, "SPI flash pins are overridden. Enable CONFIG_SPI_FLASH_ROM_DRIVER_PATCH in menuconfig");
+        return ESP_FAIL;
+    }
+#endif
 
 #if CONFIG_BOOTLOADER_FLASH_DC_AWARE
     // Reset flash, clear volatile bits DC[0:1]. Make it work under default mode to boot.
@@ -279,9 +286,6 @@ esp_err_t bootloader_init_spi_flash(void)
 #endif
 
     bootloader_spi_flash_resume();
-    if ((void*)bootloader_flash_unlock != (void*)bootloader_flash_unlock_default) {
-        ESP_EARLY_LOGD(TAG, "Using overridden bootloader_flash_unlock");
-    }
     bootloader_flash_unlock();
 
 #if CONFIG_ESPTOOLPY_FLASHMODE_QIO || CONFIG_ESPTOOLPY_FLASHMODE_QOUT
@@ -333,9 +337,10 @@ void bootloader_flash_hardware_init(void)
 {
     esp_rom_spiflash_attach(esp_rom_efuse_get_flash_gpio_info(), false);
 
-    // init cache and mmu
-    bootloader_init_ext_mem();
-
+    //init cache hal
+    cache_hal_init();
+    //init mmu
+    mmu_hal_init();
     // update flash ID
     bootloader_flash_update_id();
     // Check and run XMC startup flow

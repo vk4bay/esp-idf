@@ -10,6 +10,7 @@
 #include <stdlib.h>
 #include "esp32c5/rom/ets_sys.h"
 #include "esp32c5/rom/rtc.h"
+#include "esp32c5/rom/uart.h"
 #include "soc/rtc.h"
 #include "soc/soc_caps.h"
 #include "esp_cpu.h"
@@ -18,6 +19,7 @@
 #include "soc/regi2c_dig_reg.h"
 #include "esp_hw_log.h"
 #include "sdkconfig.h"
+#include "esp_rom_uart.h"
 #include "esp_private/esp_pmu.h"
 #include "hal/clk_tree_ll.h"
 #if SOC_MODEM_CLOCK_SUPPORTED
@@ -26,7 +28,7 @@
 #endif
 #include "pmu_param.h"
 
-ESP_HW_LOG_ATTR_TAG(TAG, "rtc_clk_init");
+static const char *TAG = "rtc_clk_init";
 
 /**
  * Initialize the ICG map of some modem clock domains in the PMU_ACTIVE state
@@ -77,7 +79,6 @@ void rtc_clk_init(rtc_clk_config_t cfg)
     REGI2C_WRITE_MASK(I2C_DIG_REG, I2C_DIG_REG_ENIF_DIG_DREG, 1);
     REGI2C_WRITE_MASK(I2C_DIG_REG, I2C_DIG_REG_XPD_RTC_REG, 0);
     REGI2C_WRITE_MASK(I2C_DIG_REG, I2C_DIG_REG_XPD_DIG_REG, 0);
-
     uint32_t hp_cali_dbias = get_act_hp_dbias();
     uint32_t lp_cali_dbias = get_act_lp_dbias();
 

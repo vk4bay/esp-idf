@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2024-2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2024 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -9,9 +9,7 @@
 #pragma once
 
 #include "soc/assist_debug_reg.h"
-#define ASSIST_DEBUG_SP_SPILL_BITS      (ASSIST_DEBUG_CORE_0_SP_SPILL_MIN_ENA | ASSIST_DEBUG_CORE_0_SP_SPILL_MAX_ENA)
-#define ASSIST_DEBUG_CORE_0_MONITOR_REG  ASSIST_DEBUG_CORE_0_INTR_ENA_REG
-#define ASSIST_DEBUG_CORE_1_MONITOR_REG  ASSIST_DEBUG_CORE_1_INTR_ENA_REG
+#define ASSIST_DEBUG_SP_SPILL_BITS  (ASSIST_DEBUG_CORE_0_SP_SPILL_MIN_ENA | ASSIST_DEBUG_CORE_0_SP_SPILL_MAX_ENA)
 
 #ifndef __ASSEMBLER__
 
@@ -20,7 +18,7 @@
 #include "esp_attr.h"
 #include "hal/assert.h"
 #include "soc/hp_sys_clkrst_struct.h"
-#include "soc/soc_caps.h"
+#include "sdkconfig.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -127,7 +125,7 @@ FORCE_INLINE_ATTR void _assist_debug_ll_enable_bus_clock(bool enable)
 FORCE_INLINE_ATTR void _assist_debug_ll_reset_register(void)
 {
     /* esp32p4 has no assist_debug reset register: disable & clear interrupts manually.  */
-    for (int i = 0; i < SOC_CPU_CORES_NUM; i++) {
+    for (int i = 0; i < CONFIG_SOC_CPU_CORES_NUM; i++) {
         assist_debug_ll_sp_spill_monitor_disable(i);
         assist_debug_ll_sp_spill_interrupt_clear(i);
         assist_debug_ll_sp_spill_set_min(i, 0);
@@ -138,11 +136,6 @@ FORCE_INLINE_ATTR void _assist_debug_ll_reset_register(void)
 }
 #define assist_debug_ll_reset_register(...) \
     (void)__DECLARE_RCC_ATOMIC_ENV; _assist_debug_ll_reset_register(__VA_ARGS__)
-
-FORCE_INLINE_ATTR bool assist_debug_ll_is_debugger_active(void)
-{
-    return REG_GET_BIT(ASSIST_DEBUG_CORE_0_DEBUG_MODE_REG, ASSIST_DEBUG_CORE_0_DEBUG_MODULE_ACTIVE);
-}
 
 #ifdef __cplusplus
 }

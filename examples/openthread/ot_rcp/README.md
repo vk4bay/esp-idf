@@ -1,5 +1,5 @@
-| Supported Targets | ESP32-C5 | ESP32-C6 | ESP32-H2 | ESP32-H4 |
-| ----------------- | -------- | -------- | -------- | -------- |
+| Supported Targets | ESP32-C5 | ESP32-C6 | ESP32-H2 |
+| ----------------- | -------- | -------- | -------- |
 
 # OpenThread Radio Co-Processor (RCP) Example
 
@@ -31,7 +31,7 @@ CONFIG_COMPILER_SAVE_RESTORE_LIBCALLS=y
 CONFIG_ESP_ERR_TO_NAME_LOOKUP=n
 CONFIG_ESP_SYSTEM_PANIC_SILENT_REBOOT=y
 CONFIG_LOG_DEFAULT_LEVEL_NONE=y
-CONFIG_LIBC_NEWLIB_NANO_FORMAT=y
+CONFIG_NEWLIB_NANO_FORMAT=y
 CONFIG_OPENTHREAD_LOG_LEVEL_DYNAMIC=n
 CONFIG_OPENTHREAD_LOG_LEVEL_NONE=y
 ```

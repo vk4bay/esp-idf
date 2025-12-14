@@ -25,13 +25,6 @@ static bool get_ssp_enabled(void)
     return cfg->ssp_en;
 }
 
-static bool get_sc_enabled(void)
-{
-    assert(s_stack_config_env);
-    esp_bluedroid_config_t *cfg = &s_stack_config_env->cfg;
-    return cfg->sc_en;
-}
-
 bt_status_t bluedroid_config_init(esp_bluedroid_config_t *cfg)
 {
     s_stack_config_env = osi_calloc(sizeof(struct stack_config_env_tag));
@@ -43,7 +36,6 @@ bt_status_t bluedroid_config_init(esp_bluedroid_config_t *cfg)
 
     struct bluedroid_config *interface = &s_stack_config_env->interface;
     interface->get_ssp_enabled = get_ssp_enabled;
-    interface->get_sc_enabled = get_sc_enabled;
 
     return BT_STATUS_SUCCESS;
 }

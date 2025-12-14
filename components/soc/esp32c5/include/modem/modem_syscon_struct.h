@@ -1,7 +1,7 @@
 /*
- * SPDX-FileCopyrightText: 2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2024 Espressif Systems (Shanghai) CO LTD
  *
- * SPDX-License-Identifier: Apache-2.0 OR MIT
+ * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
 
@@ -152,7 +152,6 @@ typedef volatile struct {
         uint32_t val;
     } clk_conf1;
     uint32_t wifi_bb_cfg;
-    uint32_t fe_cfg;
     uint32_t mem_rf1_conf;
     uint32_t mem_rf2_conf;
     union {
@@ -167,7 +166,7 @@ typedef volatile struct {
 extern modem_syscon_dev_t MODEM_SYSCON;
 
 #ifndef __cplusplus
-_Static_assert(sizeof(modem_syscon_dev_t) == 0x2c, "Invalid size of modem_syscon_dev_t structure");
+_Static_assert(sizeof(modem_syscon_dev_t) == 0x28, "Invalid size of modem_syscon_dev_t structure");
 #endif
 
 #ifdef __cplusplus

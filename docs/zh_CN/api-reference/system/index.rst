@@ -39,7 +39,9 @@
     system_time
     :SOC_ASYNC_MEMCPY_SUPPORTED: async_memcpy
     :esp32: himem
-    ulp
+    :SOC_ULP_FSM_SUPPORTED: ulp
+    :SOC_RISCV_COPROC_SUPPORTED: ulp-risc-v
+    :SOC_LP_CORE_SUPPORTED: ulp-lp-core
     wdts
 
 

@@ -38,7 +38,7 @@ static const char *TAG = "example";
 
 // Async requests are queued here while they wait to
 // be processed by the workers
-static QueueHandle_t request_queue;
+static QueueHandle_t async_req_queue;
 
 // Track the number of free workers at any given time
 static SemaphoreHandle_t worker_ready_count;
@@ -53,8 +53,22 @@ typedef struct {
     httpd_req_handler_t handler;
 } httpd_async_req_t;
 
-// queue an HTTP req to the worker queue
-static esp_err_t queue_request(httpd_req_t *req, httpd_req_handler_t handler)
+
+static bool is_on_async_worker_thread(void)
+{
+    // is our handle one of the known async handles?
+    TaskHandle_t handle = xTaskGetCurrentTaskHandle();
+    for (int i = 0; i < CONFIG_EXAMPLE_MAX_ASYNC_REQUESTS; i++) {
+        if (worker_handles[i] == handle) {
+            return true;
+        }
+    }
+    return false;
+}
+
+
+// Submit an HTTP req to the async worker queue
+static esp_err_t submit_async_req(httpd_req_t *req, httpd_req_handler_t handler)
 {
     // must create a copy of the request that we own
     httpd_req_t* copy = NULL;
@@ -83,7 +97,7 @@ static esp_err_t queue_request(httpd_req_t *req, httpd_req_handler_t handler)
 
     // Since worker_ready_count > 0 the queue should already have space.
     // But lets wait up to 100ms just to be safe.
-    if (xQueueSend(request_queue, &async_req, pdMS_TO_TICKS(100)) == false) {
+    if (xQueueSend(async_req_queue, &async_req, pdMS_TO_TICKS(100)) == false) {
         ESP_LOGE(TAG, "worker queue is full");
         httpd_req_async_handler_complete(copy); // cleanup
         return ESP_FAIL;
@@ -92,44 +106,24 @@ static esp_err_t queue_request(httpd_req_t *req, httpd_req_handler_t handler)
     return ESP_OK;
 }
 
-/* handle long request (on async thread) */
-static esp_err_t long_async(httpd_req_t *req)
+
+/* A long running HTTP GET handler */
+static esp_err_t long_async_handler(httpd_req_t *req)
 {
-    char*  buf;
-    size_t buf_len;
+    ESP_LOGI(TAG, "uri: /long");
+    // This handler is first invoked on the httpd thread.
+    // In order to free the httpd thread to handle other requests,
+    // we must resubmit our request to be handled on an async worker thread.
+    if (is_on_async_worker_thread() == false) {
 
-    /* Get URI */
-    ESP_LOGI(TAG, "Request URI: %s", req->uri);
-
-    /* Get header value string length and allocate memory for length + 1,
-     * extra byte for null termination */
-    buf_len = httpd_req_get_hdr_value_len(req, "Host") + 1;
-    if (buf_len > 1) {
-        buf = malloc(buf_len);
-        if (buf == NULL) {
-            ESP_LOGE(TAG, "Failed to allocate memory for headers");
-            return ESP_FAIL;
+        // submit
+        if (submit_async_req(req, long_async_handler) == ESP_OK) {
+            return ESP_OK;
+        } else {
+            httpd_resp_set_status(req, "503 Busy");
+            httpd_resp_sendstr(req, "<div> no workers available. server busy.</div>");
+            return ESP_OK;
         }
-        /* Copy null terminated value string into buffer */
-        if (httpd_req_get_hdr_value_str(req, "Host", buf, buf_len) == ESP_OK) {
-            ESP_LOGI(TAG, "Found header => Host: %s", buf);
-        }
-        free(buf);
-    }
-    /* Get query string length and allocate memory for length + 1,
-     * extra byte for null termination */
-    buf_len = httpd_req_get_url_query_len(req) + 1;
-    if (buf_len > 1) {
-        buf = malloc(buf_len);
-        if (buf == NULL) {
-            ESP_LOGE(TAG, "Failed to allocate memory for query string");
-            return ESP_FAIL;
-        }
-        /* Copy null terminated query string into buffer */
-        if (httpd_req_get_url_query_str(req, buf, buf_len) == ESP_OK) {
-            ESP_LOGI(TAG, "Found query string => %s", buf);
-        }
-        free(buf);
     }
 
     // track the number of long requests
@@ -172,8 +166,7 @@ static esp_err_t long_async(httpd_req_t *req)
     return ESP_OK;
 }
 
-// each worker thread loops forever, processing requests
-static void worker_task(void *p)
+static void async_req_worker_task(void *p)
 {
     ESP_LOGI(TAG, "starting async req task worker");
 
@@ -185,7 +178,7 @@ static void worker_task(void *p)
 
         // wait for a request
         httpd_async_req_t async_req;
-        if (xQueueReceive(request_queue, &async_req, portMAX_DELAY)) {
+        if (xQueueReceive(async_req_queue, &async_req, portMAX_DELAY)) {
 
             ESP_LOGI(TAG, "invoking %s", async_req.req->uri);
 
@@ -204,8 +197,7 @@ static void worker_task(void *p)
     vTaskDelete(NULL);
 }
 
-// start worker threads
-static void start_workers(void)
+static void start_async_req_workers(void)
 {
 
     // counting semaphore keeps track of available workers
@@ -218,9 +210,9 @@ static void start_workers(void)
     }
 
     // create queue
-    request_queue = xQueueCreate(1, sizeof(httpd_async_req_t));
-    if (request_queue == NULL){
-        ESP_LOGE(TAG, "Failed to create request_queue");
+    async_req_queue = xQueueCreate(1, sizeof(httpd_async_req_t));
+    if (async_req_queue == NULL){
+        ESP_LOGE(TAG, "Failed to create async_req_queue");
         vSemaphoreDelete(worker_ready_count);
         return;
     }
@@ -228,7 +220,7 @@ static void start_workers(void)
     // start worker tasks
     for (int i = 0; i < CONFIG_EXAMPLE_MAX_ASYNC_REQUESTS; i++) {
 
-        bool success = xTaskCreate(worker_task, "async_req_worker",
+        bool success = xTaskCreate(async_req_worker_task, "async_req_worker",
                                     ASYNC_WORKER_TASK_STACK_SIZE, // stack size
                                     (void *)0, // argument
                                     ASYNC_WORKER_TASK_PRIORITY, // priority
@@ -241,20 +233,6 @@ static void start_workers(void)
     }
 }
 
-/* adds /long request to the request queue */
-static esp_err_t long_handler(httpd_req_t *req)
-{
-    ESP_LOGI(TAG, "uri: /long");
-
-    // add to the async request queue
-    if (queue_request(req, long_async) == ESP_OK) {
-        return ESP_OK;
-    } else {
-        httpd_resp_set_status(req, "503 Busy");
-        httpd_resp_sendstr(req, "<div> no workers available. server busy.</div>");
-        return ESP_OK;
-    }
-}
 
 /* A quick HTTP GET handler, which does not
    use any asynchronous features */
@@ -305,7 +283,7 @@ static httpd_handle_t start_webserver(void)
     const httpd_uri_t long_uri = {
         .uri       = "/long",
         .method    = HTTP_GET,
-        .handler   = long_handler,
+        .handler   = long_async_handler,
     };
 
     const httpd_uri_t quick_uri = {
@@ -380,7 +358,7 @@ void app_main(void)
 #endif // CONFIG_EXAMPLE_CONNECT_ETHERNET
 
     // start workers
-    start_workers();
+    start_async_req_workers();
 
     /* Start the server for the first time */
     server = start_webserver();

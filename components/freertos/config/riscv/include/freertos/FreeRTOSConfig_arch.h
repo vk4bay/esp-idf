@@ -35,11 +35,7 @@
 
 /* ----------------------- System -------------------------- */
 
-#if CONFIG_LIBC_NEWLIB
 #define configUSE_NEWLIB_REENTRANT    1
-#else
-#define configUSE_NEWLIB_REENTRANT    0
-#endif
 
 /* - FreeRTOS provides default for configTLS_BLOCK_TYPE.
  * - We simply provide our own INIT and DEINIT functions

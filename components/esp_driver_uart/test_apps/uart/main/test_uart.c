@@ -419,71 +419,21 @@ TEST_CASE("uart tx with ringbuffer test", "[uart]")
         rd_data[i] = 0;
     }
 
+    size_t tx_buffer_free_space;
+    uart_get_tx_buffer_free_size(uart_num, &tx_buffer_free_space);
+    TEST_ASSERT_EQUAL_INT(2048, tx_buffer_free_space); // full tx buffer space is free
     uart_write_bytes(uart_num, (const char *)wr_data, 1024);
+    uart_get_tx_buffer_free_size(uart_num, &tx_buffer_free_space);
+    TEST_ASSERT_LESS_THAN(2048, tx_buffer_free_space); // tx transmit in progress: tx buffer has content
+    TEST_ASSERT_GREATER_OR_EQUAL(1024, tx_buffer_free_space);
     uart_wait_tx_done(uart_num, portMAX_DELAY);
-
+    uart_get_tx_buffer_free_size(uart_num, &tx_buffer_free_space);
+    TEST_ASSERT_EQUAL_INT(2048, tx_buffer_free_space); // tx done: tx buffer back to empty
     uart_read_bytes(uart_num, rd_data, 1024, pdMS_TO_TICKS(1000));
     TEST_ASSERT_EQUAL_HEX8_ARRAY(wr_data, rd_data, 1024);
-
     TEST_ESP_OK(uart_driver_delete(uart_num));
     free(rd_data);
     free(wr_data);
-}
-
-TEST_CASE("uart tx ring buffer free space test", "[uart]")
-{
-    uart_port_param_t port_param = {};
-    TEST_ASSERT(port_select(&port_param));
-    // This is a test on the driver API, no need to test for both HP/LP uart port, call port_select() to be compatible with pytest
-    // Let's only test on HP UART
-    if (port_param.port_num < SOC_UART_HP_NUM) {
-        uart_port_t uart_num = port_param.port_num;
-        uint8_t *rd_data = (uint8_t *)malloc(1024);
-        TEST_ASSERT_NOT_NULL(rd_data);
-        uint8_t *wr_data = (uint8_t *)malloc(2048);
-        TEST_ASSERT_NOT_NULL(wr_data);
-        uart_config_t uart_config = {
-            .baud_rate = 2000000,
-            .data_bits = UART_DATA_8_BITS,
-            .parity = UART_PARITY_DISABLE,
-            .stop_bits = UART_STOP_BITS_1,
-            .flow_ctrl = UART_HW_FLOWCTRL_CTS_RTS,
-            .rx_flow_ctrl_thresh = port_param.rx_flow_ctrl_thresh,
-            .source_clk = port_param.default_src_clk,
-        };
-        uart_wait_tx_idle_polling(uart_num);
-        TEST_ESP_OK(uart_param_config(uart_num, &uart_config));
-        TEST_ESP_OK(uart_driver_install(uart_num, 256, 1024 * 2, 20, NULL, 0));
-        // Let CTS be high, so that transmission is blocked
-        esp_rom_gpio_connect_in_signal(GPIO_MATRIX_CONST_ONE_INPUT, uart_periph_signal[uart_num].pins[SOC_UART_PERIPH_SIGNAL_CTS].signal, false);
-
-        // When nothing pushed to the TX ring buffer, the free space should be the full capacity
-        size_t tx_buffer_free_space;
-        uart_get_tx_buffer_free_size(uart_num, &tx_buffer_free_space);
-        TEST_ASSERT_EQUAL_INT(2020, tx_buffer_free_space); // no-split ring buffer: 2048 - 20 (data description item) - 8 (header)
-
-        // Push 1024 bytes to the TX ring buffer
-        uart_write_bytes(uart_num, (const char *)wr_data, 1024); // two chunks
-        vTaskDelay(pdMS_TO_TICKS(500));
-        uart_get_tx_buffer_free_size(uart_num, &tx_buffer_free_space);
-        TEST_ASSERT_LESS_THAN(2020, tx_buffer_free_space); // tx buffer has content
-        TEST_ASSERT_GREATER_OR_EQUAL(952, tx_buffer_free_space);
-
-        // Fill the remaining space in the TX ring buffer
-        uart_write_bytes(uart_num, (const char *)wr_data, tx_buffer_free_space);
-        uart_get_tx_buffer_free_size(uart_num, &tx_buffer_free_space);
-        TEST_ASSERT_EQUAL_INT(0, tx_buffer_free_space); // tx buffer is full
-
-        // Let CTS be low, so that transmission is unblocked
-        esp_rom_gpio_connect_in_signal(GPIO_MATRIX_CONST_ZERO_INPUT, uart_periph_signal[uart_num].pins[SOC_UART_PERIPH_SIGNAL_CTS].signal, false);
-        uart_wait_tx_done(uart_num, portMAX_DELAY);
-        uart_get_tx_buffer_free_size(uart_num, &tx_buffer_free_space);
-        TEST_ASSERT_EQUAL_INT(2020, tx_buffer_free_space); // tx buffer is back to full capacity
-
-        TEST_ESP_OK(uart_driver_delete(uart_num));
-        free(rd_data);
-        free(wr_data);
-    }
 }
 
 TEST_CASE("uart int state restored after flush", "[uart]")
@@ -501,7 +451,7 @@ TEST_CASE("uart int state restored after flush", "[uart]")
         .source_clk = port_param.default_src_clk,
     };
 
-    const int uart_tx_signal = uart_periph_signal[uart_num].pins[SOC_UART_PERIPH_SIGNAL_TX].signal;
+    const int uart_tx_signal = uart_periph_signal[uart_num].pins[SOC_UART_TX_PIN_IDX].signal;
     const int uart_tx = port_param.tx_pin_num;
     const int uart_rx = port_param.rx_pin_num;
     const int buf_size = 256;
@@ -525,7 +475,7 @@ TEST_CASE("uart int state restored after flush", "[uart]")
         // In case the selected RX IO is the LP UART IOMUX IO, and the IO has been configured to IOMUX function in the driver
         // Do the following:
         TEST_ESP_OK(rtc_gpio_iomux_func_sel(uart_rx, RTCIO_LL_PIN_FUNC));
-        const int uart_rx_signal = uart_periph_signal[uart_num].pins[SOC_UART_PERIPH_SIGNAL_RX].signal;
+        const int uart_rx_signal = uart_periph_signal[uart_num].pins[SOC_UART_RX_PIN_IDX].signal;
         TEST_ESP_OK(lp_gpio_connect_in_signal(uart_rx, uart_rx_signal, false));
         TEST_ESP_OK(lp_gpio_connect_out_signal(uart_rx, uart_tx_signal, false, false));
 #else
@@ -635,63 +585,4 @@ TEST_CASE("uart in one-wire mode", "[uart]")
     }
 
     TEST_ESP_OK(uart_driver_delete(uart_num));
-}
-
-static void uart_console_write_task(void *arg)
-{
-    while (1) {
-        printf("This is a sentence used to detect uart baud rate...\nThis is a sentence used to detect uart baud rate...\nThis is a sentence used to detect uart baud rate...\nThis is a sentence used to detect uart baud rate...\nThis is a sentence used to detect uart baud rate...\n");
-        vTaskDelay(pdMS_TO_TICKS(100));
-    }
-}
-
-TEST_CASE("uart auto baud rate detection", "[uart]")
-{
-    uart_port_param_t port_param = {};
-    TEST_ASSERT(port_select(&port_param));
-    // This is indeed a standalone feature, no need to specify the uart port, call port_select() to be compatible with pytest
-    // And this test case no need to be tested twice on HP/LP uart ports both exist targets (also, LP UART does not support auto baud rate detection functionality)
-    if (port_param.port_num < SOC_UART_HP_NUM) {
-        TaskHandle_t console_write_task = NULL;
-        xTaskCreate(uart_console_write_task, "uart_console_write_task", 2048, NULL, 5, &console_write_task);
-        vTaskDelay(20);
-
-        // Measure console uart baudrate
-        uint32_t actual_baudrate = 0;
-        uint32_t detected_baudrate = 0;
-        uart_bitrate_detect_config_t conf = {
-            .rx_io_num = uart_periph_signal[CONFIG_CONSOLE_UART_NUM].pins[SOC_UART_PERIPH_SIGNAL_TX].default_gpio,
-            .source_clk = UART_SCLK_DEFAULT,
-        };
-        uart_bitrate_res_t res = {};
-
-        uart_get_baudrate(CONFIG_CONSOLE_UART_NUM, &actual_baudrate);
-        TEST_ESP_OK(uart_detect_bitrate_start(UART_NUM_1, &conf)); // acquire a new uart port
-        vTaskDelay(pdMS_TO_TICKS(500));
-        TEST_ESP_OK(uart_detect_bitrate_stop(UART_NUM_1, false, &res)); // no releasing
-        detected_baudrate = res.clk_freq_hz * 2 / res.pos_period; // assume the wave has a slow falling slew rate
-        TEST_ASSERT_INT32_WITHIN(actual_baudrate * 0.03, actual_baudrate, detected_baudrate); // allow 3% error
-
-        // Temporarily change console baudrate
-        uart_set_baudrate(CONFIG_CONSOLE_UART_NUM, 38400);
-
-        uart_get_baudrate(CONFIG_CONSOLE_UART_NUM, &actual_baudrate);
-        TEST_ESP_OK(uart_detect_bitrate_start(UART_NUM_1, NULL)); // use the previously acquired uart port
-        vTaskDelay(pdMS_TO_TICKS(500));
-        TEST_ESP_OK(uart_detect_bitrate_stop(UART_NUM_1, true, &res)); // release the uart port
-        detected_baudrate = res.clk_freq_hz * 2 / res.pos_period;
-        TEST_ASSERT_INT32_WITHIN(actual_baudrate * 0.03, actual_baudrate, detected_baudrate);
-
-        // Set back to original console baudrate, test again
-        uart_set_baudrate(CONFIG_CONSOLE_UART_NUM, CONFIG_CONSOLE_UART_BAUDRATE);
-
-        uart_get_baudrate(CONFIG_CONSOLE_UART_NUM, &actual_baudrate);
-        TEST_ESP_OK(uart_detect_bitrate_start(UART_NUM_1, &conf)); // acquire a new uart port again
-        vTaskDelay(pdMS_TO_TICKS(500));
-        TEST_ESP_OK(uart_detect_bitrate_stop(UART_NUM_1, true, &res)); // release it
-        detected_baudrate = res.clk_freq_hz * 2 / res.pos_period;
-        TEST_ASSERT_INT32_WITHIN(actual_baudrate * 0.03, actual_baudrate, detected_baudrate);
-
-        vTaskDelete(console_write_task);
-    }
 }

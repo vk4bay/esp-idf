@@ -52,9 +52,7 @@ struct jpeg_codec_t {
     intr_handle_t intr_handle;        // jpeg codec interrupt handler
     int intr_priority;                // jpeg codec interrupt priority
     SLIST_HEAD(jpeg_isr_handler_list_, jpeg_isr_handler_) jpeg_isr_handler_list; // List for jpeg interrupt.
-#if CONFIG_PM_ENABLE
     esp_pm_lock_handle_t pm_lock; // power manage lock
-#endif
 };
 
 typedef enum {
@@ -133,8 +131,6 @@ typedef enum {
     JPEG_ENC_SRC_YUV422_HB = 1,       // Input YUV422 format
     JPEG_ENC_SRC_RGB565_HB = 2,      // Input RGB565 format
     JPEG_ENC_SRC_GRAY_HB = 3,        // Input GRAY format
-    JPEG_ENC_SRC_YUV444_HB = 4,      // Input YUV444 format
-    JPEG_ENC_SRC_YUV420_HB = 5,      // Input YUV420 format
     JPEG_ENC_BEST_HB_MAX,
 } jpeg_enc_format_hb_t;
 

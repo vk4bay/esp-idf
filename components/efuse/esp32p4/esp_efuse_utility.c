@@ -12,7 +12,7 @@
 #include "soc/efuse_periph.h"
 #include "hal/efuse_hal.h"
 
-ESP_LOG_ATTR_TAG(TAG, "efuse");
+static const char *TAG = "efuse";
 
 #ifdef CONFIG_EFUSE_VIRTUAL
 extern uint32_t virt_blocks[EFUSE_BLK_MAX][COUNT_EFUSE_REG_PER_BLOCK];

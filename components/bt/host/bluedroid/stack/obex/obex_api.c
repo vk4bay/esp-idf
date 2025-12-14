@@ -14,7 +14,6 @@
 #include "obex_int.h"
 #include "obex_tl.h"
 #include "obex_tl_l2cap.h"
-#include "obex_tl_rfcomm.h"
 
 #if (OBEX_INCLUDED == TRUE)
 
@@ -25,12 +24,6 @@ static inline void obex_server_to_tl_server(tOBEX_SVR_INFO *server, tOBEX_TL_SVR
         tl_server->l2cap.sec_mask = server->l2cap.sec_mask;
         tl_server->l2cap.pref_mtu = server->l2cap.pref_mtu;
         bdcpy(tl_server->l2cap.addr, server->l2cap.addr);
-    }
-    else if (server->tl == OBEX_OVER_RFCOMM) {
-        tl_server->rfcomm.scn = server->rfcomm.scn;
-        tl_server->rfcomm.sec_mask = server->rfcomm.sec_mask;
-        tl_server->rfcomm.pref_mtu = server->rfcomm.pref_mtu;
-        bdcpy(tl_server->rfcomm.addr, server->rfcomm.addr);
     }
     else {
         OBEX_TRACE_ERROR("Unsupported OBEX transport type\n");
@@ -69,12 +62,13 @@ UINT16 OBEX_Init(void)
     if (obex_cb.tl_ops[OBEX_OVER_L2CAP]->init != NULL) {
         obex_cb.tl_ops[OBEX_OVER_L2CAP]->init(obex_tl_l2cap_callback);
     }
-#if (RFCOMM_INCLUDED == TRUE)
+    /* Not implement yet */
+    /*
     obex_cb.tl_ops[OBEX_OVER_RFCOMM] = obex_tl_rfcomm_ops_get();
     if (obex_cb.tl_ops[OBEX_OVER_RFCOMM]->init != NULL) {
         obex_cb.tl_ops[OBEX_OVER_RFCOMM]->init(obex_tl_rfcomm_callback);
     }
-#endif
+    */
     obex_cb.trace_level = BT_TRACE_LEVEL_ERROR;
     return OBEX_SUCCESS;
 }
@@ -92,11 +86,11 @@ void OBEX_Deinit(void)
     if (obex_cb.tl_ops[OBEX_OVER_L2CAP]->deinit != NULL) {
         obex_cb.tl_ops[OBEX_OVER_L2CAP]->deinit();
     }
-#if (RFCOMM_INCLUDED == TRUE)
+    /*
     if (obex_cb.tl_ops[OBEX_OVER_RFCOMM]->deinit != NULL) {
         obex_cb.tl_ops[OBEX_OVER_RFCOMM]->deinit();
     }
-#endif
+    */
 #if (OBEX_DYNAMIC_MEMORY)
     if (obex_cb_ptr) {
         osi_free(obex_cb_ptr);
@@ -323,7 +317,7 @@ UINT16 OBEX_BuildRequest(tOBEX_PARSE_INFO *info, UINT16 buff_size, BT_HDR **out_
     if (buff_size < OBEX_MIN_PACKET_SIZE || info == NULL || out_pkt == NULL) {
         return OBEX_INVALID_PARAM;
     }
-    buff_size += sizeof(BT_HDR) + OBEX_BT_HDR_MIN_OFFSET + OBEX_BT_HDR_RESERVE_LEN;
+    buff_size += sizeof(BT_HDR) + OBEX_BT_HDR_MIN_OFFSET;
 
     BT_HDR *p_buf= (BT_HDR *)osi_malloc(buff_size);
     if (p_buf == NULL) {
@@ -333,7 +327,7 @@ UINT16 OBEX_BuildRequest(tOBEX_PARSE_INFO *info, UINT16 buff_size, BT_HDR **out_
     UINT16 pkt_len = OBEX_MIN_PACKET_SIZE;
     p_buf->offset = OBEX_BT_HDR_MIN_OFFSET;
     /* use layer_specific to store the max data length allowed */
-    p_buf->layer_specific = buff_size - sizeof(BT_HDR) - OBEX_BT_HDR_MIN_OFFSET - OBEX_BT_HDR_RESERVE_LEN;
+    p_buf->layer_specific = buff_size - sizeof(BT_HDR) - OBEX_BT_HDR_MIN_OFFSET;
     UINT8 *p_data = (UINT8 *)(p_buf + 1) + p_buf->offset;
     /* byte 0: opcode */
     *p_data++ = info->opcode;
@@ -384,7 +378,7 @@ UINT16 OBEX_BuildResponse(tOBEX_PARSE_INFO *info, UINT16 buff_size, BT_HDR **out
     if (buff_size < OBEX_MIN_PACKET_SIZE || info == NULL || out_pkt == NULL) {
         return OBEX_INVALID_PARAM;
     }
-    buff_size += sizeof(BT_HDR) + OBEX_BT_HDR_MIN_OFFSET + OBEX_BT_HDR_RESERVE_LEN;
+    buff_size += sizeof(BT_HDR) + OBEX_BT_HDR_MIN_OFFSET;
 
     BT_HDR *p_buf= (BT_HDR *)osi_malloc(buff_size);
     if (p_buf == NULL) {
@@ -394,7 +388,7 @@ UINT16 OBEX_BuildResponse(tOBEX_PARSE_INFO *info, UINT16 buff_size, BT_HDR **out
     UINT16 pkt_len = OBEX_MIN_PACKET_SIZE;
     p_buf->offset = OBEX_BT_HDR_MIN_OFFSET;
     /* use layer_specific to store the max data length allowed */
-    p_buf->layer_specific = buff_size - sizeof(BT_HDR) - OBEX_BT_HDR_MIN_OFFSET - OBEX_BT_HDR_RESERVE_LEN;
+    p_buf->layer_specific = buff_size - sizeof(BT_HDR) - OBEX_BT_HDR_MIN_OFFSET;
     UINT8 *p_data = (UINT8 *)(p_buf + 1) + p_buf->offset;
     /* byte 0: response code */
     *p_data++ = info->response_code;

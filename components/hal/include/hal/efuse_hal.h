@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2021-2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2021-2024 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -9,7 +9,6 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include "soc/soc_caps.h"
-#include "hal/ecdsa_types.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -70,42 +69,16 @@ uint32_t efuse_hal_get_major_chip_version(void);
  */
 uint32_t efuse_hal_get_minor_chip_version(void);
 
+#if SOC_EFUSE_ECDSA_KEY
 /**
- * @brief Returns the chip package version
- */
-uint32_t efuse_hal_get_chip_ver_pkg(void);
-
-
-#if SOC_RECOVERY_BOOTLOADER_SUPPORTED
-
-#define EFUSE_RECOVERY_BOOTLOADER_FLASH_SECTOR_LEN (12)
-#define EFUSE_RECOVERY_BOOTLOADER_ENABLED(sector) ((sector) != 0 && (sector) != ((1 << EFUSE_RECOVERY_BOOTLOADER_FLASH_SECTOR_LEN) - 1))
-
-/**
- * @brief Returns recovery bootloader flash address
+ * @brief Set the efuse block that should be used as ECDSA private key
  *
- * @return Recovery bootloader flash address.
- */
-uint32_t efuse_hal_get_recovery_bootloader_address(void);
-
-/**
- * @brief Converts a recovery bootloader address to the corresponding flash sector.
+ * @note The efuse block must be burnt with key purpose ECDSA_KEY
  *
- * This function translates a recovery bootloader address in bytes
- * into the equivalent flash sector number.
- *
- * @param address The recovery bootloader address in bytes.
- * @return The flash sector number corresponding to the given address.
+ * @param efuse_key_blk Efuse key block number (Must be in [EFUSE_BLK_KEY0...EFUSE_BLK_KEY_MAX - 1] range)
  */
-uint32_t efuse_hal_convert_recovery_bootloader_address_to_flash_sectors(uint32_t address);
-
-/**
- * @brief Returns true if recovery bootloader address is configured
- *
- * @return True - Recovery bootloader address is configured.
- */
-bool efuse_hal_recovery_bootloader_enabled(void);
-#endif // SOC_RECOVERY_BOOTLOADER_SUPPORTED
+void efuse_hal_set_ecdsa_key(int efuse_key_blk);
+#endif
 
 #ifdef __cplusplus
 }

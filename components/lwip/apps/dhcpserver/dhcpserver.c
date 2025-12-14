@@ -50,7 +50,6 @@
 #define DHCPRELEASE   7
 
 #define DHCP_OPTION_SUBNET_MASK   1
-#define DHCP_OPTION_HOST_NAME    12
 #define DHCP_OPTION_ROUTER        3
 #define DHCP_OPTION_DNS_SERVER    6
 #define DHCP_OPTION_REQ_IPADDR   50
@@ -65,9 +64,7 @@
 #define DHCP_OPTION_END         255
 
 //#define USE_CLASS_B_NET 1
-#ifndef DHCPS_DEBUG
 #define DHCPS_DEBUG          0
-#endif
 #define DHCPS_LOG printf
 
 #define IS_INVALID_SUBNET_MASK(x)  (((x-1) | x) != 0xFFFFFFFF)
@@ -129,7 +126,7 @@ struct dhcps_t {
     struct netif *dhcps_netif;
     ip4_addr_t broadcast_dhcps;
     ip4_addr_t server_address;
-    ip4_addr_t dns_server[DNS_TYPE_MAX];
+    ip4_addr_t dns_server;
     ip4_addr_t client_address;
     ip4_addr_t client_address_plus;
     ip4_addr_t dhcps_mask;
@@ -145,11 +142,6 @@ struct dhcps_t {
     struct udp_pcb *dhcps_pcb;
     dhcps_handle_state state;
     bool has_declined_ip;
-#if CONFIG_LWIP_DHCPS_REPORT_CLIENT_HOSTNAME
-    /* Temporary storage for option 12 parsed from the current packet */
-    char opt_hostname[CONFIG_LWIP_DHCPS_MAX_HOSTNAME_LEN];
-    bool opt_hostname_present;
-#endif
 };
 
 
@@ -164,10 +156,7 @@ dhcps_t *dhcps_new(void)
         return NULL;
     }
     dhcps->dhcps_netif = NULL;
-
-    for (int i = 0; i < DNS_TYPE_MAX; i++) {
-        dhcps->dns_server[i].addr = 0;
-    }
+    dhcps->dns_server.addr = 0;
 #ifdef USE_CLASS_B_NET
     dhcps->dhcps_mask.addr = PP_HTONL(LWIP_MAKEU32(255, 240, 0, 0));
 #else
@@ -193,7 +182,7 @@ void dhcps_delete(dhcps_t *dhcps)
             dhcps->state = DHCPS_HANDLE_DELETE_PENDING;
         } else {
             // otherwise, we're free to delete the handle immediately
-            mem_free(dhcps);
+            free(dhcps);
         }
     }
 }
@@ -205,18 +194,6 @@ static void get_ip_info(struct netif * netif, ip_info_t *ip_info)
         ip4_addr_set(&ip_info->netmask, ip_2_ip4(&netif->netmask));
         ip4_addr_set(&ip_info->gw, ip_2_ip4(&netif->gw));
     }
-}
-
-static inline u8_t* dhcps_option_ip(u8_t *optptr, const ip4_addr_t *ip)
-{
-    LWIP_ASSERT("dhcps_option_ip: optptr must not be NULL", (optptr != NULL));
-    LWIP_ASSERT("dhcps_option_ip: ip must not be NULL", (ip != NULL));
-
-    *optptr++ = ip4_addr1(ip);
-    *optptr++ = ip4_addr2(ip);
-    *optptr++ = ip4_addr3(ip);
-    *optptr++ = ip4_addr4(ip);
-    return optptr;
 }
 
 /******************************************************************************
@@ -444,7 +421,10 @@ static u8_t *add_offer_options(dhcps_t *dhcps, u8_t *optptr)
 
     *optptr++ = DHCP_OPTION_SUBNET_MASK;
     *optptr++ = 4;
-    optptr = dhcps_option_ip(optptr, &dhcps->dhcps_mask);
+    *optptr++ = ip4_addr1(&dhcps->dhcps_mask);
+    *optptr++ = ip4_addr2(&dhcps->dhcps_mask);
+    *optptr++ = ip4_addr3(&dhcps->dhcps_mask);
+    *optptr++ = ip4_addr4(&dhcps->dhcps_mask);
 
     *optptr++ = DHCP_OPTION_LEASE_TIME;
     *optptr++ = 4;
@@ -455,7 +435,10 @@ static u8_t *add_offer_options(dhcps_t *dhcps, u8_t *optptr)
 
     *optptr++ = DHCP_OPTION_SERVER_ID;
     *optptr++ = 4;
-    optptr = dhcps_option_ip(optptr, &ipadd);
+    *optptr++ = ip4_addr1(&ipadd);
+    *optptr++ = ip4_addr2(&ipadd);
+    *optptr++ = ip4_addr3(&ipadd);
+    *optptr++ = ip4_addr4(&ipadd);
 
     if (dhcps_router_enabled(dhcps->dhcps_offer)) {
         ip_info_t if_ip = { 0 };
@@ -466,42 +449,38 @@ static u8_t *add_offer_options(dhcps_t *dhcps, u8_t *optptr)
         if (!ip4_addr_isany_val(*gw_ip)) {
             *optptr++ = DHCP_OPTION_ROUTER;
             *optptr++ = 4;
-            optptr = dhcps_option_ip(optptr, gw_ip);
+            *optptr++ = ip4_addr1(gw_ip);
+            *optptr++ = ip4_addr2(gw_ip);
+            *optptr++ = ip4_addr3(gw_ip);
+            *optptr++ = ip4_addr4(gw_ip);
         }
     }
 
-    // Add DNS option if either main or backup DNS is set
-    if (dhcps_dns_enabled(dhcps->dhcps_dns) &&
-        (dhcps->dns_server[DNS_TYPE_MAIN].addr || dhcps->dns_server[DNS_TYPE_BACKUP].addr)) {
-
-        uint8_t size = 0;
-
-        if (dhcps->dns_server[DNS_TYPE_MAIN].addr) {
-            size += 4;
-        }
-        if (dhcps->dns_server[DNS_TYPE_BACKUP].addr) {
-            size += 4;
-        }
-
-        *optptr++ = DHCP_OPTION_DNS_SERVER;
-        *optptr++ = size;
-
-        if (dhcps->dns_server[DNS_TYPE_MAIN].addr) {
-            optptr = dhcps_option_ip(optptr, &dhcps->dns_server[DNS_TYPE_MAIN]);
-        }
-        if (dhcps->dns_server[DNS_TYPE_BACKUP].addr) {
-            optptr = dhcps_option_ip(optptr, &dhcps->dns_server[DNS_TYPE_BACKUP]);
-        }
-    } else {
+    if (dhcps_dns_enabled(dhcps->dhcps_dns)) {
         *optptr++ = DHCP_OPTION_DNS_SERVER;
         *optptr++ = 4;
-        optptr = dhcps_option_ip(optptr, &ipadd);
+        *optptr++ = ip4_addr1(&dhcps->dns_server);
+        *optptr++ = ip4_addr2(&dhcps->dns_server);
+        *optptr++ = ip4_addr3(&dhcps->dns_server);
+        *optptr++ = ip4_addr4(&dhcps->dns_server);
+#ifdef CONFIG_LWIP_DHCPS_ADD_DNS
+    }else {
+        *optptr++ = DHCP_OPTION_DNS_SERVER;
+        *optptr++ = 4;
+        *optptr++ = ip4_addr1(&ipadd);
+        *optptr++ = ip4_addr2(&ipadd);
+        *optptr++ = ip4_addr3(&ipadd);
+        *optptr++ = ip4_addr4(&ipadd);
+#endif /* CONFIG_LWIP_DHCPS_ADD_DNS */
     }
 
     ip4_addr_t broadcast_addr = { .addr = (ipadd.addr & dhcps->dhcps_mask.addr) | ~dhcps->dhcps_mask.addr };
     *optptr++ = DHCP_OPTION_BROADCAST_ADDRESS;
     *optptr++ = 4;
-    optptr = dhcps_option_ip(optptr, &broadcast_addr);
+    *optptr++ = ip4_addr1(&broadcast_addr);
+    *optptr++ = ip4_addr2(&broadcast_addr);
+    *optptr++ = ip4_addr3(&broadcast_addr);
+    *optptr++ = ip4_addr4(&broadcast_addr);
 
     *optptr++ = DHCP_OPTION_INTERFACE_MTU;
     *optptr++ = 2;
@@ -513,7 +492,8 @@ static u8_t *add_offer_options(dhcps_t *dhcps, u8_t *optptr)
 
         *optptr++ = DHCP_OPTION_CAPTIVEPORTAL_URI;
         *optptr++ = length;
-        for (i = 0; i < length; i++) {
+        for (i = 0; i < length; i++)
+        {
             *optptr++ = dhcps->dhcps_captiveportal_uri[i];
         }
     }
@@ -894,9 +874,7 @@ static void send_ack(dhcps_t *dhcps, struct dhcps_msg *m, u16_t len)
 #endif
 
     if (SendAck_err_t == ERR_OK) {
-        if (dhcps->dhcps_cb) {
-            dhcps->dhcps_cb(dhcps->dhcps_cb_arg, m->yiaddr, m->chaddr);
-        }
+        dhcps->dhcps_cb(dhcps->dhcps_cb_arg, m->yiaddr, m->chaddr);
     }
 
     if (p->ref != 0) {
@@ -937,33 +915,6 @@ static u8_t parse_options(dhcps_t *dhcps, u8_t *optptr, s16_t len)
             case DHCP_OPTION_MSG_TYPE:	//53
                 type = *(optptr + 2);
                 break;
-
-#if CONFIG_LWIP_DHCPS_REPORT_CLIENT_HOSTNAME
-            case DHCP_OPTION_HOST_NAME: {
-                /* option format: code(1) len(1) value(len) */
-                u8_t olen = *(optptr + 1);
-                const u8_t *oval = optptr + 2;
-                if (olen > 0) {
-                    /* clamp to configured max, keep room for NUL */
-                    size_t copy_len = olen;
-                    if (copy_len >= CONFIG_LWIP_DHCPS_MAX_HOSTNAME_LEN) {
-                        copy_len = CONFIG_LWIP_DHCPS_MAX_HOSTNAME_LEN - 1;
-                    }
-                    size_t j = 0;
-                    for (; j < copy_len; ++j) {
-                        char c = (char)oval[j];
-                        if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '.' || c == '-' || c == '_') {
-                            dhcps->opt_hostname[j] = c;
-                        } else {
-                            dhcps->opt_hostname[j] = '-';
-                        }
-                    }
-                    dhcps->opt_hostname[j] = '\0';
-                    dhcps->opt_hostname_present = true;
-                }
-                break;
-            }
-#endif
 
             case DHCP_OPTION_REQ_IPADDR://50
                 if (memcmp((char *) &client.addr, (char *) optptr + 2, 4) == 0) {
@@ -1141,29 +1092,29 @@ POOL_CHECK:
         if ((dhcps->client_address.addr > dhcps->dhcps_poll.end_ip.addr) || (ip4_addr_isany(&dhcps->client_address))) {
             if (pnode != NULL) {
                 node_remove_from_list(&dhcps->plist, pnode);
-                mem_free(pnode);
+                free(pnode);
                 pnode = NULL;
             }
 
             if (pdhcps_pool != NULL) {
-                mem_free(pdhcps_pool);
+                free(pdhcps_pool);
                 pdhcps_pool = NULL;
             }
 
             return 4;
         }
 
-        s16_t ret = parse_options(dhcps, &m->options[4], len);
+        s16_t ret = parse_options(dhcps, &m->options[4], len);;
 
         if (ret == DHCPS_STATE_RELEASE || ret == DHCPS_STATE_NAK || ret ==  DHCPS_STATE_DECLINE) {
             if (pnode != NULL) {
                 node_remove_from_list(&dhcps->plist, pnode);
-                mem_free(pnode);
+                free(pnode);
                 pnode = NULL;
             }
 
             if (pdhcps_pool != NULL) {
-                mem_free(pdhcps_pool);
+                free(pdhcps_pool);
                 pdhcps_pool = NULL;
             }
 
@@ -1172,21 +1123,6 @@ POOL_CHECK:
             }
             memset(&dhcps->client_address, 0x0, sizeof(dhcps->client_address));
         }
-
-#if CONFIG_LWIP_DHCPS_REPORT_CLIENT_HOSTNAME
-        /* If we parsed a hostname from options and we have a lease entry, store it */
-        if (pdhcps_pool != NULL) {
-            if (dhcps->opt_hostname_present) {
-                size_t n = strnlen(dhcps->opt_hostname, CONFIG_LWIP_DHCPS_MAX_HOSTNAME_LEN);
-                if (n > 0) {
-                    memset(pdhcps_pool->hostname, 0, sizeof(pdhcps_pool->hostname));
-                    memcpy(pdhcps_pool->hostname, dhcps->opt_hostname, n);
-                } else {
-                    pdhcps_pool->hostname[0] = '\0';
-                }
-            }
-        }
-#endif
 
 #if DHCPS_DEBUG
         DHCPS_LOG("dhcps: xid changed\n");
@@ -1327,7 +1263,7 @@ static void handle_dhcp(void *arg,
     DHCPS_LOG("dhcps: handle_dhcp-> pbuf_free(p)\n");
 #endif
     pbuf_free(p);
-    mem_free(pmsg_dhcps);
+    free(pmsg_dhcps);
     pmsg_dhcps = NULL;
 }
 
@@ -1480,9 +1416,9 @@ err_t dhcps_stop(dhcps_t *dhcps, struct netif *netif)
         pback_node = pnode;
         pnode = pback_node->pnext;
         node_remove_from_list(&dhcps->plist, pback_node);
-        mem_free(pback_node->pnode);
+        free(pback_node->pnode);
         pback_node->pnode = NULL;
-        mem_free(pback_node);
+        free(pback_node);
         pback_node = NULL;
     }
     sys_untimeout(dhcps_tmr, dhcps);
@@ -1524,9 +1460,9 @@ static void kill_oldest_dhcps_pool(dhcps_t *dhcps)
     } else {
         minpre->pnext = minp->pnext;
     }
-    mem_free(minp->pnode);
+    free(minp->pnode);
     minp->pnode = NULL;
-    mem_free(minp);
+    free(minp);
     minp = NULL;
 }
 
@@ -1541,7 +1477,7 @@ static void dhcps_tmr(void *arg)
     dhcps_t *dhcps = arg;
     dhcps_handle_state state = dhcps->state;
     if (state == DHCPS_HANDLE_DELETE_PENDING) {
-        mem_free(dhcps);
+        free(dhcps);
         return;
     }
 
@@ -1563,9 +1499,9 @@ static void dhcps_tmr(void *arg)
             pback_node = pnode;
             pnode = pback_node->pnext;
             node_remove_from_list(&dhcps->plist, pback_node);
-            mem_free(pback_node->pnode);
+            free(pback_node->pnode);
             pback_node->pnode = NULL;
-            mem_free(pback_node);
+            free(pback_node);
             pback_node = NULL;
         } else {
             pnode = pnode ->pnext;
@@ -1609,107 +1545,36 @@ bool dhcp_search_ip_on_mac(dhcps_t *dhcps, u8_t *mac, ip4_addr_t *ip)
 }
 
 /******************************************************************************
- * FunctionName : dhcps_dns_setserver_by_type
- * Description  : Set the DNS server address for dhcpserver with a specific type
+ * FunctionName : dhcps_dns_setserver
+ * Description  : set DNS server address for dhcpserver
  * Parameters   : dnsserver -- The DNS server address
- *                type      -- The DNS type
- * Returns      : ERR_ARG if invalid handle, ERR_VAL if invalid type, ERR_OK on success
+ * Returns      : ERR_ARG if invalid handle, ERR_OK on success
 *******************************************************************************/
-err_t dhcps_dns_setserver_by_type(dhcps_t *dhcps, const ip_addr_t *dnsserver, dns_type_t type)
+err_t dhcps_dns_setserver(dhcps_t *dhcps, const ip_addr_t *dnsserver)
 {
     if (dhcps == NULL) {
         return ERR_ARG;
     }
-
-    if (type >= DNS_TYPE_MAX) {
-        return ERR_VAL;
-    }
-
     if (dnsserver != NULL) {
-        dhcps->dns_server[type] = *(ip_2_ip4(dnsserver));
+        dhcps->dns_server = *(ip_2_ip4(dnsserver));
     } else {
-        dhcps->dns_server[type] = *(ip_2_ip4(IP_ADDR_ANY));
+        dhcps->dns_server = *(ip_2_ip4(IP_ADDR_ANY));
     }
     return ERR_OK;
 }
 
 /******************************************************************************
- * FunctionName : dhcps_dns_setserver
- * Description  : Set the main DNS server address for dhcpserver
- * Parameters   : dnsserver -- The DNS server address
- * Returns      : ERR_ARG if invalid handle, ERR_VAL if invalid type, ERR_OK on success
-*******************************************************************************/
-err_t dhcps_dns_setserver(dhcps_t *dhcps, const ip_addr_t *dnsserver)
-{
-    return dhcps_dns_setserver_by_type(dhcps, dnsserver, DNS_TYPE_MAIN);
-}
-
-/******************************************************************************
- * FunctionName : dhcps_dns_getserver_by_type
- * Description  : Get the DNS server address for dhcpserver
- * Parameters   : dnsserver -- The DNS server address
- *                type      -- The DNS type
- * Returns      : ERR_ARG if invalid handle, ERR_VAL if invalid type, ERR_OK on success
-*******************************************************************************/
-err_t dhcps_dns_getserver_by_type(dhcps_t *dhcps, ip4_addr_t *dnsserver, dns_type_t type)
-{
-    if ((dhcps == NULL) || (dnsserver == NULL)) {
-        return ERR_ARG;
-    }
-
-    if (type >= DNS_TYPE_MAX) {
-        return ERR_VAL;
-    }
-
-    *dnsserver = dhcps->dns_server[type];
-    return ERR_OK;
-}
-
-/******************************************************************************
- * FunctionName : dhcps_dns_getserver_by_type
- * Description  : Get the main DNS server address for dhcpserver
- * Parameters   : dnsserver -- The DNS server address
- * Returns      : ERR_ARG if invalid handle, ERR_VAL if invalid type, ERR_OK on success
+ * FunctionName : dhcps_dns_getserver
+ * Description  : get DNS server address for dhcpserver
+ * Parameters   : none
+ * Returns      : ip4_addr_t
 *******************************************************************************/
 err_t dhcps_dns_getserver(dhcps_t *dhcps, ip4_addr_t *dnsserver)
 {
-    return dhcps_dns_getserver_by_type(dhcps, dnsserver, DNS_TYPE_MAIN);
-}
-
-#if CONFIG_LWIP_DHCPS_REPORT_CLIENT_HOSTNAME
-bool dhcps_get_hostname_on_mac(dhcps_t *dhcps, const u8_t *mac, char *out, size_t out_len)
-{
-    if ((dhcps == NULL) || (mac == NULL) || (out == NULL) || (out_len == 0)) {
-        return false;
+    if (dhcps) {
+        *dnsserver = dhcps->dns_server;
+        return ERR_OK;
     }
-    list_node *pnode = dhcps->plist;
-    while (pnode) {
-        struct dhcps_pool *pool = pnode->pnode;
-        if (memcmp(pool->mac, mac, sizeof(pool->mac)) == 0) {
-            size_t maxcpy = (out_len > 0) ? out_len - 1 : 0;
-            size_t srclen = 0;
-            /* hostname may be empty string */
-            srclen = strnlen(pool->hostname, CONFIG_LWIP_DHCPS_MAX_HOSTNAME_LEN);
-            if (maxcpy > 0) {
-                if (srclen > maxcpy) srclen = maxcpy;
-                if (srclen) memcpy(out, pool->hostname, srclen);
-                out[srclen] = '\0';
-            }
-            return true;
-        }
-        pnode = pnode->pnext;
-    }
-    return false;
+    return ERR_ARG;
 }
-#else
-bool dhcps_get_hostname_on_mac(dhcps_t *dhcps, const u8_t *mac, char *out, size_t out_len)
-{
-    LWIP_UNUSED_ARG(dhcps);
-    LWIP_UNUSED_ARG(mac);
-    if (out && out_len) {
-        out[0] = '\0';
-    }
-    return false;
-}
-#endif
 #endif // ESP_DHCPS

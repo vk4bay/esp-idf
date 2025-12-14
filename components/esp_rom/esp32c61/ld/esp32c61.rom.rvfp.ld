@@ -1,10 +1,14 @@
 /*
- * SPDX-FileCopyrightText: 2024-2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2024 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-
-/* ROM function interface
+/* ROM function interface esp32c61.rom.rvfp.ld for esp32c61
+ *
+ *
+ * Generated from ./target/esp32c6lite/interface-esp32c6lite.yml md5sum 27eb0efac0883ee622c22767242c9457
+ *
+ * Compatible with ROM where ECO version equal or greater to 0.
  *
  * THIS FILE WAS AUTOMATICALLY GENERATED. DO NOT EDIT.
  */
@@ -57,10 +61,9 @@ __muldf3 = 0x40000a14;
 __nedf2 = 0x40000a18;
 __subdf3 = 0x40000a1c;
 
-
 /***************************************
  Group libgcc
- ***************************************/
+***************************************/
 
 /* Functions */
 __divsf3 = 0x40000828;

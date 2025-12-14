@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2010-2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2010-2022 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -61,9 +61,8 @@ typedef enum {
   *
   * @return None
   */
-void rom_gpio_output_set(uint32_t set_mask, uint32_t clear_mask, uint32_t enable_mask, uint32_t disable_mask);
+void gpio_output_set(uint32_t set_mask, uint32_t clear_mask, uint32_t enable_mask, uint32_t disable_mask);
 
-// rom_gpio_output_set_high function is not exported by ESP32S3 ROM
 
 /**
   * @brief Sample the value of GPIO input pins(0-31) and returns a bitmask.
@@ -72,12 +71,10 @@ void rom_gpio_output_set(uint32_t set_mask, uint32_t clear_mask, uint32_t enable
   *
   * @return uint32_t : bitmask for GPIO input pins, BIT(0) for GPIO0.
   */
-uint32_t rom_gpio_input_get(void);
-
-// rom_gpio_input_get_high function is not exported by ESP32S3 ROM
+uint32_t gpio_input_get(void);
 
 /**
-  * @brief Set GPIO to wakeup the chip.
+  * @brief Set GPIO to wakeup the ESP32.
   *        Please do not call this function in SDK.
   *
   * @param uint32_t i: gpio number.
@@ -86,17 +83,17 @@ uint32_t rom_gpio_input_get(void);
   *
   * @return None
   */
-void rom_gpio_pin_wakeup_enable(uint32_t i, GPIO_INT_TYPE intr_state);
+void gpio_pin_wakeup_enable(uint32_t i, GPIO_INT_TYPE intr_state);
 
 /**
-  * @brief disable GPIOs to wakeup the chip.
+  * @brief disable GPIOs to wakeup the ESP32.
   *        Please do not call this function in SDK.
   *
   * @param None
   *
   * @return None
   */
-void rom_gpio_pin_wakeup_disable(void);
+void gpio_pin_wakeup_disable(void);
 
 /**
   * @brief set gpio input to a signal, one gpio can input to several signals.
@@ -112,7 +109,7 @@ void rom_gpio_pin_wakeup_disable(void);
   *
   * @return None
   */
-void rom_gpio_matrix_in(uint32_t gpio, uint32_t signal_idx, bool inv);
+void gpio_matrix_in(uint32_t gpio, uint32_t signal_idx, bool inv);
 
 /**
   * @brief set signal output to gpio, one signal can output to several gpios.
@@ -128,7 +125,7 @@ void rom_gpio_matrix_in(uint32_t gpio, uint32_t signal_idx, bool inv);
   *
   * @return None
   */
-void rom_gpio_matrix_out(uint32_t gpio, uint32_t signal_idx, bool out_inv, bool oen_inv);
+void gpio_matrix_out(uint32_t gpio, uint32_t signal_idx, bool out_inv, bool oen_inv);
 
 /**
   * @brief Select pad as a gpio function from IOMUX.
@@ -137,7 +134,7 @@ void rom_gpio_matrix_out(uint32_t gpio, uint32_t signal_idx, bool out_inv, bool 
   *
   * @return None
   */
-void rom_gpio_pad_select_gpio(uint32_t gpio_num);
+void gpio_pad_select_gpio(uint32_t gpio_num);
 
 /**
   * @brief Set pad driver capability.
@@ -148,7 +145,7 @@ void rom_gpio_pad_select_gpio(uint32_t gpio_num);
   *
   * @return None
   */
-void rom_gpio_pad_set_drv(uint32_t gpio_num, uint32_t drv);
+void gpio_pad_set_drv(uint32_t gpio_num, uint32_t drv);
 
 /**
   * @brief Pull up the pad from gpio number.
@@ -157,7 +154,7 @@ void rom_gpio_pad_set_drv(uint32_t gpio_num, uint32_t drv);
   *
   * @return None
   */
-void rom_gpio_pad_pullup(uint32_t gpio_num);
+void gpio_pad_pullup(uint32_t gpio_num);
 
 /**
   * @brief Pull down the pad from gpio number.
@@ -166,7 +163,7 @@ void rom_gpio_pad_pullup(uint32_t gpio_num);
   *
   * @return None
   */
-void rom_gpio_pad_pulldown(uint32_t gpio_num);
+void gpio_pad_pulldown(uint32_t gpio_num);
 
 /**
   * @brief Unhold the pad from gpio number.
@@ -175,7 +172,7 @@ void rom_gpio_pad_pulldown(uint32_t gpio_num);
   *
   * @return None
   */
-void rom_gpio_pad_unhold(uint32_t gpio_num);
+void gpio_pad_unhold(uint32_t gpio_num);
 
 /**
   * @brief Hold the pad from gpio number.
@@ -184,7 +181,7 @@ void rom_gpio_pad_unhold(uint32_t gpio_num);
   *
   * @return None
   */
-void rom_gpio_pad_hold(uint32_t gpio_num);
+void gpio_pad_hold(uint32_t gpio_num);
 
 /**
   * @brief enable gpio pad input.
@@ -193,7 +190,7 @@ void rom_gpio_pad_hold(uint32_t gpio_num);
   *
   * @return None
   */
-void rom_gpio_pad_input_enable(uint32_t gpio_num);
+void gpio_pad_input_enable(uint32_t gpio_num);
 
 /**
   * @brief disable gpio pad input.
@@ -202,7 +199,7 @@ void rom_gpio_pad_input_enable(uint32_t gpio_num);
   *
   * @return None
   */
-void rom_gpio_pad_input_disable(uint32_t gpio_num);
+void gpio_pad_input_disable(uint32_t gpio_num);
 
 /**
   * @}

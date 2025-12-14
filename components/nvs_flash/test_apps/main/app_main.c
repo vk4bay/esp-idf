@@ -11,7 +11,6 @@
 #include "mbedtls/aes.h"
 #endif
 #include "memory_checks.h"
-#include "esp_newlib.h"
 
 #include "esp_heap_caps.h"
 #include "time.h"

@@ -3,7 +3,7 @@
 
 :link_to_translation:`en:[English]`
 
-{IDF_TARGET_TOUCH_SENSOR_VERSION:default="NOT_UPDATED", esp32="v1", esp32s2="v2", esp32s3="v2", esp32p4="v3"}
+{IDF_TARGET_TOUCH_SENSOR_VERSION:default="NOT_UPDATED", esp32p4="v3"}
 
 概述
 ------
@@ -25,46 +25,69 @@
 |     V1    |  ESP32       | 第一代触摸传感器，触摸时读数变小                                       |
 +-----------+--------------+------------------------------------------------------------------------+
 |     V2    |  ESP32-S2    | 第二代触摸传感器，触摸时读数变大                                       |
-|           |              | 新增硬件滤波器、基线、防水防潮、接近感应、睡眠唤醒功能                 |
+|           |              | 新增防水防潮、接近感应、睡眠唤醒功能                                   |
 |           +--------------+------------------------------------------------------------------------+
 |           |  ESP32-S3    | 第二代触摸传感器，新增接近感应测量完成中断                             |
 +-----------+--------------+------------------------------------------------------------------------+
 |     V3    |  ESP32-P4    | 第三代触摸传感器，新增跳频扫描                                         |
 +-----------+--------------+------------------------------------------------------------------------+
 
-测量原理
------------
-
-触摸传感器通过硬件内部的电流或电压偏置对触摸通道进行充电和放电操作，由于触摸通道存在内部电容和电路中的寄生电容，充放电时在通道引脚上表现为锯齿波。当手指贴近或者触摸该通道时，通道、人体和大地之间形成充放电回路，使得触摸通道耦合的电容增大，充放电速度变慢，即锯齿波周期增大。
-
-.. only:: esp32
-
-    触摸传感器会在固定时间内对触摸通道进行充放电，并统计充放电次数，其计数结果即为原始数据。其中单次测量的充放电持续时间可由 :cpp:member:`touch_sensor_sample_config_t::charge_times` 指定，两次测量中间的间隔时间可由 :cpp:member:`touch_sensor_config_t::meas_interval_us` 指定。
-
-    .. figure:: ../../../_static/touch_pad-measurement-parameters.jpg
-        :align: center
-        :alt: Touch Pad - relationship between measurement parameters
-        :figclass: align-center
-
-        触摸传感器工作原理示意图
-
-.. only:: not esp32
-
-    触摸传感器会统计固定充放电次数所需的时钟周期数，其计数结果即为原始数据。其中单次测量的充放电次数可由 :cpp:member:`touch_sensor_sample_config_t::charge_duration_ms` 指定，两次测量中间的间隔时间可由 :cpp:member:`touch_sensor_config_t::meas_interval_us` 指定。
-
-    .. figure:: ../../../_static/touch_pad-measurement-parameters-version2.png
-        :align: center
-        :alt: Touch Pad - relationship between measurement parameters
-        :figclass: align-center
-
-        触摸传感器工作原理示意图
-
 触摸通道概览
 ----------------------
 
-.. include:: cap_touch_sens/{IDF_TARGET_PATH_NAME}.inc
-    :start-after: touch-chan-mapping
-    :end-before: ---
+.. only:: esp32p4
+
+    .. list-table::
+      :header-rows: 1
+      :widths: 20  20
+
+      * - 通道
+        - GPIO
+
+      * - CH0
+        - IO2
+
+      * - CH1
+        - IO3
+
+      * - CH2
+        - IO4
+
+      * - CH3
+        - IO5
+
+      * - CH4
+        - IO6
+
+      * - CH5
+        - IO7
+
+      * - CH6
+        - IO8
+
+      * - CH7
+        - IO9
+
+      * - CH8
+        - IO10
+
+      * - CH9
+        - IO11
+
+      * - CH10
+        - IO12
+
+      * - CH11
+        - IO13
+
+      * - CH12
+        - IO14
+
+      * - CH13
+        - IO15
+
+      * - CH14
+        - 未引出
 
 驱动中的术语介绍
 -------------------------
@@ -120,12 +143,11 @@
   - `启用和禁用 <#touch-enable>`__
   - `连续扫描 <#touch-conti-scan>`__
   - `单次扫描 <#touch-oneshot-scan>`__
+  - `基线值配置 <#touch-benchmark>`__
   - `测量值读数 <#touch-read>`__
-  :SOC_TOUCH_SUPPORT_BENCHMARK: - `基线值配置 <#touch-benchmark>`__
   :SOC_TOUCH_SUPPORT_WATERPROOF: - `防水防潮配置 <#touch-waterproof>`__
   :SOC_TOUCH_SUPPORT_PROX_SENSING: - `接近感应配置 <#touch-prox-sensing>`__
   :SOC_TOUCH_SUPPORT_SLEEP_WAKEUP: - `睡眠唤醒配置 <#touch-sleep-wakeup>`__
-  :SOC_TOUCH_SUPPORT_DENOISE_CHAN: - `去噪通道配置 <#touch-denoise-chan>`__
 
 .. _touch-ctrl:
 
@@ -208,14 +230,6 @@
 触摸传感器可以通过配置滤波器来提升不同场景下的数据稳定性。调用 :cpp:func:`touch_sensor_config_filter` 并指定 :cpp:type:`touch_sensor_filter_config_t` 来配置基线值和读数值的滤波策略和更新方式，配置后对所有启用的触摸通道都生效。
 
 若需要注销滤波器，可再次调用 :cpp:func:`touch_sensor_config_filter` 并将第二个参数（即 :cpp:type:`touch_sensor_filter_config_t` 的配置结构体指针）设为 ``NULL`` 来注销滤波器功能。
-
-.. only:: esp32
-
-    触摸传感器版本 {IDF_TARGET_TOUCH_SENSOR_VERSION} 本身不支持硬件滤波器，但是驱动中可以基于 ``esp_timer`` 设置周期性触发的软件滤波器。可以通过 :cpp:member:`touch_sensor_filter_config_t::interval_ms` 来制定软件滤波触发的间隔时间，另外 :cpp:member:`touch_sensor_filter_config_t::data_filter_fn` 接口支持指定自定义滤波函数，若无特殊滤波器要求，也可将该接口设为 ``NULL`` 来使用驱动中的默认滤波器。
-
-.. only:: not esp32
-
-    触摸传感器版本 {IDF_TARGET_TOUCH_SENSOR_VERSION} 支持硬件滤波器。基线的滤波与更新策略可通过 :cpp:member:`touch_sensor_filter_config_t::benchmark` 进行配置，而读数值的滤波可通过 :cpp:member:`touch_sensor_filter_config_t::data` 进行配置。
 
 .. code-block:: c
 
@@ -303,6 +317,21 @@
     // 触发单次扫描，并设置超时时间为 1000 ms
     ESP_ERROR_CHECK(touch_sensor_trigger_oneshot_scanning(sens_handle, 1000));
 
+.. _touch-benchmark:
+
+基线值配置
+^^^^^^^^^^^^^
+
+一般情况下，不需要额外设置触摸传感器的基线值，若有必要强制复位基线值到当前平滑值，可调用 :cpp:func:`touch_channel_config_benchmark`。
+
+.. code-block:: c
+
+    touch_chan_benchmark_config_t benchmark_cfg = {
+        // 基线操作
+        // ...
+    };
+    ESP_ERROR_CHECK(touch_channel_config_benchmark(chan_handle, &benchmark_cfg));
+
 .. _touch-read:
 
 测量值读数
@@ -320,23 +349,6 @@
     uint32_t smooth_data[SAMPLE_NUM] = {};
     // 读取滤波后的平滑数据
     ESP_ERROR_CHECK(touch_channel_read_data(chan_handle, TOUCH_CHAN_DATA_TYPE_SMOOTH, smooth_data));
-
-.. _touch-benchmark:
-
-.. only:: SOC_TOUCH_SUPPORT_BENCHMARK
-
-    基线值配置
-    ^^^^^^^^^^^^^
-
-    一般情况下，不需要额外设置触摸传感器的基线值，若有必要强制复位基线值到当前平滑值，可调用 :cpp:func:`touch_channel_config_benchmark`。
-
-    .. code-block:: c
-
-        touch_chan_benchmark_config_t benchmark_cfg = {
-            // 基线操作
-            // ...
-        };
-        ESP_ERROR_CHECK(touch_channel_config_benchmark(chan_handle, &benchmark_cfg));
 
 .. _touch-waterproof:
 
@@ -373,13 +385,7 @@
 
     {IDF_TARGET_NAME} 支持接近感应功能。可通过调用 :cpp:func:`touch_sensor_config_proximity_sensing` 并配置 :cpp:type:`touch_proximity_config_t` 来注册接近感应功能。
 
-    .. only:: esp32p4
-
-        由于接近感应引起的电容变化远小于物理触摸，PCB 上常用较大面积的铺铜来增大触摸通道的感应面积，另外需要在硬件上对接近感应通道进行多轮扫描并在驱动中进行累加来提高测量灵敏度。接近感应的灵敏度由测量轮数 :cpp:member:`touch_proximity_config_t::scan_times` 以及单次测量的充放电次数 :cpp:member:`touch_proximity_config_t::charge_times` 决定。测量轮数以及充放电次数越高，灵敏度越高，但是过高的灵敏度容易导致误触发，请选择适当的灵敏度来保证触发的稳定性。
-
-    .. only:: not esp32p4
-
-        由于接近感应引起的电容变化远小于物理触摸，PCB 上常用较大面积的铺铜来增大触摸通道的感应面积，另外需要在硬件上对接近感应通道进行多轮扫描并在驱动中进行累加来提高测量灵敏度。接近感应的灵敏度由测量轮数 :cpp:member:`touch_proximity_config_t::scan_times` 决定。测量轮数以及充放电次数越高，灵敏度越高，但是过高的灵敏度容易导致误触发，请选择适当的灵敏度来保证触发的稳定性。
+    由于接近感应引起的电容变化远小于物理触摸，PCB 上常用较大面积的铺铜来增大触摸通道的感应面积，另外需要在硬件上对接近感应通道进行多轮扫描并在驱动中进行累加来提高测量灵敏度。接近感应的灵敏度由测量轮数 :cpp:member:`touch_proximity_config_t::scan_times` 以及单次测量的充放电次数 :cpp:member:`touch_proximity_config_t::charge_times` 决定。测量轮数以及充放电次数越高，灵敏度越高，但是过高的灵敏度容易导致误触发，请选择适当的灵敏度来保证触发的稳定性。
 
     接近感应通道多次测量的累加值也可通过 :cpp:func:`touch_channel_read_data` 获取，数据类型 :cpp:type:`touch_chan_data_type_t` 为 :cpp:enumerator:`TOUCH_CHAN_DATA_TYPE_PROXIMITY`。
 
@@ -404,7 +410,7 @@
     睡眠唤醒配置
     ^^^^^^^^^^^^^^
 
-    {IDF_TARGET_NAME} 支持触摸传感器将芯片从 Light-sleep 或 Deep-sleep 状态中唤醒。可通过调用 :cpp:func:`touch_sensor_config_sleep_wakeup` 并配置 :cpp:type:`touch_sleep_config_t` 来注册接近感应功能。
+    {IDF_TARGET_NAME} 支持触摸传感器将芯片从浅睡眠或深睡眠状态中唤醒。可通过调用 :cpp:func:`touch_sensor_config_sleep_wakeup` 并配置 :cpp:type:`touch_sleep_config_t` 来注册接近感应功能。
 
     注册触摸传感器的睡眠唤醒功能后，处于睡眠状态下的芯片仍将继续保持对触摸传感器的采样，这将会导致芯片睡眠后的功耗增加，可通过减少充放电次数、增加采样间隔等方式来降低功耗。
 
@@ -414,92 +420,40 @@
 
         若需要在睡眠过程中进行读数、配置等操作，可通过运行在 :doc:`超低功耗协处理器 ULP <../system/ulp>` 上的触摸传感器驱动 ``components/ulp/ulp_riscv/ulp_core/include/ulp_riscv_touch_ulp_core.h`` 实现。
 
-    .. list::
-
-        - Light-sleep 状态唤醒：通过指定 :cpp:member:`slp_wakeup_lvl` 为 :cpp:enumerator:`TOUCH_LIGHT_SLEEP_WAKEUP` 即可启用触摸传感器 Light-sleep 唤醒功能。注意任何已注册的触摸传感器通道都会在 Light-sleep 状态下保持采样并支持唤醒 Light-sleep。
-        :esp32: - Deep-sleep 状态唤醒：通过指定 :cpp:member:`slp_wakeup_lvl` 为 :cpp:enumerator:`TOUCH_DEEP_SLEEP_WAKEUP` 即可启用触摸传感器 Deep-sleep 唤醒功能。注意版本 {IDF_TARGET_TOUCH_SENSOR_VERSION} 启用 Deep-sleep 唤醒后，会在 Deep-sleep 中保持 RTC 电源域开启，以维持触摸传感器工作，此时任何已注册的触摸传感器通道都可以在 Deep-sleep 状态下保持采样并支持唤醒 Deep-sleep。
-        :not esp32: - Deep-sleep 状态唤醒：启用触摸传感器 Deep-sleep 唤醒功能除了指定 :cpp:member:`slp_wakeup_lvl` 为 :cpp:enumerator:`TOUCH_DEEP_SLEEP_WAKEUP` 外，还需要指定 Deep-sleep 唤醒通道 :cpp:member:`deep_slp_chan`，注意只有该指定的通道才会在 Deep-sleep 状态下保持采样以及唤醒，以此降低在 Deep-sleep 状态下的功耗。此外，若需要在深度睡眠下使用另一套低功耗的配置来进一步降低功耗，可以通过 :cpp:member:`deep_slp_sens_cfg` 额外指定一套低功耗配置，在进入 Deep-sleep 前，驱动会应用这套配置，从 Deep-sleep 状态唤醒后，则会重新配置到之前的配置。请注意当 :cpp:member:`slp_wakeup_lvl` 配置为 :cpp:enumerator:`TOUCH_DEEP_SLEEP_WAKEUP` 后，触摸传感器不仅能唤醒 Deep-sleep 状态，还能唤醒 Light-sleep 状态。
-
-    .. only:: not esp32
-
-        Deep-sleep 状态唤醒可由 :cpp:member:`touch_sleep_config_t::deep_slp_allow_pd` 配置是否允许关闭 RTC_PERIPH 电源域。若允许关闭，则芯片进入 Deep-sleep 后触摸传感器所在的 RTC_PERIPH 电源域有可能被关闭，此时只有指定的 :cpp:member:`touch_sleep_config_t::deep_slp_chan` 可唤醒，若不允许关闭，则所有已使能的触摸通道都可以将芯片从 Deep-sleep 状态中唤醒。
+    - 浅睡眠状态唤醒：通过指定 :cpp:member:`slp_wakeup_lvl` 为 :cpp:enumerator:`TOUCH_LIGHT_SLEEP_WAKEUP` 即可启用触摸传感器浅睡眠唤醒功能。注意任何已注册的触摸传感器通道都会在浅睡眠状态下保持采样并支持唤醒浅睡眠。
+    - 深睡眠状态唤醒：启用触摸传感器深睡眠唤醒功能除了指定 :cpp:member:`slp_wakeup_lvl` 为 :cpp:enumerator:`TOUCH_DEEP_SLEEP_WAKEUP` 外，还需要指定深睡眠唤醒通道 :cpp:member:`deep_slp_chan`，注意只有该指定的通道才会在深睡眠状态下保持采样以及唤醒，以此降低在深睡眠状态下的功耗。此外，若需要在深度睡眠下使用另一套低功耗的配置来进一步降低功耗，可以通过 :cpp:member:`deep_slp_sens_cfg` 额外指定一套低功耗配置，在进入深睡眠前，驱动会应用这套配置，从深睡眠状态唤醒后，则会重新配置到之前的配置。请注意当 :cpp:member:`slp_wakeup_lvl` 配置为 :cpp:enumerator:`TOUCH_DEEP_SLEEP_WAKEUP` 后，触摸传感器不仅能唤醒深睡眠状态，还能唤醒浅睡眠状态。
 
     若需要注销睡眠唤醒功能，可再次调用 :cpp:func:`touch_sensor_config_sleep_wakeup` 并将第二个参数（即 :cpp:type:`touch_sleep_config_t` 的配置结构体指针）设为 ``NULL`` 来注销睡眠唤醒功能。
 
     .. code-block:: c
 
-        touch_sleep_config_t light_slp_cfg = TOUCH_SENSOR_DEFAULT_LSLP_CONFIG();
-        // 注册 Light-sleep 唤醒功能
+        touch_sleep_config_t light_slp_cfg = {
+            .slp_wakeup_lvl = TOUCH_LIGHT_SLEEP_WAKEUP,
+        };
+        // 注册浅睡眠唤醒功能
         ESP_ERROR_CHECK(touch_sensor_config_sleep_wakeup(sens_handle, &light_slp_cfg));
         // ...
         // 注销睡眠唤醒功能
         ESP_ERROR_CHECK(touch_sensor_config_sleep_wakeup(sens_handle, NULL));
-        // 默认 Deep-sleep 唤醒配置：RTC_PERIPH 电源域在 Deep-sleep 状态下保持上电，
-        // 且所有使能 Touch 通道都能正常唤醒
-        touch_sleep_config_t deep_slp_cfg = TOUCH_SENSOR_DEFAULT_DSLP_CONFIG();
-        // 默认 Deep-sleep 掉电唤醒配置：RTC_PERIPH 电源域在 Deep-sleep 状态下掉电，
-        // 仅有指定的 sleep pad 能正常唤醒
-        // touch_sleep_config_t deep_slp_cfg = TOUCH_SENSOR_DEFAULT_DSLP_PD_CONFIG(sleep_channel, slp_chan_thresh1, ...);
-        // 注册 Deep-sleep 唤醒功能
-        ESP_ERROR_CHECK(touch_sensor_config_sleep_wakeup(sens_handle, &deep_slp_cfg));
-
-.. _touch-denoise-chan:
-
-.. only:: SOC_TOUCH_SUPPORT_DENOISE_CHAN
-
-    去噪通道配置
-    ^^^^^^^^^^^^
-
-    {IDF_TARGET_NAME} 支持通过去噪通道抑制内部背景噪声。可通过调用 :cpp:func:`touch_sensor_config_denoise_channel` 并配置 :cpp:type:`touch_denoise_chan_config_t` 来注册去噪通道。
-
-    去噪通道是一个没有引出的内部触摸通道。去噪通道使能之后，其他触摸通道的采样值会自动减去去噪通道的采样值，从而实现去噪。因此最终测量结果相比去噪前会有一定衰减。
-
-    除了常规的触摸通道配置，去噪通道还可以配置 :cpp:member:`touch_denoise_chan_config_t::ref_cap` 来指定连接到该通道上的参考电容大小，以及 :cpp:member:`touch_denoise_chan_config_t::resolution` 来指定噪声抑制的分辨率。分辨率越高，去噪通道采样值越大越精确，抑制效果越好，但同时其他触摸通道在自动扣除去噪通道采样值后的测量值衰减也越大。
-
-    例如，去噪通道分辨率为 :cpp:enumerator:`touch_denoise_chan_resolution_t::TOUCH_DENOISE_CHAN_RESOLUTION_BIT8`，即去噪通道采样值最大为 ``255``。假设此时一个常规通道实际采样值为 ``10000``，去噪通道采样值假设为 ``100``，则该常规通道扣除去噪通道采样值后的读数为 ``10000 - 100 = 9900``；若分辨率改为 :cpp:enumerator:`touch_denoise_chan_resolution_t::TOUCH_DENOISE_CHAN_RESOLUTION_BIT12`，即去噪通道采样值最大为 ``4095``，去噪通道分辨率提升 ``16`` 倍，去噪通道采样值大概为 ``100 * 16 = 1600``。此时该常规通道扣除去噪通道采样值后的读数为 ``10000 - 1600 = 8400``。
-
-    若需要注销去噪通道功能，可再次调用 :cpp:func:`touch_sensor_config_denoise_channel` 并将第二个参数（即 :cpp:type:`touch_denoise_chan_config_t` 的配置结构体指针）设为 ``NULL`` 来注销去噪通道功能。
-
-    .. code-block:: c
-
-        touch_denoise_chan_config_t denoise_cfg = {
-            // 去噪通道配置
+        touch_sleep_config_t deep_slp_cfg = {
+            .slp_wakeup_lvl = TOUCH_DEEP_SLEEP_WAKEUP,
+            .deep_slp_chan = dslp_chan_handle,
+            // 其他深睡眠唤醒配置
             // ...
-        }
-        // 注册去噪通道
-        ESP_ERROR_CHECK(touch_sensor_config_denoise_channel(sens_handle, &denoise_cfg));
-        // ...
-        // 注销去噪通道
-        ESP_ERROR_CHECK(touch_sensor_config_denoise_channel(sens_handle, NULL));
+        };
+        // 注册深睡眠唤醒功能
+        ESP_ERROR_CHECK(touch_sensor_config_sleep_wakeup(sens_handle, &deep_slp_cfg));
 
 应用示例
 --------
 
-    - :example:`peripherals/touch_sensor/touch_sens_basic` 演示了如何注册触摸通道并读取数据，并说明了硬件要求及项目配置。
-    - :example:`peripherals/touch_sensor/touch_sens_sleep` 演示了如何通过触摸传感器将芯片从 Light Sleep 或 Deep Sleep 状态唤醒。
-
-应用注意事项
-------------
-
-触摸传感器功耗问题
-^^^^^^^^^^^^^^^^^^^^
-
-由于触摸传感器的测量需要对电容进行充放电，所以它是一个比较耗能的外设。在一些对功耗要求比较高的应用中，可采用以下几个方法来降低触摸传感器功耗。
-
-.. list::
-
-    - 减少触摸通道数量：可在同一通道上复用多种功能（如单双击、长按等），从而减少触摸传感器的数量。
-    - 增加测量间隔：通过增大 :cpp:member:`touch_sensor_config_t::meas_interval_us` 测量间隔，来降低测量频率，从而降低功耗。
-    :esp32: - 降低单次测量时间：通过降低 :cpp:member:`touch_sensor_sample_config_t::charge_duration_ms` 单次测量时间，来减少充放电次数，从而降低功耗。
-    :not esp32: - 减少单次测量充放电次数：通过减少 :cpp:member:`touch_sensor_sample_config_t::charge_times` 单次测量充放电次数，以降低功耗。
-    :esp32s2 or esp32s3: - 电流偏置类型设为自偏置：通过设置 :cpp:member:`touch_sensor_sample_config_t::bias_type` 为 :cpp:enumerator:`touch_bias_type_t::TOUCH_BIAS_TYPE_SELF` 来使用功耗更低的自偏置。
-    :esp32 or esp32s2 or esp32s3: - 降低充放电幅度：:cpp:member:`touch_sensor_sample_config_t::charge_volt_lim_l` 和 :cpp:member:`touch_sensor_sample_config_t::charge_volt_lim_h` 用于指定放电时的电压下限和充电时的电压上限，同时降低这两个电压值以及上下限之间的压差可降低功耗。
-    :esp32 or esp32s2 or esp32s3: - 降低电流偏置强度：降低 :cpp:member:`touch_channel_config_t::charge_speed` 充放电速度（即电流偏置的电流大小）从而降低功耗。
-    :esp32p4: - 降低 LDO 电压偏置强度：降低 :cpp:member:`touch_channel_config_t::bias_volt` 从而降低功耗。
+    - :example:`peripherals/touch_sensor/touch_sensor_v3` 演示了如何注册触摸通道并读取数据，并说明了硬件要求及项目配置。
 
 API 参考
 ----------
 
-.. include-build-file:: inc/touch_sens.inc
-.. include-build-file:: inc/touch_sens_types.inc
-.. include-build-file:: inc/touch_version_types.inc
+.. only:: esp32p4
+
+    .. include-build-file:: inc/touch_sens.inc
+    .. include-build-file:: inc/touch_sens_types.inc
+    .. include-build-file:: inc/touch_version_types.inc

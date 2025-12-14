@@ -1,7 +1,7 @@
 /**
  * SPDX-FileCopyrightText: 2024-2025 Espressif Systems (Shanghai) CO LTD
  *
- *  SPDX-License-Identifier: Apache-2.0 OR MIT
+ *  SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
 
@@ -844,7 +844,7 @@ typedef union {
  */
 typedef union {
     struct {
-        uint32_t reserved_0:24;
+        uint32_t reserved_20:4;
         /** tx_sclk_en : R/W; bitpos: [24]; default: 1;
          *  Configures whether or not to enable LP UART TX clock.\\
          *  0: Disable\\

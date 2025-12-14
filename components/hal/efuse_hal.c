@@ -1,17 +1,16 @@
 /*
- * SPDX-FileCopyrightText: 2021-2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2021-2024 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#include "sdkconfig.h"
 #include <sys/param.h>
 #include "soc/soc_caps.h"
 #include "hal/efuse_ll.h"
 #include "hal/assert.h"
 #include "hal/efuse_hal.h"
 #include "esp_attr.h"
-
-#define FLASH_SECTOR_SIZE (4096)
 
 
 void efuse_hal_get_mac(uint8_t *mac)
@@ -35,11 +34,6 @@ IRAM_ATTR bool efuse_hal_get_disable_wafer_version_major(void)
     return efuse_ll_get_disable_wafer_version_major();
 }
 
-IRAM_ATTR uint32_t efuse_hal_get_chip_ver_pkg(void)
-{
-    return efuse_ll_get_chip_ver_pkg();
-}
-
 IRAM_ATTR bool efuse_hal_get_disable_blk_version_major(void)
 {
     return efuse_ll_get_disable_blk_version_major();
@@ -58,21 +52,13 @@ IRAM_ATTR bool efuse_hal_flash_encryption_enabled(void)
     return enabled;
 }
 
-
-
-#if SOC_RECOVERY_BOOTLOADER_SUPPORTED
-uint32_t efuse_hal_get_recovery_bootloader_address(void)
+#if SOC_EFUSE_ECDSA_KEY
+void efuse_hal_set_ecdsa_key(int efuse_blk)
 {
-    return efuse_ll_get_recovery_bootloader_sector() * FLASH_SECTOR_SIZE;
-}
+    efuse_ll_set_ecdsa_key_blk(efuse_blk);
 
-uint32_t efuse_hal_convert_recovery_bootloader_address_to_flash_sectors(uint32_t address)
-{
-    return address / FLASH_SECTOR_SIZE;
-}
+    efuse_ll_rs_bypass_update();
 
-bool efuse_hal_recovery_bootloader_enabled(void)
-{
-    return EFUSE_RECOVERY_BOOTLOADER_ENABLED(efuse_ll_get_recovery_bootloader_sector());
+    efuse_hal_read();
 }
-#endif // SOC_RECOVERY_BOOTLOADER_SUPPORTED
+#endif

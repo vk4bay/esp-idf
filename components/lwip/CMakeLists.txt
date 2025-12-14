@@ -1,5 +1,4 @@
 idf_build_get_property(target IDF_TARGET)
-set(srcs "")
 
 if(CONFIG_LWIP_ENABLE)
     if(NOT ${target} STREQUAL "linux")
@@ -10,6 +9,7 @@ if(CONFIG_LWIP_ENABLE)
     set(include_dirs
         include
         include/apps
+        include/apps/sntp
         lwip/src/include
         port/include
         port/freertos/include/
@@ -100,8 +100,11 @@ if(CONFIG_LWIP_ENABLE)
         "port/hooks/lwip_default_hooks.c"
         "port/debug/lwip_debug.c"
         "port/sockets_ext.c"
-        "port/freertos/sys_arch.c"
-        "port/if_index.c")
+        "port/freertos/sys_arch.c")
+
+    if(CONFIG_LWIP_NETIF_API)
+        list(APPEND srcs "port/if_index.c")
+    endif()
 
     if(CONFIG_LWIP_PPP_SUPPORT)
         list(APPEND srcs
@@ -138,11 +141,6 @@ if(CONFIG_LWIP_ENABLE)
         list(APPEND srcs "lwip/src/core/ipv4/acd.c")
     endif()
 
-    if(CONFIG_LWIP_USE_ESP_GETADDRINFO)
-        list(APPEND srcs "apps/netdb/esp_netdb.c")
-    endif()
-
-
 if(NOT ${target} STREQUAL "linux")
         # Support for vfs and linker fragments only for target builds
         set(linker_fragments linker.lf)
@@ -158,6 +156,8 @@ if(NOT ${target} STREQUAL "linux")
 
     if(CONFIG_LWIP_ICMP)
         list(APPEND srcs
+            "apps/ping/esp_ping.c"
+            "apps/ping/ping.c"
             "apps/ping/ping_sock.c")
     endif()
 

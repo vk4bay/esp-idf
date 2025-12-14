@@ -1,7 +1,7 @@
 /**
- * SPDX-FileCopyrightText: 2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2024 Espressif Systems (Shanghai) CO LTD
  *
- *  SPDX-License-Identifier: Apache-2.0 OR MIT
+ *  SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
 
@@ -20,12 +20,7 @@ typedef union {
          *  Configures the interrupt source into one CPU interrupt.
          */
         uint32_t wifi_mac_intr_map:6;
-        uint32_t reserved_6:2;
-        /** wifi_mac_intr_pass_in_sec : R/W; bitpos: [8]; default: 0;
-         *  Configures the PASS_IN_SEC flag of the interrupt source.
-         */
-        uint32_t wifi_mac_intr_pass_in_sec:1;
-        uint32_t reserved_9:23;
+        uint32_t reserved_6:26;
     };
     uint32_t val;
 } interrupt_core0_wifi_mac_intr_map_reg_t;
@@ -39,12 +34,7 @@ typedef union {
          *  Configures the interrupt source into one CPU interrupt.
          */
         uint32_t wifi_mac_nmi_map:6;
-        uint32_t reserved_6:2;
-        /** wifi_mac_nmi_pass_in_sec : R/W; bitpos: [8]; default: 0;
-         *  Configures the PASS_IN_SEC flag of the interrupt source.
-         */
-        uint32_t wifi_mac_nmi_pass_in_sec:1;
-        uint32_t reserved_9:23;
+        uint32_t reserved_6:26;
     };
     uint32_t val;
 } interrupt_core0_wifi_mac_nmi_map_reg_t;
@@ -58,12 +48,7 @@ typedef union {
          *  Configures the interrupt source into one CPU interrupt.
          */
         uint32_t wifi_pwr_intr_map:6;
-        uint32_t reserved_6:2;
-        /** wifi_pwr_intr_pass_in_sec : R/W; bitpos: [8]; default: 0;
-         *  Configures the PASS_IN_SEC flag of the interrupt source.
-         */
-        uint32_t wifi_pwr_intr_pass_in_sec:1;
-        uint32_t reserved_9:23;
+        uint32_t reserved_6:26;
     };
     uint32_t val;
 } interrupt_core0_wifi_pwr_intr_map_reg_t;
@@ -77,12 +62,7 @@ typedef union {
          *  Configures the interrupt source into one CPU interrupt.
          */
         uint32_t wifi_bb_intr_map:6;
-        uint32_t reserved_6:2;
-        /** wifi_bb_intr_pass_in_sec : R/W; bitpos: [8]; default: 0;
-         *  Configures the PASS_IN_SEC flag of the interrupt source.
-         */
-        uint32_t wifi_bb_intr_pass_in_sec:1;
-        uint32_t reserved_9:23;
+        uint32_t reserved_6:26;
     };
     uint32_t val;
 } interrupt_core0_wifi_bb_intr_map_reg_t;
@@ -96,12 +76,7 @@ typedef union {
          *  Configures the interrupt source into one CPU interrupt.
          */
         uint32_t bt_mac_intr_map:6;
-        uint32_t reserved_6:2;
-        /** bt_mac_intr_pass_in_sec : R/W; bitpos: [8]; default: 0;
-         *  Configures the PASS_IN_SEC flag of the interrupt source.
-         */
-        uint32_t bt_mac_intr_pass_in_sec:1;
-        uint32_t reserved_9:23;
+        uint32_t reserved_6:26;
     };
     uint32_t val;
 } interrupt_core0_bt_mac_intr_map_reg_t;
@@ -115,12 +90,7 @@ typedef union {
          *  Configures the interrupt source into one CPU interrupt.
          */
         uint32_t bt_bb_intr_map:6;
-        uint32_t reserved_6:2;
-        /** bt_bb_intr_pass_in_sec : R/W; bitpos: [8]; default: 0;
-         *  Configures the PASS_IN_SEC flag of the interrupt source.
-         */
-        uint32_t bt_bb_intr_pass_in_sec:1;
-        uint32_t reserved_9:23;
+        uint32_t reserved_6:26;
     };
     uint32_t val;
 } interrupt_core0_bt_bb_intr_map_reg_t;
@@ -134,12 +104,7 @@ typedef union {
          *  Configures the interrupt source into one CPU interrupt.
          */
         uint32_t bt_bb_nmi_map:6;
-        uint32_t reserved_6:2;
-        /** bt_bb_nmi_pass_in_sec : R/W; bitpos: [8]; default: 0;
-         *  Configures the PASS_IN_SEC flag of the interrupt source.
-         */
-        uint32_t bt_bb_nmi_pass_in_sec:1;
-        uint32_t reserved_9:23;
+        uint32_t reserved_6:26;
     };
     uint32_t val;
 } interrupt_core0_bt_bb_nmi_map_reg_t;
@@ -153,12 +118,7 @@ typedef union {
          *  Configures the interrupt source into one CPU interrupt.
          */
         uint32_t lp_timer_intr_map:6;
-        uint32_t reserved_6:2;
-        /** lp_timer_intr_pass_in_sec : R/W; bitpos: [8]; default: 0;
-         *  Configures the PASS_IN_SEC flag of the interrupt source.
-         */
-        uint32_t lp_timer_intr_pass_in_sec:1;
-        uint32_t reserved_9:23;
+        uint32_t reserved_6:26;
     };
     uint32_t val;
 } interrupt_core0_lp_timer_intr_map_reg_t;
@@ -172,12 +132,7 @@ typedef union {
          *  Configures the interrupt source into one CPU interrupt.
          */
         uint32_t coex_intr_map:6;
-        uint32_t reserved_6:2;
-        /** coex_intr_pass_in_sec : R/W; bitpos: [8]; default: 0;
-         *  Configures the PASS_IN_SEC flag of the interrupt source.
-         */
-        uint32_t coex_intr_pass_in_sec:1;
-        uint32_t reserved_9:23;
+        uint32_t reserved_6:26;
     };
     uint32_t val;
 } interrupt_core0_coex_intr_map_reg_t;
@@ -191,12 +146,7 @@ typedef union {
          *  Configures the interrupt source into one CPU interrupt.
          */
         uint32_t ble_timer_intr_map:6;
-        uint32_t reserved_6:2;
-        /** ble_timer_intr_pass_in_sec : R/W; bitpos: [8]; default: 0;
-         *  Configures the PASS_IN_SEC flag of the interrupt source.
-         */
-        uint32_t ble_timer_intr_pass_in_sec:1;
-        uint32_t reserved_9:23;
+        uint32_t reserved_6:26;
     };
     uint32_t val;
 } interrupt_core0_ble_timer_intr_map_reg_t;
@@ -210,12 +160,7 @@ typedef union {
          *  Configures the interrupt source into one CPU interrupt.
          */
         uint32_t ble_sec_intr_map:6;
-        uint32_t reserved_6:2;
-        /** ble_sec_intr_pass_in_sec : R/W; bitpos: [8]; default: 0;
-         *  Configures the PASS_IN_SEC flag of the interrupt source.
-         */
-        uint32_t ble_sec_intr_pass_in_sec:1;
-        uint32_t reserved_9:23;
+        uint32_t reserved_6:26;
     };
     uint32_t val;
 } interrupt_core0_ble_sec_intr_map_reg_t;
@@ -229,12 +174,7 @@ typedef union {
          *  Configures the interrupt source into one CPU interrupt.
          */
         uint32_t i2c_mst_intr_map:6;
-        uint32_t reserved_6:2;
-        /** i2c_mst_intr_pass_in_sec : R/W; bitpos: [8]; default: 0;
-         *  Configures the PASS_IN_SEC flag of the interrupt source.
-         */
-        uint32_t i2c_mst_intr_pass_in_sec:1;
-        uint32_t reserved_9:23;
+        uint32_t reserved_6:26;
     };
     uint32_t val;
 } interrupt_core0_i2c_mst_intr_map_reg_t;
@@ -248,12 +188,7 @@ typedef union {
          *  Configures the interrupt source into one CPU interrupt.
          */
         uint32_t zb_mac_intr_map:6;
-        uint32_t reserved_6:2;
-        /** zb_mac_intr_pass_in_sec : R/W; bitpos: [8]; default: 0;
-         *  Configures the PASS_IN_SEC flag of the interrupt source.
-         */
-        uint32_t zb_mac_intr_pass_in_sec:1;
-        uint32_t reserved_9:23;
+        uint32_t reserved_6:26;
     };
     uint32_t val;
 } interrupt_core0_zb_mac_intr_map_reg_t;
@@ -267,12 +202,7 @@ typedef union {
          *  Configures the interrupt source into one CPU interrupt.
          */
         uint32_t pmu_intr_map:6;
-        uint32_t reserved_6:2;
-        /** pmu_intr_pass_in_sec : R/W; bitpos: [8]; default: 0;
-         *  Configures the PASS_IN_SEC flag of the interrupt source.
-         */
-        uint32_t pmu_intr_pass_in_sec:1;
-        uint32_t reserved_9:23;
+        uint32_t reserved_6:26;
     };
     uint32_t val;
 } interrupt_core0_pmu_intr_map_reg_t;
@@ -286,12 +216,7 @@ typedef union {
          *  Configures the interrupt source into one CPU interrupt.
          */
         uint32_t efuse_intr_map:6;
-        uint32_t reserved_6:2;
-        /** efuse_intr_pass_in_sec : R/W; bitpos: [8]; default: 0;
-         *  Configures the PASS_IN_SEC flag of the interrupt source.
-         */
-        uint32_t efuse_intr_pass_in_sec:1;
-        uint32_t reserved_9:23;
+        uint32_t reserved_6:26;
     };
     uint32_t val;
 } interrupt_core0_efuse_intr_map_reg_t;
@@ -305,12 +230,7 @@ typedef union {
          *  Configures the interrupt source into one CPU interrupt.
          */
         uint32_t lp_rtc_timer_intr_map:6;
-        uint32_t reserved_6:2;
-        /** lp_rtc_timer_intr_pass_in_sec : R/W; bitpos: [8]; default: 0;
-         *  Configures the PASS_IN_SEC flag of the interrupt source.
-         */
-        uint32_t lp_rtc_timer_intr_pass_in_sec:1;
-        uint32_t reserved_9:23;
+        uint32_t reserved_6:26;
     };
     uint32_t val;
 } interrupt_core0_lp_rtc_timer_intr_map_reg_t;
@@ -324,12 +244,7 @@ typedef union {
          *  Configures the interrupt source into one CPU interrupt.
          */
         uint32_t lp_uart_intr_map:6;
-        uint32_t reserved_6:2;
-        /** lp_uart_intr_pass_in_sec : R/W; bitpos: [8]; default: 0;
-         *  Configures the PASS_IN_SEC flag of the interrupt source.
-         */
-        uint32_t lp_uart_intr_pass_in_sec:1;
-        uint32_t reserved_9:23;
+        uint32_t reserved_6:26;
     };
     uint32_t val;
 } interrupt_core0_lp_uart_intr_map_reg_t;
@@ -343,12 +258,7 @@ typedef union {
          *  Configures the interrupt source into one CPU interrupt.
          */
         uint32_t lp_i2c_intr_map:6;
-        uint32_t reserved_6:2;
-        /** lp_i2c_intr_pass_in_sec : R/W; bitpos: [8]; default: 0;
-         *  Configures the PASS_IN_SEC flag of the interrupt source.
-         */
-        uint32_t lp_i2c_intr_pass_in_sec:1;
-        uint32_t reserved_9:23;
+        uint32_t reserved_6:26;
     };
     uint32_t val;
 } interrupt_core0_lp_i2c_intr_map_reg_t;
@@ -362,12 +272,7 @@ typedef union {
          *  Configures the interrupt source into one CPU interrupt.
          */
         uint32_t lp_wdt_intr_map:6;
-        uint32_t reserved_6:2;
-        /** lp_wdt_intr_pass_in_sec : R/W; bitpos: [8]; default: 0;
-         *  Configures the PASS_IN_SEC flag of the interrupt source.
-         */
-        uint32_t lp_wdt_intr_pass_in_sec:1;
-        uint32_t reserved_9:23;
+        uint32_t reserved_6:26;
     };
     uint32_t val;
 } interrupt_core0_lp_wdt_intr_map_reg_t;
@@ -381,12 +286,7 @@ typedef union {
          *  Configures the interrupt source into one CPU interrupt.
          */
         uint32_t lp_peri_timeout_intr_map:6;
-        uint32_t reserved_6:2;
-        /** lp_peri_timeout_intr_pass_in_sec : R/W; bitpos: [8]; default: 0;
-         *  Configures the PASS_IN_SEC flag of the interrupt source.
-         */
-        uint32_t lp_peri_timeout_intr_pass_in_sec:1;
-        uint32_t reserved_9:23;
+        uint32_t reserved_6:26;
     };
     uint32_t val;
 } interrupt_core0_lp_peri_timeout_intr_map_reg_t;
@@ -400,12 +300,7 @@ typedef union {
          *  Configures the interrupt source into one CPU interrupt.
          */
         uint32_t lp_apm_m0_intr_map:6;
-        uint32_t reserved_6:2;
-        /** lp_apm_m0_intr_pass_in_sec : R/W; bitpos: [8]; default: 0;
-         *  Configures the PASS_IN_SEC flag of the interrupt source.
-         */
-        uint32_t lp_apm_m0_intr_pass_in_sec:1;
-        uint32_t reserved_9:23;
+        uint32_t reserved_6:26;
     };
     uint32_t val;
 } interrupt_core0_lp_apm_m0_intr_map_reg_t;
@@ -419,12 +314,7 @@ typedef union {
          *  Configures the interrupt source into one CPU interrupt.
          */
         uint32_t lp_apm_m1_intr_map:6;
-        uint32_t reserved_6:2;
-        /** lp_apm_m1_intr_pass_in_sec : R/W; bitpos: [8]; default: 0;
-         *  Configures the PASS_IN_SEC flag of the interrupt source.
-         */
-        uint32_t lp_apm_m1_intr_pass_in_sec:1;
-        uint32_t reserved_9:23;
+        uint32_t reserved_6:26;
     };
     uint32_t val;
 } interrupt_core0_lp_apm_m1_intr_map_reg_t;
@@ -438,12 +328,7 @@ typedef union {
          *  Configures the interrupt source into one CPU interrupt.
          */
         uint32_t huk_intr_map:6;
-        uint32_t reserved_6:2;
-        /** huk_intr_pass_in_sec : R/W; bitpos: [8]; default: 0;
-         *  Configures the PASS_IN_SEC flag of the interrupt source.
-         */
-        uint32_t huk_intr_pass_in_sec:1;
-        uint32_t reserved_9:23;
+        uint32_t reserved_6:26;
     };
     uint32_t val;
 } interrupt_core0_huk_intr_map_reg_t;
@@ -457,12 +342,7 @@ typedef union {
          *  Configures the interrupt source into one CPU interrupt.
          */
         uint32_t cpu_intr_from_cpu_0_map:6;
-        uint32_t reserved_6:2;
-        /** cpu_intr_from_cpu_0_pass_in_sec : R/W; bitpos: [8]; default: 0;
-         *  Configures the PASS_IN_SEC flag of the interrupt source.
-         */
-        uint32_t cpu_intr_from_cpu_0_pass_in_sec:1;
-        uint32_t reserved_9:23;
+        uint32_t reserved_6:26;
     };
     uint32_t val;
 } interrupt_core0_cpu_intr_from_cpu_0_map_reg_t;
@@ -476,12 +356,7 @@ typedef union {
          *  Configures the interrupt source into one CPU interrupt.
          */
         uint32_t cpu_intr_from_cpu_1_map:6;
-        uint32_t reserved_6:2;
-        /** cpu_intr_from_cpu_1_pass_in_sec : R/W; bitpos: [8]; default: 0;
-         *  Configures the PASS_IN_SEC flag of the interrupt source.
-         */
-        uint32_t cpu_intr_from_cpu_1_pass_in_sec:1;
-        uint32_t reserved_9:23;
+        uint32_t reserved_6:26;
     };
     uint32_t val;
 } interrupt_core0_cpu_intr_from_cpu_1_map_reg_t;
@@ -495,12 +370,7 @@ typedef union {
          *  Configures the interrupt source into one CPU interrupt.
          */
         uint32_t cpu_intr_from_cpu_2_map:6;
-        uint32_t reserved_6:2;
-        /** cpu_intr_from_cpu_2_pass_in_sec : R/W; bitpos: [8]; default: 0;
-         *  Configures the PASS_IN_SEC flag of the interrupt source.
-         */
-        uint32_t cpu_intr_from_cpu_2_pass_in_sec:1;
-        uint32_t reserved_9:23;
+        uint32_t reserved_6:26;
     };
     uint32_t val;
 } interrupt_core0_cpu_intr_from_cpu_2_map_reg_t;
@@ -514,12 +384,7 @@ typedef union {
          *  Configures the interrupt source into one CPU interrupt.
          */
         uint32_t cpu_intr_from_cpu_3_map:6;
-        uint32_t reserved_6:2;
-        /** cpu_intr_from_cpu_3_pass_in_sec : R/W; bitpos: [8]; default: 0;
-         *  Configures the PASS_IN_SEC flag of the interrupt source.
-         */
-        uint32_t cpu_intr_from_cpu_3_pass_in_sec:1;
-        uint32_t reserved_9:23;
+        uint32_t reserved_6:26;
     };
     uint32_t val;
 } interrupt_core0_cpu_intr_from_cpu_3_map_reg_t;
@@ -533,12 +398,7 @@ typedef union {
          *  Configures the interrupt source into one CPU interrupt.
          */
         uint32_t bus_monitor_intr_map:6;
-        uint32_t reserved_6:2;
-        /** bus_monitor_intr_pass_in_sec : R/W; bitpos: [8]; default: 0;
-         *  Configures the PASS_IN_SEC flag of the interrupt source.
-         */
-        uint32_t bus_monitor_intr_pass_in_sec:1;
-        uint32_t reserved_9:23;
+        uint32_t reserved_6:26;
     };
     uint32_t val;
 } interrupt_core0_bus_monitor_intr_map_reg_t;
@@ -552,12 +412,7 @@ typedef union {
          *  Configures the interrupt source into one CPU interrupt.
          */
         uint32_t trace_intr_map:6;
-        uint32_t reserved_6:2;
-        /** trace_intr_pass_in_sec : R/W; bitpos: [8]; default: 0;
-         *  Configures the PASS_IN_SEC flag of the interrupt source.
-         */
-        uint32_t trace_intr_pass_in_sec:1;
-        uint32_t reserved_9:23;
+        uint32_t reserved_6:26;
     };
     uint32_t val;
 } interrupt_core0_trace_intr_map_reg_t;
@@ -571,12 +426,7 @@ typedef union {
          *  Configures the interrupt source into one CPU interrupt.
          */
         uint32_t cache_intr_map:6;
-        uint32_t reserved_6:2;
-        /** cache_intr_pass_in_sec : R/W; bitpos: [8]; default: 0;
-         *  Configures the PASS_IN_SEC flag of the interrupt source.
-         */
-        uint32_t cache_intr_pass_in_sec:1;
-        uint32_t reserved_9:23;
+        uint32_t reserved_6:26;
     };
     uint32_t val;
 } interrupt_core0_cache_intr_map_reg_t;
@@ -590,12 +440,7 @@ typedef union {
          *  Configures the interrupt source into one CPU interrupt.
          */
         uint32_t cpu_peri_timeout_intr_map:6;
-        uint32_t reserved_6:2;
-        /** cpu_peri_timeout_intr_pass_in_sec : R/W; bitpos: [8]; default: 0;
-         *  Configures the PASS_IN_SEC flag of the interrupt source.
-         */
-        uint32_t cpu_peri_timeout_intr_pass_in_sec:1;
-        uint32_t reserved_9:23;
+        uint32_t reserved_6:26;
     };
     uint32_t val;
 } interrupt_core0_cpu_peri_timeout_intr_map_reg_t;
@@ -609,12 +454,7 @@ typedef union {
          *  Configures the interrupt source into one CPU interrupt.
          */
         uint32_t gpio_interrupt_pro_map:6;
-        uint32_t reserved_6:2;
-        /** gpio_interrupt_pro_pass_in_sec : R/W; bitpos: [8]; default: 0;
-         *  Configures the PASS_IN_SEC flag of the interrupt source.
-         */
-        uint32_t gpio_interrupt_pro_pass_in_sec:1;
-        uint32_t reserved_9:23;
+        uint32_t reserved_6:26;
     };
     uint32_t val;
 } interrupt_core0_gpio_interrupt_pro_map_reg_t;
@@ -628,12 +468,7 @@ typedef union {
          *  Configures the interrupt source into one CPU interrupt.
          */
         uint32_t gpio_interrupt_ext_map:6;
-        uint32_t reserved_6:2;
-        /** gpio_interrupt_ext_pass_in_sec : R/W; bitpos: [8]; default: 0;
-         *  Configures the PASS_IN_SEC flag of the interrupt source.
-         */
-        uint32_t gpio_interrupt_ext_pass_in_sec:1;
-        uint32_t reserved_9:23;
+        uint32_t reserved_6:26;
     };
     uint32_t val;
 } interrupt_core0_gpio_interrupt_ext_map_reg_t;
@@ -647,12 +482,7 @@ typedef union {
          *  Configures the interrupt source into one CPU interrupt.
          */
         uint32_t pau_intr_map:6;
-        uint32_t reserved_6:2;
-        /** pau_intr_pass_in_sec : R/W; bitpos: [8]; default: 0;
-         *  Configures the PASS_IN_SEC flag of the interrupt source.
-         */
-        uint32_t pau_intr_pass_in_sec:1;
-        uint32_t reserved_9:23;
+        uint32_t reserved_6:26;
     };
     uint32_t val;
 } interrupt_core0_pau_intr_map_reg_t;
@@ -666,12 +496,7 @@ typedef union {
          *  Configures the interrupt source into one CPU interrupt.
          */
         uint32_t hp_peri_timeout_intr_map:6;
-        uint32_t reserved_6:2;
-        /** hp_peri_timeout_intr_pass_in_sec : R/W; bitpos: [8]; default: 0;
-         *  Configures the PASS_IN_SEC flag of the interrupt source.
-         */
-        uint32_t hp_peri_timeout_intr_pass_in_sec:1;
-        uint32_t reserved_9:23;
+        uint32_t reserved_6:26;
     };
     uint32_t val;
 } interrupt_core0_hp_peri_timeout_intr_map_reg_t;
@@ -685,12 +510,7 @@ typedef union {
          *  Configures the interrupt source into one CPU interrupt.
          */
         uint32_t modem_peri_timeout_intr_map:6;
-        uint32_t reserved_6:2;
-        /** modem_peri_timeout_intr_pass_in_sec : R/W; bitpos: [8]; default: 0;
-         *  Configures the PASS_IN_SEC flag of the interrupt source.
-         */
-        uint32_t modem_peri_timeout_intr_pass_in_sec:1;
-        uint32_t reserved_9:23;
+        uint32_t reserved_6:26;
     };
     uint32_t val;
 } interrupt_core0_modem_peri_timeout_intr_map_reg_t;
@@ -704,12 +524,7 @@ typedef union {
          *  Configures the interrupt source into one CPU interrupt.
          */
         uint32_t hp_apm_m0_intr_map:6;
-        uint32_t reserved_6:2;
-        /** hp_apm_m0_intr_pass_in_sec : R/W; bitpos: [8]; default: 0;
-         *  Configures the PASS_IN_SEC flag of the interrupt source.
-         */
-        uint32_t hp_apm_m0_intr_pass_in_sec:1;
-        uint32_t reserved_9:23;
+        uint32_t reserved_6:26;
     };
     uint32_t val;
 } interrupt_core0_hp_apm_m0_intr_map_reg_t;
@@ -723,12 +538,7 @@ typedef union {
          *  Configures the interrupt source into one CPU interrupt.
          */
         uint32_t hp_apm_m1_intr_map:6;
-        uint32_t reserved_6:2;
-        /** hp_apm_m1_intr_pass_in_sec : R/W; bitpos: [8]; default: 0;
-         *  Configures the PASS_IN_SEC flag of the interrupt source.
-         */
-        uint32_t hp_apm_m1_intr_pass_in_sec:1;
-        uint32_t reserved_9:23;
+        uint32_t reserved_6:26;
     };
     uint32_t val;
 } interrupt_core0_hp_apm_m1_intr_map_reg_t;
@@ -742,12 +552,7 @@ typedef union {
          *  Configures the interrupt source into one CPU interrupt.
          */
         uint32_t hp_apm_m2_intr_map:6;
-        uint32_t reserved_6:2;
-        /** hp_apm_m2_intr_pass_in_sec : R/W; bitpos: [8]; default: 0;
-         *  Configures the PASS_IN_SEC flag of the interrupt source.
-         */
-        uint32_t hp_apm_m2_intr_pass_in_sec:1;
-        uint32_t reserved_9:23;
+        uint32_t reserved_6:26;
     };
     uint32_t val;
 } interrupt_core0_hp_apm_m2_intr_map_reg_t;
@@ -761,12 +566,7 @@ typedef union {
          *  Configures the interrupt source into one CPU interrupt.
          */
         uint32_t hp_apm_m3_intr_map:6;
-        uint32_t reserved_6:2;
-        /** hp_apm_m3_intr_pass_in_sec : R/W; bitpos: [8]; default: 0;
-         *  Configures the PASS_IN_SEC flag of the interrupt source.
-         */
-        uint32_t hp_apm_m3_intr_pass_in_sec:1;
-        uint32_t reserved_9:23;
+        uint32_t reserved_6:26;
     };
     uint32_t val;
 } interrupt_core0_hp_apm_m3_intr_map_reg_t;
@@ -780,12 +580,7 @@ typedef union {
          *  Configures the interrupt source into one CPU interrupt.
          */
         uint32_t hp_apm_m4_intr_map:6;
-        uint32_t reserved_6:2;
-        /** hp_apm_m4_intr_pass_in_sec : R/W; bitpos: [8]; default: 0;
-         *  Configures the PASS_IN_SEC flag of the interrupt source.
-         */
-        uint32_t hp_apm_m4_intr_pass_in_sec:1;
-        uint32_t reserved_9:23;
+        uint32_t reserved_6:26;
     };
     uint32_t val;
 } interrupt_core0_hp_apm_m4_intr_map_reg_t;
@@ -799,53 +594,10 @@ typedef union {
          *  Configures the interrupt source into one CPU interrupt.
          */
         uint32_t lp_apm0_intr_map:6;
-        uint32_t reserved_6:2;
-        /** lp_apm0_intr_pass_in_sec : R/W; bitpos: [8]; default: 0;
-         *  Configures the PASS_IN_SEC flag of the interrupt source.
-         */
-        uint32_t lp_apm0_intr_pass_in_sec:1;
-        uint32_t reserved_9:23;
+        uint32_t reserved_6:26;
     };
     uint32_t val;
 } interrupt_core0_lp_apm0_intr_map_reg_t;
-
-/** Type of cpu_apm_m0_intr_map register
- *  CPU_APM_M0_INTR mapping register
- */
-typedef union {
-    struct {
-        /** cpu_apm_m0_intr_map : R/W; bitpos: [5:0]; default: 0;
-         *  Configures the interrupt source into one CPU interrupt.
-         */
-        uint32_t cpu_apm_m0_intr_map:6;
-        uint32_t reserved_6:2;
-        /** cpu_apm_m0_intr_pass_in_sec : R/W; bitpos: [8]; default: 0;
-         *  Configures the PASS_IN_SEC flag of the interrupt source.
-         */
-        uint32_t cpu_apm_m0_intr_pass_in_sec:1;
-        uint32_t reserved_9:23;
-    };
-    uint32_t val;
-} interrupt_core0_cpu_apm_m0_intr_map_reg_t;
-
-/** Type of cpu_apm_m1_intr_map register
- *  CPU_APM_M1_INTR mapping register
- */
-typedef union {
-    struct {
-        /** cpu_apm_m1_intr_map : R/W; bitpos: [5:0]; default: 0;
-         *  Configures the interrupt source into one CPU interrupt.
-         */
-        uint32_t cpu_apm_m1_intr_map:6;
-        uint32_t reserved_6:2;
-        /** cpu_apm_m1_intr_pass_in_sec : R/W; bitpos: [8]; default: 0;
-         *  Configures the PASS_IN_SEC flag of the interrupt source.
-         */
-        uint32_t cpu_apm_m1_intr_pass_in_sec:1;
-        uint32_t reserved_9:23;
-    };
-    uint32_t val;
-} interrupt_core0_cpu_apm_m1_intr_map_reg_t;
 
 /** Type of mspi_intr_map register
  *  MSPI_INTR mapping register
@@ -856,12 +608,7 @@ typedef union {
          *  Configures the interrupt source into one CPU interrupt.
          */
         uint32_t mspi_intr_map:6;
-        uint32_t reserved_6:2;
-        /** mspi_intr_pass_in_sec : R/W; bitpos: [8]; default: 0;
-         *  Configures the PASS_IN_SEC flag of the interrupt source.
-         */
-        uint32_t mspi_intr_pass_in_sec:1;
-        uint32_t reserved_9:23;
+        uint32_t reserved_6:26;
     };
     uint32_t val;
 } interrupt_core0_mspi_intr_map_reg_t;
@@ -875,12 +622,7 @@ typedef union {
          *  Configures the interrupt source into one CPU interrupt.
          */
         uint32_t i2s_intr_map:6;
-        uint32_t reserved_6:2;
-        /** i2s_intr_pass_in_sec : R/W; bitpos: [8]; default: 0;
-         *  Configures the PASS_IN_SEC flag of the interrupt source.
-         */
-        uint32_t i2s_intr_pass_in_sec:1;
-        uint32_t reserved_9:23;
+        uint32_t reserved_6:26;
     };
     uint32_t val;
 } interrupt_core0_i2s_intr_map_reg_t;
@@ -894,12 +636,7 @@ typedef union {
          *  Configures the interrupt source into one CPU interrupt.
          */
         uint32_t uhci0_intr_map:6;
-        uint32_t reserved_6:2;
-        /** uhci0_intr_pass_in_sec : R/W; bitpos: [8]; default: 0;
-         *  Configures the PASS_IN_SEC flag of the interrupt source.
-         */
-        uint32_t uhci0_intr_pass_in_sec:1;
-        uint32_t reserved_9:23;
+        uint32_t reserved_6:26;
     };
     uint32_t val;
 } interrupt_core0_uhci0_intr_map_reg_t;
@@ -913,12 +650,7 @@ typedef union {
          *  Configures the interrupt source into one CPU interrupt.
          */
         uint32_t uart0_intr_map:6;
-        uint32_t reserved_6:2;
-        /** uart0_intr_pass_in_sec : R/W; bitpos: [8]; default: 0;
-         *  Configures the PASS_IN_SEC flag of the interrupt source.
-         */
-        uint32_t uart0_intr_pass_in_sec:1;
-        uint32_t reserved_9:23;
+        uint32_t reserved_6:26;
     };
     uint32_t val;
 } interrupt_core0_uart0_intr_map_reg_t;
@@ -932,12 +664,7 @@ typedef union {
          *  Configures the interrupt source into one CPU interrupt.
          */
         uint32_t uart1_intr_map:6;
-        uint32_t reserved_6:2;
-        /** uart1_intr_pass_in_sec : R/W; bitpos: [8]; default: 0;
-         *  Configures the PASS_IN_SEC flag of the interrupt source.
-         */
-        uint32_t uart1_intr_pass_in_sec:1;
-        uint32_t reserved_9:23;
+        uint32_t reserved_6:26;
     };
     uint32_t val;
 } interrupt_core0_uart1_intr_map_reg_t;
@@ -951,18 +678,13 @@ typedef union {
          *  Configures the interrupt source into one CPU interrupt.
          */
         uint32_t ledc_intr_map:6;
-        uint32_t reserved_6:2;
-        /** ledc_intr_pass_in_sec : R/W; bitpos: [8]; default: 0;
-         *  Configures the PASS_IN_SEC flag of the interrupt source.
-         */
-        uint32_t ledc_intr_pass_in_sec:1;
-        uint32_t reserved_9:23;
+        uint32_t reserved_6:26;
     };
     uint32_t val;
 } interrupt_core0_ledc_intr_map_reg_t;
 
 /** Type of twai0_intr_map register
- *  twai0_INTR mapping register
+ *  TWAI0_INTR mapping register
  */
 typedef union {
     struct {
@@ -970,18 +692,13 @@ typedef union {
          *  Configures the interrupt source into one CPU interrupt.
          */
         uint32_t twai0_intr_map:6;
-        uint32_t reserved_6:2;
-        /** twai0_intr_pass_in_sec : R/W; bitpos: [8]; default: 0;
-         *  Configures the PASS_IN_SEC flag of the interrupt source.
-         */
-        uint32_t twai0_intr_pass_in_sec:1;
-        uint32_t reserved_9:23;
+        uint32_t reserved_6:26;
     };
     uint32_t val;
 } interrupt_core0_twai0_intr_map_reg_t;
 
 /** Type of twai0_timer_intr_map register
- *  twai0_TIMER_INTR mapping register
+ *  TWAI0_TIMER_INTR mapping register
  */
 typedef union {
     struct {
@@ -989,18 +706,13 @@ typedef union {
          *  Configures the interrupt source into one CPU interrupt.
          */
         uint32_t twai0_timer_intr_map:6;
-        uint32_t reserved_6:2;
-        /** twai0_timer_intr_pass_in_sec : R/W; bitpos: [8]; default: 0;
-         *  Configures the PASS_IN_SEC flag of the interrupt source.
-         */
-        uint32_t twai0_timer_intr_pass_in_sec:1;
-        uint32_t reserved_9:23;
+        uint32_t reserved_6:26;
     };
     uint32_t val;
 } interrupt_core0_twai0_timer_intr_map_reg_t;
 
 /** Type of twai1_intr_map register
- *  twai1_INTR mapping register
+ *  TWAI1_INTR mapping register
  */
 typedef union {
     struct {
@@ -1008,18 +720,13 @@ typedef union {
          *  Configures the interrupt source into one CPU interrupt.
          */
         uint32_t twai1_intr_map:6;
-        uint32_t reserved_6:2;
-        /** twai1_intr_pass_in_sec : R/W; bitpos: [8]; default: 0;
-         *  Configures the PASS_IN_SEC flag of the interrupt source.
-         */
-        uint32_t twai1_intr_pass_in_sec:1;
-        uint32_t reserved_9:23;
+        uint32_t reserved_6:26;
     };
     uint32_t val;
 } interrupt_core0_twai1_intr_map_reg_t;
 
 /** Type of twai1_timer_intr_map register
- *  twai1_TIMER_INTR mapping register
+ *  TWAI1_TIMER_INTR mapping register
  */
 typedef union {
     struct {
@@ -1027,12 +734,7 @@ typedef union {
          *  Configures the interrupt source into one CPU interrupt.
          */
         uint32_t twai1_timer_intr_map:6;
-        uint32_t reserved_6:2;
-        /** twai1_timer_intr_pass_in_sec : R/W; bitpos: [8]; default: 0;
-         *  Configures the PASS_IN_SEC flag of the interrupt source.
-         */
-        uint32_t twai1_timer_intr_pass_in_sec:1;
-        uint32_t reserved_9:23;
+        uint32_t reserved_6:26;
     };
     uint32_t val;
 } interrupt_core0_twai1_timer_intr_map_reg_t;
@@ -1046,12 +748,7 @@ typedef union {
          *  Configures the interrupt source into one CPU interrupt.
          */
         uint32_t usb_serial_jtag_intr_map:6;
-        uint32_t reserved_6:2;
-        /** usb_serial_jtag_intr_pass_in_sec : R/W; bitpos: [8]; default: 0;
-         *  Configures the PASS_IN_SEC flag of the interrupt source.
-         */
-        uint32_t usb_serial_jtag_intr_pass_in_sec:1;
-        uint32_t reserved_9:23;
+        uint32_t reserved_6:26;
     };
     uint32_t val;
 } interrupt_core0_usb_serial_jtag_intr_map_reg_t;
@@ -1065,12 +762,7 @@ typedef union {
          *  Configures the interrupt source into one CPU interrupt.
          */
         uint32_t rmt_intr_map:6;
-        uint32_t reserved_6:2;
-        /** rmt_intr_pass_in_sec : R/W; bitpos: [8]; default: 0;
-         *  Configures the PASS_IN_SEC flag of the interrupt source.
-         */
-        uint32_t rmt_intr_pass_in_sec:1;
-        uint32_t reserved_9:23;
+        uint32_t reserved_6:26;
     };
     uint32_t val;
 } interrupt_core0_rmt_intr_map_reg_t;
@@ -1084,12 +776,7 @@ typedef union {
          *  Configures the interrupt source into one CPU interrupt.
          */
         uint32_t i2c_ext0_intr_map:6;
-        uint32_t reserved_6:2;
-        /** i2c_ext0_intr_pass_in_sec : R/W; bitpos: [8]; default: 0;
-         *  Configures the PASS_IN_SEC flag of the interrupt source.
-         */
-        uint32_t i2c_ext0_intr_pass_in_sec:1;
-        uint32_t reserved_9:23;
+        uint32_t reserved_6:26;
     };
     uint32_t val;
 } interrupt_core0_i2c_ext0_intr_map_reg_t;
@@ -1103,12 +790,7 @@ typedef union {
          *  Configures the interrupt source into one CPU interrupt.
          */
         uint32_t tg0_t0_intr_map:6;
-        uint32_t reserved_6:2;
-        /** tg0_t0_intr_pass_in_sec : R/W; bitpos: [8]; default: 0;
-         *  Configures the PASS_IN_SEC flag of the interrupt source.
-         */
-        uint32_t tg0_t0_intr_pass_in_sec:1;
-        uint32_t reserved_9:23;
+        uint32_t reserved_6:26;
     };
     uint32_t val;
 } interrupt_core0_tg0_t0_intr_map_reg_t;
@@ -1122,12 +804,7 @@ typedef union {
          *  Configures the interrupt source into one CPU interrupt.
          */
         uint32_t tg0_wdt_intr_map:6;
-        uint32_t reserved_6:2;
-        /** tg0_wdt_intr_pass_in_sec : R/W; bitpos: [8]; default: 0;
-         *  Configures the PASS_IN_SEC flag of the interrupt source.
-         */
-        uint32_t tg0_wdt_intr_pass_in_sec:1;
-        uint32_t reserved_9:23;
+        uint32_t reserved_6:26;
     };
     uint32_t val;
 } interrupt_core0_tg0_wdt_intr_map_reg_t;
@@ -1141,12 +818,7 @@ typedef union {
          *  Configures the interrupt source into one CPU interrupt.
          */
         uint32_t tg1_t0_intr_map:6;
-        uint32_t reserved_6:2;
-        /** tg1_t0_intr_pass_in_sec : R/W; bitpos: [8]; default: 0;
-         *  Configures the PASS_IN_SEC flag of the interrupt source.
-         */
-        uint32_t tg1_t0_intr_pass_in_sec:1;
-        uint32_t reserved_9:23;
+        uint32_t reserved_6:26;
     };
     uint32_t val;
 } interrupt_core0_tg1_t0_intr_map_reg_t;
@@ -1160,12 +832,7 @@ typedef union {
          *  Configures the interrupt source into one CPU interrupt.
          */
         uint32_t tg1_wdt_intr_map:6;
-        uint32_t reserved_6:2;
-        /** tg1_wdt_intr_pass_in_sec : R/W; bitpos: [8]; default: 0;
-         *  Configures the PASS_IN_SEC flag of the interrupt source.
-         */
-        uint32_t tg1_wdt_intr_pass_in_sec:1;
-        uint32_t reserved_9:23;
+        uint32_t reserved_6:26;
     };
     uint32_t val;
 } interrupt_core0_tg1_wdt_intr_map_reg_t;
@@ -1179,12 +846,7 @@ typedef union {
          *  Configures the interrupt source into one CPU interrupt.
          */
         uint32_t systimer_target0_intr_map:6;
-        uint32_t reserved_6:2;
-        /** systimer_target0_intr_pass_in_sec : R/W; bitpos: [8]; default: 0;
-         *  Configures the PASS_IN_SEC flag of the interrupt source.
-         */
-        uint32_t systimer_target0_intr_pass_in_sec:1;
-        uint32_t reserved_9:23;
+        uint32_t reserved_6:26;
     };
     uint32_t val;
 } interrupt_core0_systimer_target0_intr_map_reg_t;
@@ -1198,12 +860,7 @@ typedef union {
          *  Configures the interrupt source into one CPU interrupt.
          */
         uint32_t systimer_target1_intr_map:6;
-        uint32_t reserved_6:2;
-        /** systimer_target1_intr_pass_in_sec : R/W; bitpos: [8]; default: 0;
-         *  Configures the PASS_IN_SEC flag of the interrupt source.
-         */
-        uint32_t systimer_target1_intr_pass_in_sec:1;
-        uint32_t reserved_9:23;
+        uint32_t reserved_6:26;
     };
     uint32_t val;
 } interrupt_core0_systimer_target1_intr_map_reg_t;
@@ -1217,12 +874,7 @@ typedef union {
          *  Configures the interrupt source into one CPU interrupt.
          */
         uint32_t systimer_target2_intr_map:6;
-        uint32_t reserved_6:2;
-        /** systimer_target2_intr_pass_in_sec : R/W; bitpos: [8]; default: 0;
-         *  Configures the PASS_IN_SEC flag of the interrupt source.
-         */
-        uint32_t systimer_target2_intr_pass_in_sec:1;
-        uint32_t reserved_9:23;
+        uint32_t reserved_6:26;
     };
     uint32_t val;
 } interrupt_core0_systimer_target2_intr_map_reg_t;
@@ -1236,12 +888,7 @@ typedef union {
          *  Configures the interrupt source into one CPU interrupt.
          */
         uint32_t apb_adc_intr_map:6;
-        uint32_t reserved_6:2;
-        /** apb_adc_intr_pass_in_sec : R/W; bitpos: [8]; default: 0;
-         *  Configures the PASS_IN_SEC flag of the interrupt source.
-         */
-        uint32_t apb_adc_intr_pass_in_sec:1;
-        uint32_t reserved_9:23;
+        uint32_t reserved_6:26;
     };
     uint32_t val;
 } interrupt_core0_apb_adc_intr_map_reg_t;
@@ -1255,12 +902,7 @@ typedef union {
          *  Configures the interrupt source into one CPU interrupt.
          */
         uint32_t pwm_intr_map:6;
-        uint32_t reserved_6:2;
-        /** pwm_intr_pass_in_sec : R/W; bitpos: [8]; default: 0;
-         *  Configures the PASS_IN_SEC flag of the interrupt source.
-         */
-        uint32_t pwm_intr_pass_in_sec:1;
-        uint32_t reserved_9:23;
+        uint32_t reserved_6:26;
     };
     uint32_t val;
 } interrupt_core0_pwm_intr_map_reg_t;
@@ -1274,12 +916,7 @@ typedef union {
          *  Configures the interrupt source into one CPU interrupt.
          */
         uint32_t pcnt_intr_map:6;
-        uint32_t reserved_6:2;
-        /** pcnt_intr_pass_in_sec : R/W; bitpos: [8]; default: 0;
-         *  Configures the PASS_IN_SEC flag of the interrupt source.
-         */
-        uint32_t pcnt_intr_pass_in_sec:1;
-        uint32_t reserved_9:23;
+        uint32_t reserved_6:26;
     };
     uint32_t val;
 } interrupt_core0_pcnt_intr_map_reg_t;
@@ -1293,12 +930,7 @@ typedef union {
          *  Configures the interrupt source into one CPU interrupt.
          */
         uint32_t parl_io_tx_intr_map:6;
-        uint32_t reserved_6:2;
-        /** parl_io_tx_intr_pass_in_sec : R/W; bitpos: [8]; default: 0;
-         *  Configures the PASS_IN_SEC flag of the interrupt source.
-         */
-        uint32_t parl_io_tx_intr_pass_in_sec:1;
-        uint32_t reserved_9:23;
+        uint32_t reserved_6:26;
     };
     uint32_t val;
 } interrupt_core0_parl_io_tx_intr_map_reg_t;
@@ -1312,53 +944,10 @@ typedef union {
          *  Configures the interrupt source into one CPU interrupt.
          */
         uint32_t parl_io_rx_intr_map:6;
-        uint32_t reserved_6:2;
-        /** parl_io_rx_intr_pass_in_sec : R/W; bitpos: [8]; default: 0;
-         *  Configures the PASS_IN_SEC flag of the interrupt source.
-         */
-        uint32_t parl_io_rx_intr_pass_in_sec:1;
-        uint32_t reserved_9:23;
+        uint32_t reserved_6:26;
     };
     uint32_t val;
 } interrupt_core0_parl_io_rx_intr_map_reg_t;
-
-/** Type of slc0_intr_map register
- *  SLC0_INTR mapping register
- */
-typedef union {
-    struct {
-        /** slc0_intr_map : R/W; bitpos: [5:0]; default: 0;
-         *  Configures the interrupt source into one CPU interrupt.
-         */
-        uint32_t slc0_intr_map:6;
-        uint32_t reserved_6:2;
-        /** slc0_intr_pass_in_sec : R/W; bitpos: [8]; default: 0;
-         *  Configures the PASS_IN_SEC flag of the interrupt source.
-         */
-        uint32_t slc0_intr_pass_in_sec:1;
-        uint32_t reserved_9:23;
-    };
-    uint32_t val;
-} interrupt_core0_slc0_intr_map_reg_t;
-
-/** Type of slc1_intr_map register
- *  SLC1_INTR mapping register
- */
-typedef union {
-    struct {
-        /** slc1_intr_map : R/W; bitpos: [5:0]; default: 0;
-         *  Configures the interrupt source into one CPU interrupt.
-         */
-        uint32_t slc1_intr_map:6;
-        uint32_t reserved_6:2;
-        /** slc1_intr_pass_in_sec : R/W; bitpos: [8]; default: 0;
-         *  Configures the PASS_IN_SEC flag of the interrupt source.
-         */
-        uint32_t slc1_intr_pass_in_sec:1;
-        uint32_t reserved_9:23;
-    };
-    uint32_t val;
-} interrupt_core0_slc1_intr_map_reg_t;
 
 /** Type of dma_in_ch0_intr_map register
  *  DMA_IN_CH0_INTR mapping register
@@ -1369,12 +958,7 @@ typedef union {
          *  Configures the interrupt source into one CPU interrupt.
          */
         uint32_t dma_in_ch0_intr_map:6;
-        uint32_t reserved_6:2;
-        /** dma_in_ch0_intr_pass_in_sec : R/W; bitpos: [8]; default: 0;
-         *  Configures the PASS_IN_SEC flag of the interrupt source.
-         */
-        uint32_t dma_in_ch0_intr_pass_in_sec:1;
-        uint32_t reserved_9:23;
+        uint32_t reserved_6:26;
     };
     uint32_t val;
 } interrupt_core0_dma_in_ch0_intr_map_reg_t;
@@ -1388,12 +972,7 @@ typedef union {
          *  Configures the interrupt source into one CPU interrupt.
          */
         uint32_t dma_in_ch1_intr_map:6;
-        uint32_t reserved_6:2;
-        /** dma_in_ch1_intr_pass_in_sec : R/W; bitpos: [8]; default: 0;
-         *  Configures the PASS_IN_SEC flag of the interrupt source.
-         */
-        uint32_t dma_in_ch1_intr_pass_in_sec:1;
-        uint32_t reserved_9:23;
+        uint32_t reserved_6:26;
     };
     uint32_t val;
 } interrupt_core0_dma_in_ch1_intr_map_reg_t;
@@ -1407,12 +986,7 @@ typedef union {
          *  Configures the interrupt source into one CPU interrupt.
          */
         uint32_t dma_in_ch2_intr_map:6;
-        uint32_t reserved_6:2;
-        /** dma_in_ch2_intr_pass_in_sec : R/W; bitpos: [8]; default: 0;
-         *  Configures the PASS_IN_SEC flag of the interrupt source.
-         */
-        uint32_t dma_in_ch2_intr_pass_in_sec:1;
-        uint32_t reserved_9:23;
+        uint32_t reserved_6:26;
     };
     uint32_t val;
 } interrupt_core0_dma_in_ch2_intr_map_reg_t;
@@ -1426,12 +1000,7 @@ typedef union {
          *  Configures the interrupt source into one CPU interrupt.
          */
         uint32_t dma_out_ch0_intr_map:6;
-        uint32_t reserved_6:2;
-        /** dma_out_ch0_intr_pass_in_sec : R/W; bitpos: [8]; default: 0;
-         *  Configures the PASS_IN_SEC flag of the interrupt source.
-         */
-        uint32_t dma_out_ch0_intr_pass_in_sec:1;
-        uint32_t reserved_9:23;
+        uint32_t reserved_6:26;
     };
     uint32_t val;
 } interrupt_core0_dma_out_ch0_intr_map_reg_t;
@@ -1445,12 +1014,7 @@ typedef union {
          *  Configures the interrupt source into one CPU interrupt.
          */
         uint32_t dma_out_ch1_intr_map:6;
-        uint32_t reserved_6:2;
-        /** dma_out_ch1_intr_pass_in_sec : R/W; bitpos: [8]; default: 0;
-         *  Configures the PASS_IN_SEC flag of the interrupt source.
-         */
-        uint32_t dma_out_ch1_intr_pass_in_sec:1;
-        uint32_t reserved_9:23;
+        uint32_t reserved_6:26;
     };
     uint32_t val;
 } interrupt_core0_dma_out_ch1_intr_map_reg_t;
@@ -1464,12 +1028,7 @@ typedef union {
          *  Configures the interrupt source into one CPU interrupt.
          */
         uint32_t dma_out_ch2_intr_map:6;
-        uint32_t reserved_6:2;
-        /** dma_out_ch2_intr_pass_in_sec : R/W; bitpos: [8]; default: 0;
-         *  Configures the PASS_IN_SEC flag of the interrupt source.
-         */
-        uint32_t dma_out_ch2_intr_pass_in_sec:1;
-        uint32_t reserved_9:23;
+        uint32_t reserved_6:26;
     };
     uint32_t val;
 } interrupt_core0_dma_out_ch2_intr_map_reg_t;
@@ -1483,12 +1042,7 @@ typedef union {
          *  Configures the interrupt source into one CPU interrupt.
          */
         uint32_t gpspi2_intr_map:6;
-        uint32_t reserved_6:2;
-        /** gpspi2_intr_pass_in_sec : R/W; bitpos: [8]; default: 0;
-         *  Configures the PASS_IN_SEC flag of the interrupt source.
-         */
-        uint32_t gpspi2_intr_pass_in_sec:1;
-        uint32_t reserved_9:23;
+        uint32_t reserved_6:26;
     };
     uint32_t val;
 } interrupt_core0_gpspi2_intr_map_reg_t;
@@ -1502,12 +1056,7 @@ typedef union {
          *  Configures the interrupt source into one CPU interrupt.
          */
         uint32_t aes_intr_map:6;
-        uint32_t reserved_6:2;
-        /** aes_intr_pass_in_sec : R/W; bitpos: [8]; default: 0;
-         *  Configures the PASS_IN_SEC flag of the interrupt source.
-         */
-        uint32_t aes_intr_pass_in_sec:1;
-        uint32_t reserved_9:23;
+        uint32_t reserved_6:26;
     };
     uint32_t val;
 } interrupt_core0_aes_intr_map_reg_t;
@@ -1521,12 +1070,7 @@ typedef union {
          *  Configures the interrupt source into one CPU interrupt.
          */
         uint32_t sha_intr_map:6;
-        uint32_t reserved_6:2;
-        /** sha_intr_pass_in_sec : R/W; bitpos: [8]; default: 0;
-         *  Configures the PASS_IN_SEC flag of the interrupt source.
-         */
-        uint32_t sha_intr_pass_in_sec:1;
-        uint32_t reserved_9:23;
+        uint32_t reserved_6:26;
     };
     uint32_t val;
 } interrupt_core0_sha_intr_map_reg_t;
@@ -1540,12 +1084,7 @@ typedef union {
          *  Configures the interrupt source into one CPU interrupt.
          */
         uint32_t rsa_intr_map:6;
-        uint32_t reserved_6:2;
-        /** rsa_intr_pass_in_sec : R/W; bitpos: [8]; default: 0;
-         *  Configures the PASS_IN_SEC flag of the interrupt source.
-         */
-        uint32_t rsa_intr_pass_in_sec:1;
-        uint32_t reserved_9:23;
+        uint32_t reserved_6:26;
     };
     uint32_t val;
 } interrupt_core0_rsa_intr_map_reg_t;
@@ -1559,12 +1098,7 @@ typedef union {
          *  Configures the interrupt source into one CPU interrupt.
          */
         uint32_t ecc_intr_map:6;
-        uint32_t reserved_6:2;
-        /** ecc_intr_pass_in_sec : R/W; bitpos: [8]; default: 0;
-         *  Configures the PASS_IN_SEC flag of the interrupt source.
-         */
-        uint32_t ecc_intr_pass_in_sec:1;
-        uint32_t reserved_9:23;
+        uint32_t reserved_6:26;
     };
     uint32_t val;
 } interrupt_core0_ecc_intr_map_reg_t;
@@ -1578,12 +1112,7 @@ typedef union {
          *  Configures the interrupt source into one CPU interrupt.
          */
         uint32_t ecdsa_intr_map:6;
-        uint32_t reserved_6:2;
-        /** ecdsa_intr_pass_in_sec : R/W; bitpos: [8]; default: 0;
-         *  Configures the PASS_IN_SEC flag of the interrupt source.
-         */
-        uint32_t ecdsa_intr_pass_in_sec:1;
-        uint32_t reserved_9:23;
+        uint32_t reserved_6:26;
     };
     uint32_t val;
 } interrupt_core0_ecdsa_intr_map_reg_t;
@@ -1597,29 +1126,58 @@ typedef union {
          *  Configures the interrupt source into one CPU interrupt.
          */
         uint32_t km_intr_map:6;
-        uint32_t reserved_6:2;
-        /** km_intr_pass_in_sec : R/W; bitpos: [8]; default: 0;
-         *  Configures the PASS_IN_SEC flag of the interrupt source.
-         */
-        uint32_t km_intr_pass_in_sec:1;
-        uint32_t reserved_9:23;
+        uint32_t reserved_6:26;
     };
     uint32_t val;
 } interrupt_core0_km_intr_map_reg_t;
 
-/** Type of sig_idx_assert_in_sec register
- *  reserved
+/** Type of int_status_0 register
+ *  Status register for interrupt sources 0 ~ 31
  */
 typedef union {
     struct {
-        /** int_sig_idx_assert_in_sec : R/W; bitpos: [5:0]; default: 0;
-         *  reserved
+        /** int_status_0 : RO; bitpos: [31:0]; default: 0;
+         *  Represents the status of the interrupt sources numbered from .Each bit corresponds
+         *  to one interrupt source
+         *  0:The corresponding interrupt source triggered an interrupt
+         *  1:No interrupt triggered
          */
-        uint32_t int_sig_idx_assert_in_sec:6;
-        uint32_t reserved_6:26;
+        uint32_t int_status_0:32;
     };
     uint32_t val;
-} interrupt_core0_sig_idx_assert_in_sec_reg_t;
+} interrupt_core0_int_status_0_reg_t;
+
+/** Type of int_status_1 register
+ *  Status register for interrupt sources 32 ~ 63
+ */
+typedef union {
+    struct {
+        /** int_status_1 : RO; bitpos: [31:0]; default: 0;
+         *  Represents the status of the interrupt sources numbered from .Each bit corresponds
+         *  to one interrupt source
+         *  0:The corresponding interrupt source triggered an interrupt
+         *  1:No interrupt triggered
+         */
+        uint32_t int_status_1:32;
+    };
+    uint32_t val;
+} interrupt_core0_int_status_1_reg_t;
+
+/** Type of int_status_2 register
+ *  Status register for interrupt sources 64 ~ 95
+ */
+typedef union {
+    struct {
+        /** int_status_2 : RO; bitpos: [31:0]; default: 0;
+         *  Represents the status of the interrupt sources numbered from .Each bit corresponds
+         *  to one interrupt source
+         *  0:The corresponding interrupt source triggered an interrupt
+         *  1:No interrupt triggered
+         */
+        uint32_t int_status_2:32;
+    };
+    uint32_t val;
+} interrupt_core0_int_status_2_reg_t;
 
 /** Type of clock_gate register
  *  Interrupt clock gating configure register
@@ -1636,126 +1194,13 @@ typedef union {
 } interrupt_core0_clock_gate_reg_t;
 
 
-/** Group: Status Registers */
-/** Type of int_status_reg_0 register
- *  Status register for interrupt sources 0 ~ 31
- */
-typedef union {
-    struct {
-        /** int_status_0 : RO; bitpos: [31:0]; default: 0;
-         *  Represents the status of the interrupt sources within interrupt-index-range 0 ~ 31.
-         *  Each bit corresponds to one interrupt source
-         *  0:The corresponding interrupt source triggered an interrupt
-         *  1:No interrupt triggered
-         */
-        uint32_t int_status_0:32;
-    };
-    uint32_t val;
-} interrupt_core0_int_status_reg_0_reg_t;
-
-/** Type of int_status_reg_1 register
- *  Status register for interrupt sources 32 ~ 63
- */
-typedef union {
-    struct {
-        /** int_status_1 : RO; bitpos: [31:0]; default: 0;
-         *  Represents the status of the interrupt sources within interrupt-index-range 32 ~
-         *  63. Each bit corresponds to one interrupt source
-         *  0:The corresponding interrupt source triggered an interrupt
-         *  1:No interrupt triggered
-         */
-        uint32_t int_status_1:32;
-    };
-    uint32_t val;
-} interrupt_core0_int_status_reg_1_reg_t;
-
-/** Type of int_status_reg_2 register
- *  Status register for interrupt sources 64 ~ 83
- */
-typedef union {
-    struct {
-        /** int_status_2 : RO; bitpos: [19:0]; default: 0;
-         *  Represents the status of the interrupt sources within interrupt-index-range 64 ~
-         *  83. Each bit corresponds to one interrupt source
-         *  0:The corresponding interrupt source triggered an interrupt
-         *  1:No interrupt triggered
-         */
-        uint32_t int_status_2:20;
-        uint32_t reserved_20:12;
-    };
-    uint32_t val;
-} interrupt_core0_int_status_reg_2_reg_t;
-
-/** Type of src_pass_in_sec_status_0 register
- *  PASS_IN_SEC status register for interrupt sources 0 ~ 31
- */
-typedef union {
-    struct {
-        /** int_src_pass_in_sec_status_0 : RO; bitpos: [31:0]; default: 0;
-         *  Represents the PASS_IN_SEC status of the interrupt sources within
-         *  interrupt-index-range 0 ~ 31. Each bit corresponds to one interrupt source
-         *  0:The corresponding interrupt source is not PASS_IN_SEC.
-         *  1:The corresponding interrupt source is PASS_IN_SEC.
-         */
-        uint32_t int_src_pass_in_sec_status_0:32;
-    };
-    uint32_t val;
-} interrupt_core0_src_pass_in_sec_status_0_reg_t;
-
-/** Type of src_pass_in_sec_status_1 register
- *  PASS_IN_SEC status register for interrupt sources 32 ~ 63
- */
-typedef union {
-    struct {
-        /** int_src_pass_in_sec_status_1 : RO; bitpos: [31:0]; default: 0;
-         *  Represents the PASS_IN_SEC status of the interrupt sources within
-         *  interrupt-index-range 32 ~ 63. Each bit corresponds to one interrupt source
-         *  0:The corresponding interrupt source is not PASS_IN_SEC.
-         *  1:The corresponding interrupt source is PASS_IN_SEC.
-         */
-        uint32_t int_src_pass_in_sec_status_1:32;
-    };
-    uint32_t val;
-} interrupt_core0_src_pass_in_sec_status_1_reg_t;
-
-/** Type of src_pass_in_sec_status_2 register
- *  PASS_IN_SEC status register for interrupt sources 64 ~ 83
- */
-typedef union {
-    struct {
-        /** int_src_pass_in_sec_status_2 : RO; bitpos: [19:0]; default: 0;
-         *  Represents the PASS_IN_SEC status of the interrupt sources with
-         *  interrupt-index-range 64 ~ 83. Each bit corresponds to one interrupt source
-         *  0:The corresponding interrupt source is not PASS_IN_SEC.
-         *  1:The corresponding interrupt source is PASS_IN_SEC.
-         */
-        uint32_t int_src_pass_in_sec_status_2:20;
-        uint32_t reserved_20:12;
-    };
-    uint32_t val;
-} interrupt_core0_src_pass_in_sec_status_2_reg_t;
-
-/** Type of secure_status register
- *  reserved
- */
-typedef union {
-    struct {
-        /** int_secure_status : RO; bitpos: [31:0]; default: 0;
-         *  reserved
-         */
-        uint32_t int_secure_status:32;
-    };
-    uint32_t val;
-} interrupt_core0_secure_status_reg_t;
-
-
 /** Group: Version Register */
 /** Type of interrupt_date register
  *  Version control register
  */
 typedef union {
     struct {
-        /** interrupt_date : R/W; bitpos: [27:0]; default: 37814858;
+        /** interrupt_date : R/W; bitpos: [27:0]; default: 36773985;
          *  Version control register
          */
         uint32_t interrupt_date:28;
@@ -1808,8 +1253,6 @@ typedef struct {
     volatile interrupt_core0_hp_apm_m3_intr_map_reg_t hp_apm_m3_intr_map;
     volatile interrupt_core0_hp_apm_m4_intr_map_reg_t hp_apm_m4_intr_map;
     volatile interrupt_core0_lp_apm0_intr_map_reg_t lp_apm0_intr_map;
-    volatile interrupt_core0_cpu_apm_m0_intr_map_reg_t cpu_apm_m0_intr_map;
-    volatile interrupt_core0_cpu_apm_m1_intr_map_reg_t cpu_apm_m1_intr_map;
     volatile interrupt_core0_mspi_intr_map_reg_t mspi_intr_map;
     volatile interrupt_core0_i2s_intr_map_reg_t i2s_intr_map;
     volatile interrupt_core0_uhci0_intr_map_reg_t uhci0_intr_map;
@@ -1835,8 +1278,6 @@ typedef struct {
     volatile interrupt_core0_pcnt_intr_map_reg_t pcnt_intr_map;
     volatile interrupt_core0_parl_io_tx_intr_map_reg_t parl_io_tx_intr_map;
     volatile interrupt_core0_parl_io_rx_intr_map_reg_t parl_io_rx_intr_map;
-    volatile interrupt_core0_slc0_intr_map_reg_t slc0_intr_map;
-    volatile interrupt_core0_slc1_intr_map_reg_t slc1_intr_map;
     volatile interrupt_core0_dma_in_ch0_intr_map_reg_t dma_in_ch0_intr_map;
     volatile interrupt_core0_dma_in_ch1_intr_map_reg_t dma_in_ch1_intr_map;
     volatile interrupt_core0_dma_in_ch2_intr_map_reg_t dma_in_ch2_intr_map;
@@ -1850,16 +1291,11 @@ typedef struct {
     volatile interrupt_core0_ecc_intr_map_reg_t ecc_intr_map;
     volatile interrupt_core0_ecdsa_intr_map_reg_t ecdsa_intr_map;
     volatile interrupt_core0_km_intr_map_reg_t km_intr_map;
-    volatile interrupt_core0_int_status_reg_0_reg_t int_status_reg_0;
-    volatile interrupt_core0_int_status_reg_1_reg_t int_status_reg_1;
-    volatile interrupt_core0_int_status_reg_2_reg_t int_status_reg_2;
-    volatile interrupt_core0_src_pass_in_sec_status_0_reg_t src_pass_in_sec_status_0;
-    volatile interrupt_core0_src_pass_in_sec_status_1_reg_t src_pass_in_sec_status_1;
-    volatile interrupt_core0_src_pass_in_sec_status_2_reg_t src_pass_in_sec_status_2;
-    volatile interrupt_core0_sig_idx_assert_in_sec_reg_t sig_idx_assert_in_sec;
-    volatile interrupt_core0_secure_status_reg_t secure_status;
+    volatile interrupt_core0_int_status_0_reg_t int_status_0;
+    volatile interrupt_core0_int_status_1_reg_t int_status_1;
+    volatile interrupt_core0_int_status_2_reg_t int_status_2;
     volatile interrupt_core0_clock_gate_reg_t clock_gate;
-    uint32_t reserved_174[418];
+    uint32_t reserved_150[427];
     volatile interrupt_core0_interrupt_date_reg_t interrupt_date;
 } interrupt_core0_dev_t;
 

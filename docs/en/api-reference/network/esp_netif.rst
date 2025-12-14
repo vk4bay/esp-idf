@@ -137,9 +137,7 @@ Registering event handlers is crucial due to the asynchronous nature of networki
 
 .. note::
 
-    Lost IP events are triggered by a timer that can be enabled or disabled by :ref:`CONFIG_ESP_NETIF_LOST_IP_TIMER_ENABLE`,
-    with the delay configured by :ref:`CONFIG_ESP_NETIF_IP_LOST_TIMER_INTERVAL`. The timer is started upon losing the IP address, and the event is raised after the configured interval (120 s by default).
-    For backward compatibility, setting the interval to 0 also disables the timer.
+    Lost IP events are triggered by a timer configurable by :ref:`CONFIG_ESP_NETIF_IP_LOST_TIMER_INTERVAL`. The timer is started upon losing the IP address and the event will be raised after the configured interval, which is 120 s by default. The event could be disabled when setting the interval to 0.
 
 .. _esp-netif structure:
 
@@ -150,42 +148,42 @@ ESP-NETIF Architecture
 
 
                          |          (A) USER CODE                 |
-                         |                   Apps                 |
-        .................| init            settings        events |
+                         |                 Apps                   |
+        .................| init          settings      events     |
         .                +----------------------------------------+
-        .                   .                  |              *
-        .                   .                  |              *
-    --------+            +================================+   *     +-----------------------+
-            |            | new/config      get/set/apps   |   *     | init                  |
-            |            |                                |...*.....| Apps (DHCP, SNTP)     |
-            |            |--------------------------------|   *     |                       |
-      init  |            |                                |****     |                       |
-      start |************|  event handler                 |*********|  DHCP                 |
-      stop  |            |                                |         |                       |
-            |            |--------------------------------|         |                       |
-            |            |                                |         |    NETIF              |
-      +-----|            |                                |         +-----------------+     |
-      | glue|---<----|---|  esp_netif_transmit            |--<------| netif_output    |     |
-      |     |        |   |                                |         |                 |     |
-      |     |--->----|---|  esp_netif_receive             |-->------| netif_input     |     |
-      |     |        |   |                                |         + ----------------+     |
-      |     |...<....|...|  esp_netif_free_rx_buffer      |...<.....| packet buffer         |
-      +-----|     |  |   |                                |         |                       |
-            |     |  |   |                                |         |         (D)           |
-      (B)   |     |  |   |              (C)               |         +-----------------------+
-    --------+     |  |   +================================+               NETWORK STACK
+        .                   .                |           *
+        .                   .                |           *
+    --------+            +===========================+   *     +-----------------------+
+            |            | new/config   get/set/apps |   *     | init                  |
+            |            |                           |...*.....| Apps (DHCP, SNTP)     |
+            |            |---------------------------|   *     |                       |
+      init  |            |                           |****     |                       |
+      start |************|  event handler            |*********|  DHCP                 |
+      stop  |            |                           |         |                       |
+            |            |---------------------------|         |                       |
+            |            |                           |         |    NETIF              |
+      +-----|            |                           |         +-----------------+     |
+      | glue|---<----|---|  esp_netif_transmit       |--<------| netif_output    |     |
+      |     |        |   |                           |         |                 |     |
+      |     |--->----|---|  esp_netif_receive        |-->------| netif_input     |     |
+      |     |        |   |                           |         + ----------------+     |
+      |     |...<....|...|  esp_netif_free_rx_buffer |...<.....| packet buffer         |
+      +-----|     |  |   |                           |         |                       |
+            |     |  |   |                           |         |         (D)           |
+      (B)   |     |  |   |          (C)              |         +-----------------------+
+    --------+     |  |   +===========================+               NETWORK STACK
   NETWORK         |  |           ESP-NETIF
   INTERFACE       |  |
-  DRIVER          |  |   +--------------------------------+         +------------------+
-                  |  |   |                                |.........| open/close       |
-                  |  |   |                                |         |                  |
-                  |  -<--| l2tap_write                    |-----<---|  write           |
-                  |      |                                |         |                  |
-                  ---->--| esp_vfs_l2tap_eth_filter_frame |----->---|  read            |
-                         |                                |         |        (A)       |
-                         |              (E)               |         +------------------+
-                         +--------------------------------+              USER CODE
-                                 ESP-NETIF L2 TAP
+  DRIVER          |  |   +---------------------------+         +------------------+
+                  |  |   |                           |.........| open/close       |
+                  |  |   |                           |         |                  |
+                  |  -<--|  l2tap_write              |-----<---|  write           |
+                  |      |                           |         |                  |
+                  ---->--|  esp_vfs_l2tap_eth_filter |----->---|  read            |
+                         |                           |         |        (A)       |
+                         |            (E)            |         +------------------+
+                         +---------------------------+              USER CODE
+                               ESP-NETIF L2 TAP
 
 
 Data and Event Flow in the Diagram

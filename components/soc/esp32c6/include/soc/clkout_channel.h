@@ -1,7 +1,7 @@
 /*
- * SPDX-FileCopyrightText: 2010-2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2010-2024 Espressif Systems (Shanghai) CO LTD
  *
- * SPDX-License-Identifier: Apache-2.0 OR MIT
+ * SPDX-License-Identifier: Apache-2.0
  */
 
 #pragma once
@@ -25,6 +25,7 @@ typedef enum clock_out_channel {
 #define CLKOUT_CHANNEL_TO_GPIO_SIG_ID(channel)  ((channel == CLKOUT_CHANNEL_1) ? CLK_OUT_OUT1_IDX : \
                                                  (channel == CLKOUT_CHANNEL_2) ? CLK_OUT_OUT2_IDX : \
                                                  (channel == CLKOUT_CHANNEL_3) ? CLK_OUT_OUT3_IDX : SIG_GPIO_OUT_IDX)
+
 
 #define CLKOUT_CHANNEL_MASK(channel)    ((channel == CLKOUT_CHANNEL_1) ? CLK_OUT1 : \
                                          (channel == CLKOUT_CHANNEL_2) ? CLK_OUT2 : \

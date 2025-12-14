@@ -786,7 +786,7 @@ void btm_acl_encrypt_change (UINT16 handle, UINT8 status, UINT8 encr_enable)
     tBTM_SEC_DEV_REC  *p_dev_rec;
     tBTM_BL_ROLE_CHG_DATA   evt;
 
-    BTM_TRACE_DEBUG ("btm_acl_encrypt_change handle=%d status=%d encr_enable=%d\n",
+    BTM_TRACE_DEBUG ("btm_acl_encrypt_change handle=%d status=%d encr_enabl=%d\n",
                      handle, status, encr_enable);
     p = btm_handle_to_acl(handle);
     if (p == NULL) {
@@ -2519,7 +2519,8 @@ tBTM_STATUS btm_remove_acl (BD_ADDR bd_addr, tBT_TRANSPORT transport)
     } else  /* otherwise can disconnect right away */
 #endif
     {
-        if (hci_handle != 0xFFFF && (( p_dev_rec && p_dev_rec->sec_state != BTM_SEC_STATE_DISCONNECTING) || (!p_dev_rec))) {
+        if (hci_handle != 0xFFFF && p_dev_rec &&
+                p_dev_rec->sec_state != BTM_SEC_STATE_DISCONNECTING) {
             if (!btsnd_hcic_disconnect (hci_handle, HCI_ERR_PEER_USER)) {
                 status = BTM_NO_RESOURCES;
             }

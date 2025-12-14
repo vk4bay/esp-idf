@@ -48,13 +48,9 @@
 #include "esp_rom_sys.h"
 #include "hli_api.h"
 
-#if CONFIG_BLE_LOG_ENABLED
-#include "ble_log.h"
-#else /* !CONFIG_BLE_LOG_ENABLED */
 #if CONFIG_BT_BLE_LOG_SPI_OUT_ENABLED
 #include "ble_log/ble_log_spi_out.h"
 #endif // CONFIG_BT_BLE_LOG_SPI_OUT_ENABLED
-#endif /* CONFIG_BLE_LOG_ENABLED */
 
 #if CONFIG_BT_ENABLED
 
@@ -256,7 +252,6 @@ extern uint32_t _bt_controller_data_end;
 extern void config_bt_funcs_reset(void);
 extern void config_ble_funcs_reset(void);
 extern void config_btdm_funcs_reset(void);
-extern void btdm_aa_check_enhance_enable(void);
 
 #ifdef CONFIG_BT_BLUEDROID_ENABLED
 extern void bt_stack_enableSecCtrlVsCmd(bool en);
@@ -266,7 +261,6 @@ extern void bt_stack_enableCoexVsCmd(bool en);
 extern void scan_stack_enableAdvFlowCtrlVsCmd(bool en);
 extern void adv_stack_enableClearLegacyAdvVsCmd(bool en);
 extern void advFilter_stack_enableDupExcListVsCmd(bool en);
-extern void arr_stack_enableMultiConnVsCmd(bool en);
 #endif // (CONFIG_BT_NIMBLE_ENABLED) || (CONFIG_BT_BLUEDROID_ENABLED)
 
 /* Local Function Declare
@@ -882,22 +876,9 @@ static int IRAM_ATTR cause_sw_intr_to_core_wrapper(int core_id, int intr_no)
 #if CONFIG_FREERTOS_UNICORE
     cause_sw_intr((void *)intr_no);
 #else /* CONFIG_FREERTOS_UNICORE */
-#if CONFIG_FREERTOS_SMP
-    uint32_t state = portDISABLE_INTERRUPTS();
-#else
-    uint32_t state = portSET_INTERRUPT_MASK_FROM_ISR();
-#endif
     if (xPortGetCoreID() == core_id) {
         cause_sw_intr((void *)intr_no);
-#if CONFIG_FREERTOS_SMP
-        portRESTORE_INTERRUPTS(state);
     } else {
-        portRESTORE_INTERRUPTS(state);
-#else
-        portCLEAR_INTERRUPT_MASK_FROM_ISR(state);
-    } else {
-        portCLEAR_INTERRUPT_MASK_FROM_ISR(state);
-#endif
         err = esp_ipc_call(core_id, cause_sw_intr, (void *)intr_no);
     }
 #endif /* !CONFIG_FREERTOS_UNICORE */
@@ -1518,7 +1499,11 @@ static void hli_queue_setup_pinned_to_core(int core_id)
 #if CONFIG_FREERTOS_UNICORE
     hli_queue_setup_cb(NULL);
 #else /* CONFIG_FREERTOS_UNICORE */
-    esp_ipc_call_blocking(core_id, hli_queue_setup_cb, NULL);
+    if (xPortGetCoreID() == core_id) {
+        hli_queue_setup_cb(NULL);
+    } else {
+        esp_ipc_call(core_id, hli_queue_setup_cb, NULL);
+    }
 #endif /* !CONFIG_FREERTOS_UNICORE */
 }
 #endif /* CONFIG_BTDM_CTRL_HLI */
@@ -1555,14 +1540,12 @@ static esp_err_t btdm_low_power_mode_init(void)
     bool select_src_ret __attribute__((unused));
     bool set_div_ret __attribute__((unused));
     if (btdm_lpclk_sel == ESP_BT_SLEEP_CLOCK_MAIN_XTAL) {
-        ESP_LOGI(BTDM_LOG_TAG, "Using main XTAL as clock source");
         select_src_ret = btdm_lpclk_select_src(BTDM_LPCLK_SEL_XTAL);
         set_div_ret = btdm_lpclk_set_div(esp_clk_xtal_freq() * 2 / MHZ - 1);
         assert(select_src_ret && set_div_ret);
         btdm_lpcycle_us_frac = RTC_CLK_CAL_FRACT;
         btdm_lpcycle_us = 2 << (btdm_lpcycle_us_frac);
     } else { // btdm_lpclk_sel == BTDM_LPCLK_SEL_XTAL32K
-        ESP_LOGI(BTDM_LOG_TAG, "Using external 32.768 kHz crystal/oscillator as clock source");
         select_src_ret = btdm_lpclk_select_src(BTDM_LPCLK_SEL_XTAL32K);
         set_div_ret = btdm_lpclk_set_div(0);
         assert(select_src_ret && set_div_ret);
@@ -1715,13 +1698,6 @@ esp_err_t esp_bt_controller_init(esp_bt_controller_config_t *cfg)
     coex_init();
 #endif
 
-#if CONFIG_BLE_LOG_ENABLED
-    if (!ble_log_init()) {
-        ESP_LOGE(BTDM_LOG_TAG, "BLE Log v2 init failed");
-        err = ESP_ERR_NO_MEM;
-        goto error;
-    }
-#else /* !CONFIG_BLE_LOG_ENABLED */
 #if CONFIG_BT_BLE_LOG_SPI_OUT_ENABLED
     if (ble_log_spi_out_init() != 0) {
         ESP_LOGE(BTDM_LOG_TAG, "BLE Log SPI output init failed");
@@ -1729,7 +1705,6 @@ esp_err_t esp_bt_controller_init(esp_bt_controller_config_t *cfg)
         goto error;
     }
 #endif // CONFIG_BT_BLE_LOG_SPI_OUT_ENABLED
-#endif /* CONFIG_BLE_LOG_ENABLED */
 
     btdm_cfg_mask = btdm_config_mask_load();
 
@@ -1749,7 +1724,6 @@ esp_err_t esp_bt_controller_init(esp_bt_controller_config_t *cfg)
     scan_stack_enableAdvFlowCtrlVsCmd(true);
     adv_stack_enableClearLegacyAdvVsCmd(true);
     advFilter_stack_enableDupExcListVsCmd(true);
-    arr_stack_enableMultiConnVsCmd(true);
 #endif // (CONFIG_BT_NIMBLE_ENABLED) || (CONFIG_BT_BLUEDROID_ENABLED)
 
     btdm_controller_status = ESP_BT_CONTROLLER_STATUS_INITED;
@@ -1758,13 +1732,9 @@ esp_err_t esp_bt_controller_init(esp_bt_controller_config_t *cfg)
 
 error:
 
-#if CONFIG_BLE_LOG_ENABLED
-    ble_log_deinit();
-#else /* !CONFIG_BLE_LOG_ENABLED */
 #if CONFIG_BT_BLE_LOG_SPI_OUT_ENABLED
     ble_log_spi_out_deinit();
 #endif // CONFIG_BT_BLE_LOG_SPI_OUT_ENABLED
-#endif /* CONFIG_BLE_LOG_ENABLED */
 
     bt_controller_deinit_internal();
 
@@ -1777,13 +1747,9 @@ esp_err_t esp_bt_controller_deinit(void)
         return ESP_ERR_INVALID_STATE;
     }
 
-#if CONFIG_BLE_LOG_ENABLED
-    ble_log_deinit();
-#else /* !CONFIG_BLE_LOG_ENABLED */
 #if CONFIG_BT_BLE_LOG_SPI_OUT_ENABLED
     ble_log_spi_out_deinit();
 #endif // CONFIG_BT_BLE_LOG_SPI_OUT_ENABLED
-#endif /* CONFIG_BLE_LOG_ENABLED */
 
     btdm_controller_deinit();
 
@@ -1797,7 +1763,6 @@ esp_err_t esp_bt_controller_deinit(void)
     scan_stack_enableAdvFlowCtrlVsCmd(false);
     adv_stack_enableClearLegacyAdvVsCmd(false);
     advFilter_stack_enableDupExcListVsCmd(false);
-    arr_stack_enableMultiConnVsCmd(false);
 #endif // (CONFIG_BT_NIMBLE_ENABLED) || (CONFIG_BT_BLUEDROID_ENABLED)
 
     return ESP_OK;
@@ -1884,10 +1849,6 @@ static void patch_apply(void)
 #ifndef CONFIG_BTDM_CTRL_MODE_BR_EDR_ONLY
     config_ble_funcs_reset();
 #endif
-
-#if BTDM_CTRL_CHECK_CONNECT_IND_ACCESS_ADDRESS_ENABLED
-    btdm_aa_check_enhance_enable();
-#endif
 }
 
 esp_err_t esp_bt_controller_enable(esp_bt_mode_t mode)
@@ -1972,7 +1933,6 @@ esp_err_t esp_bt_controller_disable(void)
 #endif
 
     esp_phy_disable(PHY_MODEM_BT);
-    s_time_phy_rf_just_enabled = 0;
     btdm_controller_status = ESP_BT_CONTROLLER_STATUS_INITED;
     esp_unregister_shutdown_handler(bt_shutdown);
 

@@ -46,6 +46,19 @@
 	sbom-description = Wear-leveled SPI flash file system for embedded devices
 	sbom-hash = 0dbb3f71c5f6fae3747a9d935372773762baf852
 
+[submodule "components/json/cJSON"]
+	path = components/json/cJSON
+	url = ../../DaveGamble/cJSON.git
+	sbom-version = 1.7.18
+	sbom-cpe = cpe:2.3:a:cjson_project:cjson:{}:*:*:*:*:*:*:*
+	sbom-supplier = Person: Dave Gamble
+	sbom-url = https://github.com/DaveGamble/cJSON
+	sbom-description = Ultralightweight JSON parser in ANSI C
+	sbom-hash = 8f2beb57ddad1f94bed899790b00f46df893ccac
+	sbom-cve-exclude-list = CVE-2024-31755 Resolved in v1.7.18
+	sbom-cve-exclude-list = CVE-2023-26819 Resolved in commit a328d65ad490b64da8c87523cbbfe16050ba5bf6
+	sbom-cve-exclude-list = CVE-2023-53154 Resolved in v1.7.18
+
 [submodule "components/mbedtls/mbedtls"]
 	path = components/mbedtls/mbedtls
 	url = ../../espressif/mbedtls.git
@@ -53,6 +66,10 @@
 [submodule "components/lwip/lwip"]
 	path = components/lwip/lwip
 	url = ../../espressif/esp-lwip.git
+
+[submodule "components/mqtt/esp-mqtt"]
+	path = components/mqtt/esp-mqtt
+	url = ../../espressif/esp-mqtt.git
 
 [submodule "components/protobuf-c/protobuf-c"]
 	path = components/protobuf-c/protobuf-c

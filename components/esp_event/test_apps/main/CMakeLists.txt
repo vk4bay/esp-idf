@@ -8,7 +8,7 @@ if(NOT ${target} STREQUAL "linux")
         "test_event_target.c")
 
     list(APPEND priv_requires
-        "esp_driver_gptimer"
+        "driver"
         "esp_timer"
         "test_utils")
 endif()

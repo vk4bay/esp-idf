@@ -25,11 +25,7 @@
     +-----------------------------------------------------------------------+-------------------------------------------+------------------------------------------+
     |ESP32-C3                                                               |.. centered:: |239440|                     |.. centered:: 5.4                         |
     +-----------------------------------------------------------------------+-------------------------------------------+------------------------------------------+
-    |ESP32-C5                                                               |.. centered:: |Q331318|                    |.. centered:: 6.0                         |
-    +-----------------------------------------------------------------------+-------------------------------------------+------------------------------------------+
     |ESP32-C6                                                               |.. centered:: |Q335877|                    |.. centered:: 6.0                         |
-    +-----------------------------------------------------------------------+-------------------------------------------+------------------------------------------+
-    |ESP32-C61                                                              |.. centered:: |Q331318|                    |.. centered:: 6.0                         |
     +-----------------------------------------------------------------------+-------------------------------------------+------------------------------------------+
     |ESP32-S3                                                               |.. centered:: |239440|                     |.. centered:: 5.4                         |
     +-----------------------------------------------------------------------+-------------------------------------------+------------------------------------------+
@@ -51,11 +47,11 @@
       - .. centered:: Design Number / Qualified Design ID [1]_
       - .. centered:: 协议版本 [2]_
     * - ESP-Bluedroid
-      - .. centered:: |198312|
+      - .. centered:: `198312 <https://qualification.bluetooth.com/ListingDetails/165785>`__
       - .. centered:: 5.3
     * - ESP-NimBLE
-      - .. centered:: |Q371597|
-      - .. centered:: 6.1
+      - .. centered:: `141499 <https://qualification.bluetooth.com/ListingDetails/97856>`__
+      - .. centered:: 5.1
 
 .. |141661| replace:: `141661 <https://qualification.bluetooth.com/ListingDetails/98048>`__
 .. |147845| replace:: `147845 <https://qualification.bluetooth.com/ListingDetails/105426>`__
@@ -63,10 +59,9 @@
 .. |194009| replace:: `194009 <https://qualification.bluetooth.com/ListingDetails/160725>`__
 .. |199258| replace:: `199258 <https://qualification.bluetooth.com/ListingDetails/166887>`__
 .. |198312| replace:: `198312 <https://qualification.bluetooth.com/ListingDetails/165785>`__
-.. |Q371597| replace:: `Q371597 <https://qualification.bluetooth.com/ListingDetails/310315>`__
+.. |141499| replace:: `141499 <https://qualification.bluetooth.com/ListingDetails/97856>`__
 .. |Q331318| replace:: `Q331318 <https://qualification.bluetooth.com/ListingDetails/257081>`__
 .. |Q335877| replace:: `Q335877 <https://qualification.bluetooth.com/ListingDetails/262779>`__
-
 
 
 
