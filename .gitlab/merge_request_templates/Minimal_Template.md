@@ -9,6 +9,11 @@
 ## Related <!-- Optional -->
 <!-- Related Jira issues and Github issues or write "No related issues"-->
 
+## Release notes <!-- Mandatory -->
+<!-- Either state release notes or write "No release notes" -->
+
+<!-- ## Breaking change notes --><!-- Optional -->
+
 <!-- ## Dynamic Pipeline Configuration
 ```yaml
 Test Case Filters:
@@ -22,6 +27,3 @@ Test Case Filters:
     # This example will include all tests containing 'test_hello_world' in the name,
     # and include all tests containing 'test_sdm' but not 'sdmmc' in the name.
 ``` --><!-- Optional -->
-
-<!-- Don't remove the next line - assigns the MR author as the assignee -->
-/assign me
