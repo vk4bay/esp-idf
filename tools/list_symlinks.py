@@ -15,6 +15,9 @@ from pathlib import Path
 from typing import List, Tuple
 
 
+DEFAULT_EXCLUDE_DIRS = ['.git', 'build', 'dist', '__pycache__', '.pytest_cache']
+
+
 def find_symlinks(root_path: Path, exclude_dirs: List[str] = None) -> List[Tuple[Path, Path]]:
     """
     Find all symbolic links in the given directory tree.
@@ -27,20 +30,20 @@ def find_symlinks(root_path: Path, exclude_dirs: List[str] = None) -> List[Tuple
         List of tuples containing (symlink_path, target_path)
     """
     if exclude_dirs is None:
-        exclude_dirs = ['.git', 'build', 'dist', '__pycache__', '.pytest_cache']
+        exclude_dirs = DEFAULT_EXCLUDE_DIRS.copy()
 
     symlinks = []
 
     for dirpath, dirnames, filenames in os.walk(root_path, followlinks=False):
-        # Remove excluded directories from the search
-        dirnames[:] = [d for d in dirnames if d not in exclude_dirs]
-
-        # Check directories for symlinks
-        for dirname in dirnames:
+        # Check directories for symlinks before filtering
+        for dirname in list(dirnames):
             full_path = Path(dirpath) / dirname
             if full_path.is_symlink():
                 target = full_path.readlink()
                 symlinks.append((full_path, target))
+
+        # Remove excluded directories from the search
+        dirnames[:] = [d for d in dirnames if d not in exclude_dirs]
 
         # Check files for symlinks
         for filename in filenames:
@@ -121,7 +124,7 @@ def main() -> int:
         return 1
 
     # Set up exclusions
-    exclude_dirs = ['.git', 'build', 'dist', '__pycache__', '.pytest_cache']
+    exclude_dirs = DEFAULT_EXCLUDE_DIRS.copy()
     if args.exclude:
         exclude_dirs.extend(args.exclude)
 
