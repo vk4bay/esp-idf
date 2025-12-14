@@ -39,25 +39,19 @@ void test_i2s_initializers(void)
 #endif
 #if SOC_I2S_SUPPORTS_PDM_RX
     i2s_pdm_rx_clk_config_t pdm_rx_clk_cfg = I2S_PDM_RX_CLK_DEFAULT_CONFIG(16000);
-    i2s_pdm_rx_slot_config_t pdm_rx_raw_slot_cfg = I2S_PDM_RX_SLOT_RAW_FMT_DEFAULT_CONFIG(I2S_DATA_BIT_WIDTH_16BIT, I2S_SLOT_MODE_STEREO);
-    i2s_pdm_rx_slot_config_t pdm_rx_pcm_slot_cfg = I2S_PDM_RX_SLOT_PCM_FMT_DEFAULT_CONFIG(I2S_DATA_BIT_WIDTH_16BIT, I2S_SLOT_MODE_STEREO);
+    i2s_pdm_rx_slot_config_t pdm_rx_pcm_slot_cfg = I2S_PDM_RX_SLOT_DEFAULT_CONFIG(I2S_DATA_BIT_WIDTH_16BIT, I2S_SLOT_MODE_STEREO);
     (void) pdm_rx_clk_cfg;
-    (void) pdm_rx_raw_slot_cfg;
     (void) pdm_rx_pcm_slot_cfg;
 #endif
 #if SOC_I2S_SUPPORTS_PDM_TX
     i2s_pdm_tx_clk_config_t pdm_tx_clk_cfg = I2S_PDM_TX_CLK_DEFAULT_CONFIG(16000);
     i2s_pdm_tx_clk_config_t pdm_tx_dac_clk_cfg = I2S_PDM_TX_CLK_DAC_DEFAULT_CONFIG(16000);
-    i2s_pdm_tx_slot_config_t pdm_tx_raw_slot_cfg = I2S_PDM_TX_SLOT_RAW_FMT_DEFAULT_CONFIG(I2S_DATA_BIT_WIDTH_16BIT, I2S_SLOT_MODE_STEREO);
-    i2s_pdm_tx_slot_config_t pdm_tx_pcm_slot_cfg = I2S_PDM_TX_SLOT_PCM_FMT_DEFAULT_CONFIG(I2S_DATA_BIT_WIDTH_16BIT, I2S_SLOT_MODE_STEREO);
+    i2s_pdm_tx_slot_config_t pdm_tx_pcm_slot_cfg = I2S_PDM_TX_SLOT_DEFAULT_CONFIG(I2S_DATA_BIT_WIDTH_16BIT, I2S_SLOT_MODE_STEREO);
     (void) pdm_tx_clk_cfg;
     (void) pdm_tx_dac_clk_cfg;
-    (void) pdm_tx_raw_slot_cfg;
     (void) pdm_tx_pcm_slot_cfg;
 #if SOC_I2S_HW_VERSION_2
-    i2s_pdm_tx_slot_config_t pdm_tx_raw_dac_slot_cfg = I2S_PDM_TX_SLOT_RAW_FMT_DAC_DEFAULT_CONFIG(I2S_DATA_BIT_WIDTH_16BIT, I2S_SLOT_MODE_STEREO);
-    i2s_pdm_tx_slot_config_t pdm_tx_pcm_dac_slot_cfg = I2S_PDM_TX_SLOT_PCM_FMT_DAC_DEFAULT_CONFIG(I2S_DATA_BIT_WIDTH_16BIT, I2S_SLOT_MODE_STEREO);
-    (void) pdm_tx_raw_dac_slot_cfg;
+    i2s_pdm_tx_slot_config_t pdm_tx_pcm_dac_slot_cfg = I2S_PDM_TX_SLOT_DAC_DEFAULT_CONFIG(I2S_DATA_BIT_WIDTH_16BIT, I2S_SLOT_MODE_STEREO);
     (void) pdm_tx_pcm_dac_slot_cfg;
 #endif
 #endif

@@ -71,6 +71,7 @@ static const char *TAG = "memprot_test_ESP32S2";
  * ********************************************************************************************
  */
 
+
 /* !!!IMPORTANT!!!
  * a0 needs to be saved/restored manually (not clobbered) to avoid return address corruption
  * caused by ASM block handling

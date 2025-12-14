@@ -39,10 +39,6 @@ DEFAULT:
     # SPDX-FileCopyrightText: {years} Espressif Systems (Shanghai) CO LTD
     # SPDX-License-Identifier: {license}
 
-  new_notice_bsasm: |  # notice for new bsasm files
-    # SPDX-FileCopyrightText: {years} Espressif Systems (Shanghai) CO LTD
-    # SPDX-License-Identifier: {license}
-
   # comment lines matching:
   # SPDX-FileCopyrightText: year[-year] Espressif Systems
   # or
@@ -74,16 +70,24 @@ lwip_component:
     - BSD-3-Clause
   license_for_new_files: Apache-2.0
 
-esp_libc_component:
+newlib_component:
   include:
-    - 'components/esp_libc/platform_include/**'
-    - 'components/esp_libc/port/**'
-    - 'components/esp_libc/priv_include/**'
-    - 'components/esp_libc/src/**'
+    - 'components/newlib/platform_include/**'
+    - 'components/newlib/port/**'
+    - 'components/newlib/priv_include/**'
+    - 'components/newlib/*.c'
+    - 'components/newlib/*.h'
   allowed_licenses:
     - Apache-2.0
     - BSD-2-Clause-FreeBSD AND Apache-2.0
   license_for_new_files: Apache-2.0
+
+asio_component:
+  include:
+    - 'components/asio/port/**'
+  allowed_licenses:
+    - Apache-2.0
+    - BSL-1.0
 
 freertos_component:
   include:
@@ -168,8 +172,8 @@ app_trace:
     - components/app_trace/app_trace.c
     - components/app_trace/app_trace_membufs_proto.c
     - components/app_trace/app_trace_util.c
-    - components/app_trace/port/riscv/port_jtag.c
-    - components/app_trace/port/xtensa/port_jtag.c
+    - components/app_trace/port/riscv/port.c
+    - components/app_trace/port/xtensa/port.c
   allowed_licenses:
     - Apache-2.0
     - MIT
@@ -216,27 +220,6 @@ zigbee:
     - Apache-2.0
     - LicenseRef-Included
 
-esp_trace:
-  include:
-    - components/esp_trace/include/
-    - components/esp_trace/adapters/transport/
-    - components/esp_trace/adapters/encoder/
-    - components/esp_trace/src/core/
-    - components/esp_trace/src/ports/
-  allowed_licenses:
-    - Apache-2.0
-    - MIT
-    - CC0-1.0
-
-# These files are used in esp-stub-lib which is licensed under a mix of Apache-2.0 and MIT licenses.
-soc_component:
-  include:
-    - 'components/soc/**'
-  allowed_licenses:
-    - Apache-2.0 OR MIT
-  license_for_new_files: Apache-2.0 OR MIT
-
-
 # files matching this section do not perform the check
 # file patterns starting with ! are negated, meaning files matching them won't match the section.
 ignore:
@@ -253,11 +236,10 @@ ignore:
     - components/bt/host/bluedroid/
     - '!components/bt/host/bluedroid/api/'
     - '!components/bt/host/bluedroid/btc/'
-    - '!components/bt/host/bluedroid/bta/pba/'
-    - '!components/bt/host/bluedroid/stack/goep/'
-    - '!components/bt/host/bluedroid/stack/obex/'
     - components/esp_local_ctrl/proto-c/
     - components/esp_local_ctrl/python/
     - components/protocomm/proto-c/
     - components/protocomm/python/
+    - components/wifi_provisioning/proto-c/
+    - components/wifi_provisioning/python/
     - tools/templates/

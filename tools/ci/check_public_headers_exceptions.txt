@@ -14,6 +14,7 @@ components/freertos/FreeRTOS-Kernel-SMP/include/freertos/
 components/freertos/FreeRTOS-Kernel-SMP/portable/xtensa/include/freertos/
 
 
+components/log/include/esp_log_internal.h
 
 
 
@@ -54,6 +55,7 @@ components/fatfs/src/ffconf.h
 
 components/idf_test/include/idf_performance.h
 
+components/json/cJSON/
 
 components/spiffs/include/spiffs_config.h
 
@@ -74,6 +76,7 @@ components/heap/tlsf/tlsf_control_functions.h
 
 ### Here are the files that do not compile for some reason
 #
+components/app_trace/include/esp_sysview_trace.h
 components/esp_gdbstub/include/esp_gdbstub.h
 
 components/esp_hw_support/include/esp_memprot.h
@@ -95,6 +98,8 @@ components/protocomm/include/transports/protocomm_httpd.h
 components/fatfs/src/diskio.h
 components/fatfs/diskio/diskio_sdmmc.h
 components/mbedtls/esp_crt_bundle/include/esp_crt_bundle.h
+components/usb/include/esp_private/usb_phy.h
+components/usb/include/usb/usb_types_stack.h
 
 ### Headers that don't compile with C++
 #
@@ -123,7 +128,4 @@ components/riscv/include/riscv/rvruntime-frames.h
 # should be private include, but 'private_include' is a subdir of public includes
 components/console/private_include/console_private.h
 
-# Public driver headers contain FreeRTOS headers
-
-components/esp_driver_uart/include/driver/uart.h
-components/esp_driver_sdmmc/include/esp_private/sd_host_private.h
+# Missing extern "C"

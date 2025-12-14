@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 #
-# SPDX-FileCopyrightText: 2021-2025 Espressif Systems (Shanghai) CO LTD
+# SPDX-FileCopyrightText: 2021-2024 Espressif Systems (Shanghai) CO LTD
 # SPDX-License-Identifier: Apache-2.0
 #
 import argparse
@@ -23,7 +23,7 @@ from pyparsing import ParseFatalException
 
 
 def _update_environment(args):
-    env = [(name, value) for (name, value) in (e.split('=', 1) for e in args.env)]
+    env = [(name, value) for (name,value) in (e.split('=',1) for e in args.env)]
     for name, value in env:
         value = ' '.join(value.split())
         os.environ[name] = value
@@ -34,69 +34,76 @@ def _update_environment(args):
 
 
 def main():
+
     argparser = argparse.ArgumentParser(description='ESP-IDF linker script generator')
 
-    argparser.add_argument('--input', '-i', help='Linker template file', type=argparse.FileType('r'))
+    argparser.add_argument(
+        '--input', '-i',
+        help='Linker template file',
+        type=argparse.FileType('r'))
 
     fragments_group = argparser.add_mutually_exclusive_group()
 
     fragments_group.add_argument(
-        '--fragments', '-f', type=argparse.FileType('r'), help='Input fragment files', nargs='+'
+        '--fragments', '-f',
+        type=argparse.FileType('r'),
+        help='Input fragment files',
+        nargs='+'
     )
 
     fragments_group.add_argument(
-        '--fragments-list', help='Input fragment files as a semicolon-separated list', type=str
+        '--fragments-list',
+        help='Input fragment files as a semicolon-separated list',
+        type=str
     )
 
     argparser.add_argument(
-        '--libraries-file', type=argparse.FileType('r'), help='File that contains the list of libraries in the build'
-    )
-
-    argparser.add_argument(
-        '--mutable-libraries-file',
+        '--libraries-file',
         type=argparse.FileType('r'),
-        help='File that contains the list of mutable libraries in the build',
-    )
-
-    argparser.add_argument('--output', '-o', help='Output linker script', type=str)
-
-    argparser.add_argument('--config', '-c', help='Project configuration')
-
-    argparser.add_argument('--kconfig', '-k', help='IDF Kconfig file')
+        help='File that contains the list of libraries in the build')
 
     argparser.add_argument(
-        '--check-mapping', help='Perform a check if a mapping (archive, obj, symbol) exists', action='store_true'
-    )
+        '--output', '-o',
+        help='Output linker script',
+        type=str)
 
     argparser.add_argument(
-        '--check-mapping-exceptions', help='Mappings exempted from check', type=argparse.FileType('r')
-    )
+        '--config', '-c',
+        help='Project configuration')
 
     argparser.add_argument(
-        '--env',
-        '-e',
-        action='append',
-        default=[],
-        help='Environment to set when evaluating the config file',
-        metavar='NAME=VAL',
+        '--kconfig', '-k',
+        help='IDF Kconfig file')
+
+    argparser.add_argument(
+        '--check-mapping',
+        help='Perform a check if a mapping (archive, obj, symbol) exists',
+        action='store_true'
     )
 
     argparser.add_argument(
-        '--env-file',
-        type=argparse.FileType('r'),
-        help='Optional file to load environment variables from. Contents '
-        'should be a JSON object where each key/value pair is a variable.',
+        '--check-mapping-exceptions',
+        help='Mappings exempted from check',
+        type=argparse.FileType('r')
     )
 
-    argparser.add_argument('--objdump', help='Path to toolchain objdump')
+    argparser.add_argument(
+        '--env', '-e',
+        action='append', default=[],
+        help='Environment to set when evaluating the config file', metavar='NAME=VAL')
 
-    argparser.add_argument('--debug', '-d', help='Print debugging information.', action='store_true')
+    argparser.add_argument('--env-file', type=argparse.FileType('r'),
+                           help='Optional file to load environment variables from. Contents '
+                           'should be a JSON object where each key/value pair is a variable.')
+
+    argparser.add_argument(
+        '--objdump',
+        help='Path to toolchain objdump')
 
     args = argparser.parse_args()
 
     input_file = args.input
     libraries_file = args.libraries_file
-    mutable_libraries_file = args.mutable_libraries_file or []
     config_file = args.config
     output_path = args.output
     kconfig_file = args.kconfig
@@ -125,8 +132,7 @@ def main():
                 dump.name = library
                 sections_infos.add_sections_info(dump)
 
-        mutable_libs = [lib.strip() for lib in mutable_libraries_file]
-        generation_model = Generation(check_mapping, check_mapping_exceptions, mutable_libs, args.debug)
+        generation_model = Generation(check_mapping, check_mapping_exceptions)
 
         _update_environment(args)  # assign args.env and args.env_file to os.environ
 
@@ -139,7 +145,7 @@ def main():
                 # ParseException is raised on incorrect grammar
                 # ParseFatalException is raised on correct grammar, but inconsistent contents (ex. duplicate
                 # keys, key unsupported by fragment, unexpected number of values, etc.)
-                raise LdGenFailure(f'failed to parse {fragment_file}\n{e}')
+                raise LdGenFailure('failed to parse %s\n%s' % (fragment_file, str(e)))
             generation_model.add_fragments_from_file(fragment_file)
 
         non_contiguous_sram = sdkconfig.evaluate_expression('SOC_MEM_NON_CONTIGUOUS_SRAM')
@@ -159,12 +165,10 @@ def main():
                     if exc.errno != errno.EEXIST:
                         raise
 
-            with open(
-                output_path, 'w', encoding='utf-8'
-            ) as f:  # only create output file after generation has succeeded
+            with open(output_path, 'w', encoding='utf-8') as f:  # only create output file after generation has succeeded
                 f.write(output.read())
     except LdGenFailure as e:
-        print(f'linker script generation failed for {input_file.name}\nERROR: {e}')
+        print('linker script generation failed for %s\nERROR: %s' % (input_file.name, e))
         sys.exit(1)
 
 

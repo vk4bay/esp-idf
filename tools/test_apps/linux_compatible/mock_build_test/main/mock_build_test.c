@@ -9,6 +9,7 @@
 #include "esp_wifi.h"
 
 #include "driver/i2c.h"
+#include "driver/i2c.h"
 #include "driver/spi_master.h"
 #include "driver/spi_common.h"
 #include "driver/usb_serial_jtag.h"

@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2022-2025 Espressif Systems (Shanghai) CO LTD
+# SPDX-FileCopyrightText: 2022-2024 Espressif Systems (Shanghai) CO LTD
 # SPDX-License-Identifier: Apache-2.0
 import asyncio
 import importlib
@@ -8,17 +8,21 @@ import re
 import subprocess
 import sys
 from asyncio.subprocess import Process
-from collections.abc import Generator
 from pkgutil import iter_modules
-from re import Match
 from types import FunctionType
 from typing import Any
+from typing import Dict
+from typing import Generator
+from typing import List
+from typing import Match
+from typing import Optional
 from typing import TextIO
+from typing import Tuple
+from typing import Union
 
 import click
 import yaml
 from esp_idf_monitor import get_ansi_converter
-
 from idf_py_actions.errors import NoSerialPortFoundError
 
 from .constants import GENERATORS
@@ -39,7 +43,7 @@ SHELL_COMPLETE_RUN = SHELL_COMPLETE_VAR in os.environ
 # https://docs.python.org/3/reference/compound_stmts.html#function-definitions
 # Default parameter values are evaluated from left to right
 # when the function definition is executed
-def get_build_context(ctx: dict = {}) -> dict:
+def get_build_context(ctx: Dict={}) -> Dict:
     """
     The build context is set in the ensure_build_directory function. It can be used
     in modules or other code, which don't have direct access to such information.
@@ -60,13 +64,13 @@ def _set_build_context(args: 'PropertyDict') -> None:
 
     proj_desc_fn = f'{args.build_dir}/project_description.json'
     try:
-        with open(proj_desc_fn, encoding='utf-8') as f:
+        with open(proj_desc_fn, 'r', encoding='utf-8') as f:
             ctx['proj_desc'] = json.load(f)
     except (OSError, ValueError) as e:
         raise FatalError(f'Cannot load {proj_desc_fn}: {e}')
 
 
-def executable_exists(args: list) -> bool:
+def executable_exists(args: List) -> bool:
     try:
         subprocess.check_output(args)
         return True
@@ -75,7 +79,7 @@ def executable_exists(args: list) -> bool:
         return False
 
 
-def _idf_version_from_cmake() -> str | None:
+def _idf_version_from_cmake() -> Optional[str]:
     """Acquires version of ESP-IDF from version.cmake"""
     version_path = os.path.join(os.environ['IDF_PATH'], 'tools/cmake/version.cmake')
     regex = re.compile(r'^\s*set\s*\(\s*IDF_VERSION_([A-Z]{5})\s+(\d+)')
@@ -88,38 +92,28 @@ def _idf_version_from_cmake() -> str | None:
                 if m:
                     ver[m.group(1)] = m.group(2)
 
-        return f'v{ver["MAJOR"]}.{ver["MINOR"]}.{ver["PATCH"]}'
+        return 'v%s.%s.%s' % (ver['MAJOR'], ver['MINOR'], ver['PATCH'])
     except (KeyError, OSError):
         sys.stderr.write('WARNING: Cannot find ESP-IDF version in version.cmake\n')
         return None
 
 
-def get_target(path: str, sdkconfig_filename: str = 'sdkconfig') -> str | None:
+def get_target(path: str, sdkconfig_filename: str='sdkconfig') -> Optional[str]:
     path = os.path.join(path, sdkconfig_filename)
     return get_sdkconfig_value(path, 'CONFIG_IDF_TARGET')
 
 
-def idf_version() -> str | None:
+def idf_version() -> Optional[str]:
     """Print version of ESP-IDF"""
 
     #  Try to get version from git:
     try:
-        version: str | None = (
-            subprocess.check_output(
-                [
-                    'git',
-                    f'--git-dir={os.path.join(os.environ["IDF_PATH"], ".git")}',
-                    f'--work-tree={os.environ["IDF_PATH"]}',
-                    'describe',
-                    '--tags',
-                    '--dirty',
-                    '--match',
-                    'v*.*',
-                ]
-            )
-            .decode('utf-8', 'ignore')
-            .strip()
-        )
+        version: Optional[str] = subprocess.check_output([
+            'git',
+            '--git-dir=%s' % os.path.join(os.environ['IDF_PATH'], '.git'),
+            '--work-tree=%s' % os.environ['IDF_PATH'],
+            'describe', '--tags', '--dirty', '--match', 'v*.*',
+        ]).decode('utf-8', 'ignore').strip()
     except Exception:
         # if failed, then try to parse cmake.version file
         sys.stderr.write('WARNING: Git version unavailable, reading from source\n')
@@ -133,16 +127,20 @@ def get_default_serial_port() -> Any:
     # ensured that pyserial has been installed
     try:
         import esptool
-
-        ports = esptool.get_port_list()
+        import serial.tools.list_ports
+        ports = list(sorted(p.device for p in serial.tools.list_ports.comports()))
+        if sys.platform == 'darwin':
+            ports = [
+                port
+                for port in ports
+                if not port.endswith(('Bluetooth-Incoming-Port', 'wlan-debug'))
+            ]
         # high baud rate could cause the failure of creation of the connection
-        esp = esptool.get_default_connected_device(
-            serial_list=ports, port=None, connect_attempts=4, initial_baud=115200
-        )
+        esp = esptool.get_default_connected_device(serial_list=ports, port=None, connect_attempts=4,
+                                                   initial_baud=115200)
         if esp is None:
             raise NoSerialPortFoundError(
-                "No serial ports found. Connect a device, or use '-p PORT' option to set a specific port."
-            )
+                "No serial ports found. Connect a device, or use '-p PORT' option to set a specific port.")
 
         serial_port = esp.serial_port
         esp._port.close()
@@ -152,29 +150,29 @@ def get_default_serial_port() -> Any:
     except NoSerialPortFoundError:
         raise
     except Exception as e:
-        raise FatalError(f'An exception occurred during detection of the serial port: {e}')
+        raise FatalError('An exception occurred during detection of the serial port: {}'.format(e))
 
 
 # function prints warning when autocompletion is not being performed
 # set argument stream to sys.stderr for errors and exceptions
-def print_warning(message: str, stream: TextIO | None = None) -> None:
+def print_warning(message: str, stream: Optional[TextIO]=None) -> None:
     if not SHELL_COMPLETE_RUN:
         print(message, file=stream or sys.stderr)
 
 
-def color_print(message: str, color: str, newline: str | None = '\n') -> None:
-    """Print a message to stderr with colored highlighting"""
+def color_print(message: str, color: str, newline: Optional[str]='\n') -> None:
+    """ Print a message to stderr with colored highlighting """
     ansi_normal = '\033[0m'
-    sys.stderr.write(f'{color}{message}{ansi_normal}{newline}')
+    sys.stderr.write('%s%s%s%s' % (color, message, ansi_normal, newline))
     sys.stderr.flush()
 
 
-def yellow_print(message: str, newline: str | None = '\n') -> None:
+def yellow_print(message: str, newline: Optional[str]='\n') -> None:
     ansi_yellow = '\033[0;33m'
     color_print(message, ansi_yellow, newline)
 
 
-def red_print(message: str, newline: str | None = '\n') -> None:
+def red_print(message: str, newline: Optional[str]='\n') -> None:
     ansi_red = '\033[1;31m'
     color_print(message, ansi_red, newline)
 
@@ -183,12 +181,15 @@ def debug_print_idf_version() -> None:
     print_warning(f'ESP-IDF {idf_version() or "version unknown"}')
 
 
-def load_hints() -> dict:
+def load_hints() -> Dict:
     """Helper function to load hints yml file"""
-    hints: dict = {'yml': [], 'modules': []}
+    hints: Dict = {
+        'yml': [],
+        'modules': []
+    }
 
     current_module_dir = os.path.dirname(__file__)
-    with open(os.path.join(current_module_dir, 'hints.yml'), encoding='utf-8') as file:
+    with open(os.path.join(current_module_dir, 'hints.yml'), 'r', encoding='utf-8') as file:
         hints['yml'] = yaml.safe_load(file)
 
     hint_modules_dir = os.path.join(current_module_dir, 'hint_modules')
@@ -205,13 +206,13 @@ def load_hints() -> dict:
             red_print(f'Failed to import "{name}" from "{hint_modules_dir}" as a module')
             raise SystemExit(1)
         except AttributeError:
-            red_print(f'Module "{name}" does not have function generate_hint.')
+            red_print('Module "{}" does not have function generate_hint.'.format(name))
             raise SystemExit(1)
 
     return hints
 
 
-def generate_hints_buffer(output: str, hints: dict) -> Generator:
+def generate_hints_buffer(output: str, hints: Dict) -> Generator:
     """Helper function to process hints within a string buffer"""
     # Call modules for possible hints with unchanged output. Note that
     # hints in hints.yml expect new line trimmed, but modules should
@@ -226,7 +227,7 @@ def generate_hints_buffer(output: str, hints: dict) -> Generator:
     for hint in hints['yml']:
         variables_list = hint.get('variables')
         hint_list, hint_vars, re_vars = [], [], []
-        match: Match[str] | None = None
+        match: Optional[Match[str]] = None
         try:
             if variables_list:
                 for variables in variables_list:
@@ -237,12 +238,12 @@ def generate_hints_buffer(output: str, hints: dict) -> Generator:
                         try:
                             hint_list.append(hint['hint'].format(*hint_vars))
                         except KeyError as e:
-                            red_print(f'Argument {e} missing in {hint}. Check hints.yml file.')
+                            red_print('Argument {} missing in {}. Check hints.yml file.'.format(e, hint))
                             sys.exit(1)
             else:
                 match = re.compile(hint['re']).search(output)
         except KeyError as e:
-            red_print(f'Argument {e} missing in {hint}. Check hints.yml file.')
+            red_print('Argument {} missing in {}. Check hints.yml file.'.format(e, hint))
             sys.exit(1)
         except re.error as e:
             red_print('{} from hints.yml have {} problem. Check hints.yml file.'.format(hint['re'], e))
@@ -255,14 +256,14 @@ def generate_hints_buffer(output: str, hints: dict) -> Generator:
             try:
                 yield ' '.join(['HINT:', hint['hint'].format(extra_info)])
             except KeyError:
-                raise KeyError(f"Argument 'hint' missing in {hint}. Check hints.yml file.")
+                raise KeyError("Argument 'hint' missing in {}. Check hints.yml file.".format(hint))
 
 
 def generate_hints(*filenames: str) -> Generator:
     """Getting output files and printing hints on how to resolve errors based on the output."""
     hints = load_hints()
     for file_name in filenames:
-        with open(file_name, encoding='utf-8') as file:
+        with open(file_name, 'r', encoding='utf-8') as file:
             yield from generate_hints_buffer(file.read(), hints)
 
 
@@ -278,25 +279,14 @@ def fit_text_in_terminal(out: str) -> str:
     if len(out) >= terminal_width:
         elide_size = (terminal_width - space_for_dots) // 2
         # cut out the middle part of the output if it does not fit in the terminal
-        return '...'.join([out[:elide_size], out[len(out) - elide_size :]])
+        return '...'.join([out[:elide_size], out[len(out) - elide_size:]])
     return out
 
 
 class RunTool:
-    def __init__(
-        self,
-        tool_name: str,
-        args: list,
-        cwd: str,
-        env: dict | None = None,
-        custom_error_handler: FunctionType | None = None,
-        build_dir: str | None = None,
-        hints: bool = True,
-        force_progression: bool = False,
-        interactive: bool = False,
-        convert_output: bool = False,
-        buffer_size: int | None = None,
-    ) -> None:
+    def __init__(self, tool_name: str, args: List, cwd: str, env: Optional[Dict]=None, custom_error_handler: Optional[FunctionType]=None,
+                 build_dir: Optional[str]=None, hints: bool=True, force_progression: bool=False, interactive: bool=False, convert_output: bool=False
+                 ) -> None:
         self.tool_name = tool_name
         self.args = args
         self.cwd = cwd
@@ -308,27 +298,23 @@ class RunTool:
         self.force_progression = force_progression
         self.interactive = interactive
         self.convert_output = convert_output
-        self.buffer_size = buffer_size or 256
 
     def __call__(self) -> None:
         def quote_arg(arg: str) -> str:
-            """
-            Quote the `arg` with whitespace in them because
-            it can cause problems when we call it from a subprocess.
-            """
-            if re.match(r'^(?![\'\"]).*\s.*', arg):
+            """ Quote the `arg` with whitespace in them because it can cause problems when we call it from a subprocess."""
+            if re.match(r"^(?![\'\"]).*\s.*", arg):
                 return ''.join(["'", arg, "'"])
             return arg
 
         self.args = [str(arg) for arg in self.args]
         display_args = ' '.join(quote_arg(arg) for arg in self.args)
-        print(f'Running {self.tool_name} in directory {quote_arg(self.cwd)}')
-        print(f'Executing "{str(display_args)}"...')
+        print('Running %s in directory %s' % (self.tool_name, quote_arg(self.cwd)))
+        print('Executing "%s"...' % str(display_args))
 
         env_copy = dict(os.environ)
         env_copy.update(self.env or {})
 
-        process: Process | subprocess.CompletedProcess[bytes]
+        process: Union[Process, subprocess.CompletedProcess[bytes]]
         if self.hints:
             process, stderr_output_file, stdout_output_file = asyncio.run(self.run_command(self.args, env_copy))
         else:
@@ -346,16 +332,14 @@ class RunTool:
             if not self.interactive:
                 for hint in generate_hints(stderr_output_file, stdout_output_file):
                     yellow_print(hint)
-            raise FatalError(
-                f'{self.tool_name} failed with exit code {process.returncode}, '
-                f'output of the command is in the {stderr_output_file} and {stdout_output_file}'
-            )
+            raise FatalError('{} failed with exit code {}, output of the command is in the {} and {}'.format(self.tool_name, process.returncode,
+                             stderr_output_file, stdout_output_file))
 
-        raise FatalError(f'{self.tool_name} failed with exit code {process.returncode}')
+        raise FatalError('{} failed with exit code {}'.format(self.tool_name, process.returncode))
 
-    async def run_command(self, cmd: list, env_copy: dict) -> tuple[Process, str | None, str | None]:
-        """Run the `cmd` command with capturing stderr and stdout from that function and return returncode
-        and of the command, the id of the process, paths to captured output"""
+    async def run_command(self, cmd: List, env_copy: Dict) -> Tuple[Process, Optional[str], Optional[str]]:
+        """ Run the `cmd` command with capturing stderr and stdout from that function and return returncode
+        and of the command, the id of the process, paths to captured output """
         log_dir_name = 'log'
         try:
             os.mkdir(os.path.join(self.build_dir, log_dir_name))
@@ -364,24 +348,13 @@ class RunTool:
         # Note: we explicitly pass in os.environ here, as we may have set IDF_PATH there during startup
         # limit was added for avoiding error in idf.py confserver
         try:
-            p = await asyncio.create_subprocess_exec(
-                *cmd,
-                env=env_copy,
-                limit=1024 * self.buffer_size,
-                cwd=self.cwd,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-            )
+            p = await asyncio.create_subprocess_exec(*cmd, env=env_copy, limit=1024 * 256, cwd=self.cwd, stdout=asyncio.subprocess.PIPE,
+                                                     stderr=asyncio.subprocess.PIPE)
         except NotImplementedError:
-            message = (
-                f"ERROR: {sys.executable} doesn't support asyncio. "
-                "Workaround: re-run idf.py with the '--no-hints' argument."
-            )
+            message = f'ERROR: {sys.executable} doesn\'t support asyncio. The issue can be worked around by re-running idf.py with the "--no-hints" argument.'
             if sys.platform == 'win32':
-                message += (
-                    ' To fix the issue use the Windows Installer for setting up your python environment, '
+                message += ' To fix the issue use the Windows Installer for setting up your python environment, ' \
                     'available from: https://dl.espressif.com/dl/esp-idf/'
-                )
             sys.exit(message)
 
         stderr_output_file = os.path.join(self.build_dir, log_dir_name, f'idf_py_stderr_output_{p.pid}')
@@ -390,8 +363,7 @@ class RunTool:
             try:
                 await asyncio.gather(
                     self.read_and_write_stream(p.stderr, stderr_output_file, sys.stderr),
-                    self.read_and_write_stream(p.stdout, stdout_output_file, sys.stdout),
-                )
+                    self.read_and_write_stream(p.stdout, stdout_output_file, sys.stdout))
             except asyncio.CancelledError:
                 # The process we are trying to read from was terminated. Print the
                 # message here and let the asyncio to finish, because
@@ -404,11 +376,9 @@ class RunTool:
         await p.wait()  # added for avoiding None returncode
         return p, stderr_output_file, stdout_output_file
 
-    async def read_and_write_stream(
-        self, input_stream: asyncio.StreamReader, output_filename: str, output_stream: TextIO
-    ) -> None:
+    async def read_and_write_stream(self, input_stream: asyncio.StreamReader, output_filename: str,
+                                    output_stream: TextIO) -> None:
         """read the output of the `input_stream` and then write it into `output_filename` and `output_stream`"""
-
         def delete_ansi_escape(text: str) -> str:
             ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
             return ansi_escape.sub('', text)
@@ -424,7 +394,7 @@ class RunTool:
                 return True
             return False
 
-        async def read_stream() -> str | None:
+        async def read_stream() -> Optional[str]:
             try:
                 output_b = await input_stream.readline()
                 return output_b.decode(errors='ignore')
@@ -434,7 +404,7 @@ class RunTool:
             except AttributeError:
                 return None
 
-        async def read_interactive_stream() -> str | None:
+        async def read_interactive_stream() -> Optional[str]:
             buffer = b''
             while True:
                 output_b = await input_stream.read(1)
@@ -464,8 +434,6 @@ class RunTool:
             # contains CRLF. Use "newline=''" to prevent python to convert CRLF into CRCRLF.
             # Please see "newline" description at https://docs.python.org/3/library/functions.html#open
             with open(output_filename, 'w', encoding='utf8', newline='') as output_file:
-                # Log the command arguments.
-                output_file.write('Command: {}\n'.format(' '.join(self.args)))
                 while True:
                     if self.interactive:
                         output = await read_interactive_stream()
@@ -500,11 +468,9 @@ class RunTool:
                                 for hint in generate_hints_buffer(last_line, hints):
                                     yellow_print(hint)
                                 last_line = ''
-        except (OSError, RuntimeError) as e:
-            yellow_print(
-                "WARNING: The exception {} was raised and we can't capture all your {} and "
-                'hints on how to resolve errors can be not accurate.'.format(e, output_stream.name.strip('<>'))
-            )
+        except (RuntimeError, EnvironmentError) as e:
+            yellow_print('WARNING: The exception {} was raised and we can\'t capture all your {} and '
+                         'hints on how to resolve errors can be not accurate.'.format(e, output_stream.name.strip('<>')))
 
 
 def run_tool(*args: Any, **kwargs: Any) -> None:
@@ -512,15 +478,8 @@ def run_tool(*args: Any, **kwargs: Any) -> None:
     return RunTool(*args, **kwargs)()
 
 
-def run_target(
-    target_name: str,
-    args: 'PropertyDict',
-    env: dict | None = None,
-    custom_error_handler: FunctionType | None = None,
-    force_progression: bool = False,
-    interactive: bool = False,
-    buffer_size: int | None = None,
-) -> None:
+def run_target(target_name: str, args: 'PropertyDict', env: Optional[Dict]=None,
+               custom_error_handler: Optional[FunctionType]=None, force_progression: bool=False, interactive: bool=False) -> None:
     """Run target in build directory."""
     if env is None:
         env = {}
@@ -537,20 +496,11 @@ def run_target(
         if 'CLICOLOR_FORCE' not in env:
             env['CLICOLOR_FORCE'] = '1'
 
-    RunTool(
-        generator_cmd[0],
-        generator_cmd + [target_name],
-        args.build_dir,
-        env,
-        custom_error_handler,
-        hints=not args.no_hints,
-        force_progression=force_progression,
-        interactive=interactive,
-        buffer_size=buffer_size,
-    )()
+    RunTool(generator_cmd[0], generator_cmd + [target_name], args.build_dir, env, custom_error_handler, hints=not args.no_hints,
+            force_progression=force_progression, interactive=interactive)()
 
 
-def _strip_quotes(value: str, regexp: re.Pattern = re.compile(r"^\"(.*)\"$|^'(.*)'$|^(.*)$")) -> str | None:
+def _strip_quotes(value: str, regexp: re.Pattern=re.compile(r"^\"(.*)\"$|^'(.*)'$|^(.*)$")) -> Optional[str]:
     """
     Strip quotes like CMake does during parsing cache entries
     """
@@ -558,7 +508,7 @@ def _strip_quotes(value: str, regexp: re.Pattern = re.compile(r"^\"(.*)\"$|^'(.*
     return [x for x in matching_values.groups() if x is not None][0].rstrip() if matching_values is not None else None
 
 
-def _parse_cmakecache(path: str) -> dict:
+def _parse_cmakecache(path: str) -> Dict:
     """
     Parse the CMakeCache file at 'path'.
 
@@ -577,13 +527,13 @@ def _parse_cmakecache(path: str) -> dict:
     return result
 
 
-def _parse_cmdl_cmakecache(entries: list) -> dict[str, str]:
+def _parse_cmdl_cmakecache(entries: List) -> Dict[str, str]:
     """
     Parse list of CMake cache entries passed in via the -D option.
 
     Returns a dict of name:value.
     """
-    result: dict = {}
+    result: Dict = {}
     for entry in entries:
         key, value = entry.split('=', 1)
         value = _strip_quotes(value)
@@ -592,7 +542,7 @@ def _parse_cmdl_cmakecache(entries: list) -> dict[str, str]:
     return result
 
 
-def _new_cmakecache_entries(cache: dict, cache_cmdl: dict) -> bool:
+def _new_cmakecache_entries(cache: Dict, cache_cmdl: Dict) -> bool:
     for entry in cache_cmdl:
         if entry not in cache:
             return True
@@ -605,15 +555,14 @@ def _detect_cmake_generator(prog_name: str) -> Any:
     """
     Find the default cmake generator, if none was specified. Raises an exception if no valid generator is found.
     """
-    for generator_name, generator in GENERATORS.items():
+    for (generator_name,  generator) in GENERATORS.items():
         if executable_exists(generator['version']):
             return generator_name
-    raise FatalError(f"To use {prog_name}, either the 'ninja' or 'GNU make' build tool must be available in the PATH")
+    raise FatalError("To use %s, either the 'ninja' or 'GNU make' build tool must be available in the PATH" % prog_name)
 
 
-def ensure_build_directory(
-    args: 'PropertyDict', prog_name: str, always_run_cmake: bool = False, env: dict | None = None
-) -> None:
+def ensure_build_directory(args: 'PropertyDict', prog_name: str, always_run_cmake: bool=False,
+                           env: Optional[Dict]=None) -> None:
     """Check the build directory exists and that cmake has been run there.
 
     If this isn't the case, create the build directory (if necessary) and
@@ -632,11 +581,11 @@ def ensure_build_directory(
     # Verify the project directory
     if not os.path.isdir(project_dir):
         if not os.path.exists(project_dir):
-            raise FatalError(f'Project directory {project_dir} does not exist')
+            raise FatalError('Project directory %s does not exist' % project_dir)
         else:
-            raise FatalError(f'{project_dir} must be a project directory')
+            raise FatalError('%s must be a project directory' % project_dir)
     if not os.path.exists(os.path.join(project_dir, 'CMakeLists.txt')):
-        raise FatalError(f'CMakeLists.txt not found in project directory {project_dir}')
+        raise FatalError('CMakeLists.txt not found in project directory %s' % project_dir)
 
     # Verify/create the build directory
     build_dir = args.build_dir
@@ -647,7 +596,7 @@ def ensure_build_directory(
     cache_path = os.path.join(build_dir, 'CMakeCache.txt')
     cache = _parse_cmakecache(cache_path) if os.path.exists(cache_path) else {}
 
-    args.define_cache_entry.append(f'CCACHE_ENABLE={args.ccache}')
+    args.define_cache_entry.append('CCACHE_ENABLE=%d' % args.ccache)
 
     cache_cmdl = _parse_cmdl_cmakecache(args.define_cache_entry)
 
@@ -657,16 +606,13 @@ def ensure_build_directory(
     if always_run_cmake or _new_cmakecache_entries(cache, cache_cmdl):
         if args.generator is None:
             args.generator = _detect_cmake_generator(prog_name)
-
         try:
             cmake_args = [
                 'cmake',
                 '-G',
                 args.generator,
-                '-B',
-                args.build_dir,
                 '-DPYTHON_DEPS_CHECKED=1',
-                f'-DPYTHON={sys.executable}',
+                '-DPYTHON={}'.format(sys.executable),
                 '-DESP_PLATFORM=1',
             ]
             if args.cmake_warn_uninitialized:
@@ -675,9 +621,6 @@ def ensure_build_directory(
             if args.define_cache_entry:
                 cmake_args += ['-D' + d for d in args.define_cache_entry]
             cmake_args += [project_dir]
-
-            if args.preset:
-                cmake_args += ['--preset', args.preset]
 
             hints = not args.no_hints
             RunTool('cmake', cmake_args, cwd=args.build_dir, env=env, hints=hints)()
@@ -696,20 +639,17 @@ def ensure_build_directory(
     except KeyError:
         generator = _detect_cmake_generator(prog_name)
     if args.generator is None:
-        args.generator = generator  # reuse the previously configured generator, if none was given
+        args.generator = (generator)  # reuse the previously configured generator, if none was given
     if generator != args.generator:
-        raise FatalError(
-            f"Build is configured for generator '{generator}' not '{args.generator}'. "
-            f"Run '{prog_name} fullclean' to start again."
-        )
+        raise FatalError("Build is configured for generator '%s' not '%s'. Run '%s fullclean' to start again." %
+                         (generator, args.generator, prog_name))
 
     try:
         home_dir = cache['CMAKE_HOME_DIRECTORY']
         if os.path.realpath(home_dir) != os.path.realpath(project_dir):
             raise FatalError(
-                f"Build directory '{build_dir}' configured for project '{os.path.realpath(home_dir)}' "
-                f"not '{os.path.realpath(project_dir)}'. Run '{prog_name} fullclean' to start again."
-            )
+                "Build directory '%s' configured for project '%s' not '%s'. Run '%s fullclean' to start again." %
+                (build_dir, os.path.realpath(home_dir), os.path.realpath(project_dir), prog_name))
     except KeyError:
         pass  # if cmake failed part way, CMAKE_HOME_DIRECTORY may not be set yet
 
@@ -717,10 +657,8 @@ def ensure_build_directory(
         python = cache['PYTHON']
         if os.path.normcase(python) != os.path.normcase(sys.executable):
             raise FatalError(
-                f"'{sys.executable}' is currently active in the environment while the project was "
-                f"configured with '{python}'. "
-                f"Run '{prog_name} fullclean' to start again."
-            )
+                "'{}' is currently active in the environment while the project was configured with '{}'. "
+                "Run '{} fullclean' to start again.".format(sys.executable, python, prog_name))
     except KeyError:
         pass
 
@@ -728,41 +666,8 @@ def ensure_build_directory(
     _set_build_context(args)
 
 
-def merge_action_lists(*action_lists: dict, custom_actions: dict[str, Any] | None = None) -> dict:
-    """
-    Merge multiple action lists into a single dictionary.
-
-    External action lists (via custom_actions) come from outside components or
-    user-defined extensions:
-    - Any duplicate with an existing action or option will trigger a warning,
-      and external definitions will not override defaults.
-
-    *action_lists: Actions that comes from official ESP-IDF development
-    custom_actions: Actions that comes from external extensions
-    """
-
-    def _get_all_action_identifiers(actions_dict: dict[str, Any]) -> set[str]:
-        """Extract all action names and their aliases as a single set."""
-        return {name for name in actions_dict.keys()} | {
-            alias for action in actions_dict.values() for alias in action.get('aliases', [])
-        }
-
-    def _check_action_conflicts(name: str, action: dict[str, Any], existing_identifiers: set[str]) -> None:
-        """Check if an action name or its aliases conflict with existing identifiers.
-        Raises UserWarning if conflicts are found.
-        """
-        if name in existing_identifiers:
-            raise UserWarning(f"Action '{name}' already defined")
-
-        aliases = action.get('aliases', [])
-        conflicting_aliases = set(aliases) & existing_identifiers
-        if conflicting_aliases:
-            raise UserWarning(
-                f"Action '{name}' has aliases {list(conflicting_aliases)} "
-                'that conflict with existing actions or aliases'
-            )
-
-    merged_actions: dict = {
+def merge_action_lists(*action_lists: Dict) -> Dict:
+    merged_actions: Dict = {
         'global_options': [],
         'actions': {},
         'global_action_callbacks': [],
@@ -771,43 +676,10 @@ def merge_action_lists(*action_lists: dict, custom_actions: dict[str, Any] | Non
         merged_actions['global_options'].extend(action_list.get('global_options', []))
         merged_actions['actions'].update(action_list.get('actions', {}))
         merged_actions['global_action_callbacks'].extend(action_list.get('global_action_callbacks', []))
-
-    if not custom_actions:
-        return merged_actions
-
-    if not custom_actions.get('version'):
-        raise AttributeError(
-            'Attribute "version" is required in custom extension. '
-            'Please update your extension dictionary to contain the "version" attribute.'
-        )
-
-    existing_identifiers = _get_all_action_identifiers(merged_actions['actions'])
-    for name, action in custom_actions.get('actions', {}).items():
-        try:
-            _check_action_conflicts(name, action, existing_identifiers)
-            merged_actions['actions'][name] = action
-            existing_identifiers.add(name)
-            existing_identifiers.update(action.get('aliases', []))
-        except UserWarning as e:
-            yellow_print(f'WARNING: {e}. External action will not be added.')
-
-    for new_opt in custom_actions.get('global_options', []):
-        if any(
-            set(new_opt.get('names', [])) & set(existing.get('names', []))
-            for existing in merged_actions['global_options']
-        ):
-            yellow_print(
-                f'WARNING: Global option {new_opt["names"]} already defined. External option will not be added.'
-            )
-        else:
-            merged_actions['global_options'].append(new_opt)
-
-    merged_actions['global_action_callbacks'].extend(custom_actions.get('global_action_callbacks', []))
-
     return merged_actions
 
 
-def get_sdkconfig_filename(args: 'PropertyDict', cache_cmdl: dict | None = None) -> str:
+def get_sdkconfig_filename(args: 'PropertyDict', cache_cmdl: Optional[Dict]=None) -> str:
     """
     Get project's sdkconfig file name.
     """
@@ -819,7 +691,7 @@ def get_sdkconfig_filename(args: 'PropertyDict', cache_cmdl: dict | None = None)
 
     proj_desc_path = os.path.join(args.build_dir, 'project_description.json')
     try:
-        with open(proj_desc_path, encoding='utf-8') as f:
+        with open(proj_desc_path, 'r', encoding='utf-8') as f:
             proj_desc = json.load(f)
         return str(proj_desc['config_file'])
     except (OSError, KeyError):
@@ -828,7 +700,7 @@ def get_sdkconfig_filename(args: 'PropertyDict', cache_cmdl: dict | None = None)
     return os.path.join(args.project_dir, 'sdkconfig')
 
 
-def get_sdkconfig_value(sdkconfig_file: str, key: str) -> str | None:
+def get_sdkconfig_value(sdkconfig_file: str, key: str) -> Optional[str]:
     """
     Return the value of given key from sdkconfig_file.
     If sdkconfig_file does not exist or the option is not present, returns None.
@@ -839,8 +711,8 @@ def get_sdkconfig_value(sdkconfig_file: str, key: str) -> str | None:
     # keep track of the last seen value for the given key
     value = None
     # if the value is quoted, this excludes the quotes from the value
-    pattern = re.compile(rf'^{key}=\"?([^\"]*)\"?$')
-    with open(sdkconfig_file, encoding='utf-8') as f:
+    pattern = re.compile(r"^{}=\"?([^\"]*)\"?$".format(key))
+    with open(sdkconfig_file, 'r', encoding='utf-8') as f:
         for line in f:
             match = re.match(pattern, line)
             if match:
@@ -848,16 +720,15 @@ def get_sdkconfig_value(sdkconfig_file: str, key: str) -> str | None:
     return value
 
 
-def is_target_supported(project_path: str, supported_targets: list) -> bool:
+def is_target_supported(project_path: str, supported_targets: List) -> bool:
     """
     Returns True if the active target is supported, or False otherwise.
     """
     return get_target(project_path) in supported_targets
 
 
-def _check_idf_target(
-    args: 'PropertyDict', prog_name: str, cache: dict, cache_cmdl: dict, env: dict | None = None
-) -> None:
+def _check_idf_target(args: 'PropertyDict', prog_name: str, cache: Dict,
+                      cache_cmdl: Dict, env: Optional[Dict]=None) -> None:
     """
     Cross-check the three settings (sdkconfig, CMakeCache, environment) and if there is
     mismatch, fail with instructions on how to fix this.
@@ -877,45 +748,34 @@ def _check_idf_target(
     if idf_target_from_env:
         # Let's check that IDF_TARGET values are consistent
         if idf_target_from_sdkconfig and idf_target_from_sdkconfig != idf_target_from_env:
-            raise FatalError(
-                f"Project sdkconfig '{sdkconfig}' was generated for target '{idf_target_from_sdkconfig}', "
-                f"but environment variable IDF_TARGET is set to '{idf_target_from_env}'. "
-                f"Run '{prog_name} set-target {idf_target_from_env}' to generate new sdkconfig "
-                f'file for target {idf_target_from_env}.'
-            )
+            raise FatalError("Project sdkconfig '{cfg}' was generated for target '{t_conf}', but environment variable IDF_TARGET "
+                             "is set to '{t_env}'. Run '{prog} set-target {t_env}' to generate new sdkconfig file for target {t_env}."
+                             .format(cfg=sdkconfig, t_conf=idf_target_from_sdkconfig, t_env=idf_target_from_env, prog=prog_name))
 
         if idf_target_from_cache and idf_target_from_cache != idf_target_from_env:
-            raise FatalError(
-                f"Target settings are not consistent: '{idf_target_from_env}' in the environment, "
-                f"'{idf_target_from_cache}' in CMakeCache.txt. "
-                f"Run '{prog_name} fullclean' to start again."
-            )
+            raise FatalError("Target settings are not consistent: '{t_env}' in the environment, '{t_cache}' in CMakeCache.txt. "
+                             "Run '{prog} fullclean' to start again."
+                             .format(t_env=idf_target_from_env, t_cache=idf_target_from_cache, prog=prog_name))
 
         if idf_target_from_cache_cmdl and idf_target_from_cache_cmdl != idf_target_from_env:
-            raise FatalError(
-                f"Target '{idf_target_from_cache_cmdl}' specified on command line is not consistent with "
-                f"target '{idf_target_from_env}' in the environment."
-            )
+            raise FatalError("Target '{t_cmdl}' specified on command line is not consistent with "
+                             "target '{t_env}' in the environment."
+                             .format(t_cmdl=idf_target_from_cache_cmdl, t_env=idf_target_from_env))
     elif idf_target_from_cache_cmdl:
         # Check if -DIDF_TARGET is consistent with target in CMakeCache.txt
         if idf_target_from_cache and idf_target_from_cache != idf_target_from_cache_cmdl:
-            raise FatalError(
-                f"Target '{idf_target_from_cache_cmdl}' specified on command line is not consistent with "
-                f"target '{idf_target_from_cache}' in CMakeCache.txt. "
-                f"Run '{prog_name} set-target {idf_target_from_cache_cmdl}' to re-generate "
-                'CMakeCache.txt.'
-            )
+            raise FatalError("Target '{t_cmdl}' specified on command line is not consistent with "
+                             "target '{t_cache}' in CMakeCache.txt. Run '{prog} set-target {t_cmdl}' to re-generate "
+                             'CMakeCache.txt.'
+                             .format(t_cache=idf_target_from_cache, t_cmdl=idf_target_from_cache_cmdl, prog=prog_name))
 
     elif idf_target_from_cache:
         # This shouldn't happen, unless the user manually edits CMakeCache.txt or sdkconfig, but let's check anyway.
         if idf_target_from_sdkconfig and idf_target_from_cache != idf_target_from_sdkconfig:
-            raise FatalError(
-                f"Project sdkconfig '{sdkconfig}' was generated for target '{idf_target_from_sdkconfig}', but "
-                f"CMakeCache.txt contains '{idf_target_from_cache}'. To keep the setting in sdkconfig "
-                f"({idf_target_from_sdkconfig}) and re-generate CMakeCache.txt, run '{prog_name} fullclean'. To "
-                f"re-generate sdkconfig for '{idf_target_from_cache}' target, run '{prog_name} set-target "
-                f"{idf_target_from_cache}'."
-            )
+            raise FatalError("Project sdkconfig '{cfg}' was generated for target '{t_conf}', but CMakeCache.txt contains '{t_cache}'. "
+                             "To keep the setting in sdkconfig ({t_conf}) and re-generate CMakeCache.txt, run '{prog} fullclean'. "
+                             "To re-generate sdkconfig for '{t_cache}' target, run '{prog} set-target {t_cache}'."
+                             .format(cfg=sdkconfig, t_conf=idf_target_from_sdkconfig, t_cache=idf_target_from_cache, prog=prog_name))
 
 
 class TargetChoice(click.Choice):
@@ -924,9 +784,8 @@ class TargetChoice(click.Choice):
     - ignores hyphens
     - not case sensitive
     """
-
-    def __init__(self, choices: list) -> None:
-        super().__init__(choices, case_sensitive=False)
+    def __init__(self, choices: List) -> None:
+        super(TargetChoice, self).__init__(choices, case_sensitive=False)
 
     def convert(self, value: Any, param: click.Parameter, ctx: click.Context) -> Any:
         def normalize(string: str) -> str:
@@ -936,7 +795,7 @@ class TargetChoice(click.Choice):
         ctx.token_normalize_func = normalize
 
         try:
-            return super().convert(value, param, ctx)
+            return super(TargetChoice, self).convert(value, param, ctx)
         finally:
             ctx.token_normalize_func = saved_token_normalize_func
 
@@ -946,7 +805,7 @@ class PropertyDict(dict):
         if name in self:
             return self[name]
         else:
-            raise AttributeError(f"'PropertyDict' object has no attribute '{name}'")
+            raise AttributeError("'PropertyDict' object has no attribute '%s'" % name)
 
     def __setattr__(self, name: str, value: Any) -> None:
         self[name] = value
@@ -955,4 +814,4 @@ class PropertyDict(dict):
         if name in self:
             del self[name]
         else:
-            raise AttributeError(f"'PropertyDict' object has no attribute '{name}'")
+            raise AttributeError("'PropertyDict' object has no attribute '%s'" % name)

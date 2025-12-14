@@ -16,16 +16,8 @@
 
 examples/wifi:
   <<: *wifi_depends_default
-  enable:
-    - if: IDF_TARGET == "esp32h2"
   disable:
-    - if: (SOC_WIFI_SUPPORTED != 1) and (SOC_WIRELESS_HOST_SUPPORTED != 1)
-
-examples/wifi/fast_scan:
-  enable:
-    - if: IDF_TARGET == "esp32h2"
-  disable:
-    - if: (SOC_WIFI_SUPPORTED != 1) and (SOC_WIRELESS_HOST_SUPPORTED != 1)
+    - if: SOC_WIFI_SUPPORTED != 1
 
 examples/wifi/ftm:
   <<: *wifi_depends_default
@@ -35,23 +27,15 @@ examples/wifi/ftm:
 
 examples/wifi/getting_started:
   <<: *wifi_depends_default
-  enable:
-    - if: INCLUDE_DEFAULT == 1
   disable:
-    - if: (SOC_WIFI_SUPPORTED != 1) and (SOC_WIRELESS_HOST_SUPPORTED != 1) and (IDF_TARGET != "esp32h2")
-  disable_test:
-    - if: IDF_TARGET in ["esp32p4", "esp32h2"]
-      temporary: true
-      reason: lack of runners
+    - if: SOC_WIFI_SUPPORTED != 1
   depends_filepatterns:
     - examples/wifi/getting_started/**/*
 
 examples/wifi/iperf:
-  enable:
-    - if: INCLUDE_DEFAULT == 1
   disable:
-    - if: (SOC_WIFI_SUPPORTED != 1) and (SOC_WIRELESS_HOST_SUPPORTED != 1) and (IDF_TARGET != "esp32h2")
-    - if: IDF_TARGET in ["esp32p4"] and CONFIG_NAME in ["defaults", "99"]
+    - if: (SOC_WIFI_SUPPORTED != 1) and (SOC_WIRELESS_HOST_SUPPORTED != 1)
+    - if: (IDF_TARGET == "esp32p4") and CONFIG_NAME in ["defaults", "99"]
   disable_test:
     - if: IDF_TARGET not in ["esp32"]
       temporary: true
@@ -86,19 +70,7 @@ examples/wifi/power_save:
     - wpa_supplicant
     - esp_driver_uart
 
-examples/wifi/scan:
-  enable:
-    - if: IDF_TARGET == "esp32h2"
-  disable:
-    - if: (SOC_WIFI_SUPPORTED != 1) and (SOC_WIRELESS_HOST_SUPPORTED != 1)
-
-examples/wifi/softap_sta:
-  enable:
-    - if: IDF_TARGET == "esp32h2"
-  disable:
-    - if: (SOC_WIFI_SUPPORTED != 1) and (SOC_WIRELESS_HOST_SUPPORTED != 1)
-
-examples/wifi/wifi_aware/nan_console:
+examples/wifi/wifi_aware:
   disable:
     - if: SOC_WIFI_NAN_SUPPORT != 1
       reason: targets esp32c3, esp32s3, esp32c2 and esp32c6 are not supported
@@ -114,43 +86,3 @@ examples/wifi/wifi_aware/nan_console:
     - nvs_flash
   depends_filepatterns:
     - examples/system/console/advanced/components/**/*
-
-examples/wifi/wifi_aware/nan_publisher:
-  disable:
-    - if: SOC_WIFI_NAN_SUPPORT != 1
-      reason: targets esp32c3, esp32s3, esp32c2 and esp32c6 are not supported
-  depends_components:
-    - esp_wifi
-    - esp_phy
-    - esp_netif
-    - lwip
-    - esp_event
-    - esp_coex
-    - wpa_supplicant
-    - mbedtls
-    - nvs_flash
-
-examples/wifi/wifi_aware/nan_subscriber:
-  disable:
-    - if: SOC_WIFI_NAN_SUPPORT != 1
-      reason: targets esp32c3, esp32s3, esp32c2 and esp32c6 are not supported
-  depends_components:
-    - esp_wifi
-    - esp_phy
-    - esp_netif
-    - lwip
-    - esp_event
-    - esp_coex
-    - wpa_supplicant
-    - mbedtls
-    - nvs_flash
-
-examples/wifi/wifi_aware/usd_publisher:
-  <<: *wifi_depends_default
-  disable:
-    - if: SOC_WIFI_SUPPORTED != 1
-
-examples/wifi/wifi_aware/usd_subscriber:
-  <<: *wifi_depends_default
-  disable:
-    - if: SOC_WIFI_SUPPORTED != 1

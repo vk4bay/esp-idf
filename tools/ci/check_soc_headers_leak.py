@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 # SPDX-FileCopyrightText: 2021-2022 Espressif Systems (Shanghai) CO LTD
 # SPDX-License-Identifier: Apache-2.0
 # This check script is used to ensure the public APIs won't expose the unstable soc files like register files
@@ -13,7 +12,6 @@ from string import Template
 # The following header files in soc component is treated as stable, so is allowed to be used in any public header files
 allowed_soc_headers = (
     'soc/soc_caps.h',
-    'soc/soc_caps_eval.h',
     'soc/gpio_num.h',
     'soc/reset_reasons.h',
     'soc/reg_base.h',
@@ -32,14 +30,16 @@ class PublicAPIVisits:
         self._idf_path = idf_path
 
     def __iter__(self) -> typing.Generator:
-        with open(self.doxyfile_path, encoding='utf8') as f:
+        with open(self.doxyfile_path, 'r', encoding='utf8') as f:
             for line in f:
                 line = line.strip()
                 if line.startswith('$(PROJECT_PATH)'):
                     # $(PROJECT_PATH)/components/soc/$(IDF_TARGET)/include/soc/uart_channel.h \
                     # -> ${PROJECT_PATH}/components/soc/${IDF_TARGET}/include/soc/uart_channel.h
                     line = line.replace('(', '{').replace(')', '}').rstrip('\\ ')
-                    file_path = Template(line).substitute(PROJECT_PATH=self._idf_path, IDF_TARGET=self._target)
+                    file_path = Template(line).substitute(
+                        PROJECT_PATH=self._idf_path, IDF_TARGET=self._target
+                    )
                     yield file_path
 
 
@@ -47,10 +47,12 @@ def check_soc_not_in(
     idf_path: str,
     target: str,
     doxyfile_path: str,
-    violation_dict: dict[str, set],
+    violation_dict: typing.Dict[str, set],
 ) -> None:
-    for file_path in PublicAPIVisits(os.path.join(idf_path, doxyfile_path), idf_path, target):
-        with open(file_path, encoding='utf8') as f:
+    for file_path in PublicAPIVisits(
+        os.path.join(idf_path, doxyfile_path), idf_path, target
+    ):
+        with open(file_path, 'r', encoding='utf8') as f:
             for line in f:
                 match_data = re.match(include_header_pattern, line)
                 if match_data:
@@ -68,7 +70,9 @@ def main() -> None:
         sys.exit(1)
 
     # list all doxyfiles
-    doxyfiles = fnmatch.filter(os.listdir(os.path.join(idf_path, 'docs/doxygen')), 'Doxyfile*')
+    doxyfiles = fnmatch.filter(
+        os.listdir(os.path.join(idf_path, 'docs/doxygen')), 'Doxyfile*'
+    )
     print(f'Found Doxyfiles:{doxyfiles}')
 
     # targets are judged from Doxyfile name
@@ -81,7 +85,7 @@ def main() -> None:
         print('No targets found', file=sys.stderr)
         sys.exit(1)
 
-    soc_violation_dict: dict[str, set] = {}
+    soc_violation_dict: typing.Dict[str, set] = {}
     for target in targets:
         check_soc_not_in(
             idf_path,

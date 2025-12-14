@@ -1,13 +1,8 @@
 # The following lines of boilerplate have to be in your project's CMakeLists
 # in this exact order for cmake to work correctly
-cmake_minimum_required(VERSION 3.22)
+cmake_minimum_required(VERSION 3.16)
 
-set(COMPONENTS main esp_gdbstub)
-
-if(CONFIG_ESP_COREDUMP_ENABLE)
-    list(APPEND COMPONENTS espcoredump)
-endif()
-
+set(COMPONENTS main espcoredump esp_gdbstub)
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
 
 project(test_panic)
@@ -37,16 +32,13 @@ if(NOT CONFIG_TEST_MEMPROT AND NOT CONFIG_ESP_COREDUMP_CAPTURE_DRAM)
 
     # Only enable UBSAN for a few components related to the panic test,
     # due to RAM size limitations.
-    set(ubsan_components main esp_system spi_flash
+    set(ubsan_components main espcoredump esp_system spi_flash
         esp_common esp_hw_support soc hal freertos)
-
-    if(CONFIG_ESP_COREDUMP_ENABLE AND NOT CONFIG_IDF_TARGET_ESP32S2)
-        list(APPEND ubsan_components espcoredump)
-    endif()
-
-    if(CONFIG_IDF_TARGET_ESP32S2)
-        # due to the ram limitation, freertos is removed from esp32s2 built
-        list(REMOVE_ITEM ubsan_components freertos)
+    if(CONFIG_ESP_COREDUMP_CHECKSUM_SHA256)
+        if(CONFIG_IDF_TARGET_ESP32S2)
+            # due to the ram limitation, coredump is removed from esp32s2 built
+            list(REMOVE_ITEM ubsan_components espcoredump)
+        endif()
     endif()
     foreach(component  IN LISTS ubsan_components)
         idf_component_get_property(lib ${component} COMPONENT_LIB)
