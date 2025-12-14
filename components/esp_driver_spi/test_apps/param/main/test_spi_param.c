@@ -1,9 +1,8 @@
 /*
- * SPDX-FileCopyrightText: 2021-2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2021-2024 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-#include <sys/param.h>
 #include "esp_log.h"
 #include "esp_attr.h"
 #include "soc/spi_periph.h"
@@ -19,29 +18,12 @@
 #include "driver/spi_slave_hd.h"
 #endif
 
-//test low frequency, high frequency until freq limit for worst case (both GPIO)
-static int test_freq_default[] = {
-    IDF_TARGET_MAX_SPI_CLK_FREQ / 100,
-    IDF_TARGET_MAX_SPI_CLK_FREQ / 50,
-    IDF_TARGET_MAX_SPI_CLK_FREQ / 16,
-    IDF_TARGET_MAX_SPI_CLK_FREQ / 7,
-    IDF_TARGET_MAX_SPI_CLK_FREQ / 3,
-    IDF_TARGET_MAX_SPI_CLK_FREQ / 2,
-    IDF_TARGET_MAX_SPI_CLK_FREQ,
-    0,
-};
-
-static void spitest_def_param(void* arg)
-{
-    spitest_param_set_t *param_set = (spitest_param_set_t*)arg;
-    param_set->test_size = 8;
-    if (param_set->freq_list == NULL) {
-        param_set->freq_list = test_freq_default;
-    }
-}
-
 #if (TEST_SPI_PERIPH_NUM >= 2)
 //These will only be enabled on chips with 2 or more SPI peripherals
+
+#ifndef MIN
+#define MIN(a, b)((a) > (b)? (b): (a))
+#endif
 
 /********************************************************************************
  *      Test By Internal Connections
@@ -126,6 +108,10 @@ static void local_test_start(spi_device_handle_t *spi, int freq, const spitest_p
     if (pset->master_limit != 0 && freq > pset->master_limit) {
         devcfg.flags |= SPI_DEVICE_NO_DUMMY;
     }
+
+#if CONFIG_IDF_TARGET_ESP32P4      //TODO: IDF-8313, update P4 defaulte clock source
+    devcfg.clock_source = SPI_CLK_SRC_SPLL;
+#endif
 
     //slave config
     slvcfg.mode = pset->mode;
@@ -358,6 +344,16 @@ TEST_SPI_LOCAL(TIMING, timing_pgroup)
 
 /************ Mode Test ***********************************************/
 #define FREQ_LIMIT_MODE 16 * 1000 * 1000
+static int test_freq_mode_local[] = {
+    1 * 1000 * 1000,
+    9 * 1000 * 1000, //maximum freq MISO stable before next latch edge
+    13 * 1000 * 1000,
+    16 * 1000 * 1000,
+    20 * 1000 * 1000,
+    26 * 1000 * 1000,
+    40 * 1000 * 1000,
+    0,
+};
 
 //signals are not fed to peripherals through iomux if the functions are not selected to iomux
 #ifdef CONFIG_IDF_TARGET_ESP32
@@ -388,7 +384,7 @@ TEST_SPI_LOCAL(TIMING, timing_pgroup)
 static spitest_param_set_t mode_pgroup[] = {
     {
         .pset_name = "Mode 0",
-        .freq_list = test_freq_default,
+        .freq_list = test_freq_mode_local,
         .master_limit = 13 * 1000 * 1000,
         .dup = FULL_DUPLEX,
         .mode = 0,
@@ -398,7 +394,7 @@ static spitest_param_set_t mode_pgroup[] = {
     },
     {
         .pset_name = "Mode 1",
-        .freq_list = test_freq_default,
+        .freq_list = test_freq_mode_local,
         .freq_limit = 26 * 1000 * 1000,
         .master_limit = 13 * 1000 * 1000,
         .dup = FULL_DUPLEX,
@@ -409,7 +405,7 @@ static spitest_param_set_t mode_pgroup[] = {
     },
     {
         .pset_name = "Mode 2",
-        .freq_list = test_freq_default,
+        .freq_list = test_freq_mode_local,
         .master_limit = 13 * 1000 * 1000,
         .dup = FULL_DUPLEX,
         .mode = 2,
@@ -419,7 +415,7 @@ static spitest_param_set_t mode_pgroup[] = {
     },
     {
         .pset_name = "Mode 3",
-        .freq_list = test_freq_default,
+        .freq_list = test_freq_mode_local,
         .freq_limit = 26 * 1000 * 1000,
         .master_limit = 13 * 1000 * 1000,
         .dup = FULL_DUPLEX,
@@ -430,7 +426,7 @@ static spitest_param_set_t mode_pgroup[] = {
     },
     {
         .pset_name = "Mode 0, DMA",
-        .freq_list = test_freq_default,
+        .freq_list = test_freq_mode_local,
         .master_limit = 13 * 1000 * 1000,
         .dup = FULL_DUPLEX,
         .mode = 0,
@@ -442,7 +438,7 @@ static spitest_param_set_t mode_pgroup[] = {
     },
     {
         .pset_name = "Mode 1, DMA",
-        .freq_list = test_freq_default,
+        .freq_list = test_freq_mode_local,
         .freq_limit = 26 * 1000 * 1000,
         .master_limit = 13 * 1000 * 1000,
         .dup = FULL_DUPLEX,
@@ -455,7 +451,7 @@ static spitest_param_set_t mode_pgroup[] = {
     },
     {
         .pset_name = "Mode 2, DMA",
-        .freq_list = test_freq_default,
+        .freq_list = test_freq_mode_local,
         .master_limit = 13 * 1000 * 1000,
         .dup = FULL_DUPLEX,
         .mode = 2,
@@ -467,7 +463,7 @@ static spitest_param_set_t mode_pgroup[] = {
     },
     {
         .pset_name = "Mode 3, DMA",
-        .freq_list = test_freq_default,
+        .freq_list = test_freq_mode_local,
         .freq_limit = 26 * 1000 * 1000,
         .master_limit = 13 * 1000 * 1000,
         .dup = FULL_DUPLEX,
@@ -481,7 +477,7 @@ static spitest_param_set_t mode_pgroup[] = {
     /////////////////////////// MISO ////////////////////////////////////
     {
         .pset_name = "MISO, Mode 0",
-        .freq_list = test_freq_default,
+        .freq_list = test_freq_mode_local,
         .dup = HALF_DUPLEX_MISO,
         .mode = 0,
         .master_iomux = false,
@@ -490,7 +486,7 @@ static spitest_param_set_t mode_pgroup[] = {
     },
     {
         .pset_name = "MISO, Mode 1",
-        .freq_list = test_freq_default,
+        .freq_list = test_freq_mode_local,
         .dup = HALF_DUPLEX_MISO,
         .mode = 1,
         .master_iomux = false,
@@ -499,7 +495,7 @@ static spitest_param_set_t mode_pgroup[] = {
     },
     {
         .pset_name = "MISO, Mode 2",
-        .freq_list = test_freq_default,
+        .freq_list = test_freq_mode_local,
         .dup = HALF_DUPLEX_MISO,
         .mode = 2,
         .master_iomux = false,
@@ -508,7 +504,7 @@ static spitest_param_set_t mode_pgroup[] = {
     },
     {
         .pset_name = "MISO, Mode 3",
-        .freq_list = test_freq_default,
+        .freq_list = test_freq_mode_local,
         .dup = HALF_DUPLEX_MISO,
         .mode = 3,
         .master_iomux = false,
@@ -517,7 +513,7 @@ static spitest_param_set_t mode_pgroup[] = {
     },
     {
         .pset_name = "MISO, Mode 0, DMA",
-        .freq_list = test_freq_default,
+        .freq_list = test_freq_mode_local,
         .dup = HALF_DUPLEX_MISO,
         .mode = 0,
         .slave_dma_chan = SPI_DMA_CH_AUTO,
@@ -528,7 +524,7 @@ static spitest_param_set_t mode_pgroup[] = {
     },
     {
         .pset_name = "MISO, Mode 1, DMA",
-        .freq_list = test_freq_default,
+        .freq_list = test_freq_mode_local,
         .dup = HALF_DUPLEX_MISO,
         .mode = 1,
         .slave_dma_chan = SPI_DMA_CH_AUTO,
@@ -539,7 +535,7 @@ static spitest_param_set_t mode_pgroup[] = {
     },
     {
         .pset_name = "MISO, Mode 2, DMA",
-        .freq_list = test_freq_default,
+        .freq_list = test_freq_mode_local,
         .dup = HALF_DUPLEX_MISO,
         .mode = 2,
         .slave_dma_chan = SPI_DMA_CH_AUTO,
@@ -550,7 +546,7 @@ static spitest_param_set_t mode_pgroup[] = {
     },
     {
         .pset_name = "MISO, Mode 3, DMA",
-        .freq_list = test_freq_default,
+        .freq_list = test_freq_mode_local,
         .dup = HALF_DUPLEX_MISO,
         .mode = 3,
         .slave_dma_chan = SPI_DMA_CH_AUTO,
@@ -664,10 +660,20 @@ TEST_CASE("Slave receive correct data", "[spi]")
     }
 }
 
-#else // #if (TEST_SPI_PERIPH_NUM >= 2)
-
+#if !TEMPORARY_DISABLED_FOR_TARGETS(ESP32S2, ESP32S3, ESP32C3, ESP32C2)
+//These tests are ESP32 only due to lack of runners
 /********************************************************************************
- *      Test By Master & Slave (2 boards) using burger runner
+ *      Test By Master & Slave (2 boards)
+ *
+ *  Wiring:
+ * | Master | Slave |
+ * | ------ | ----- |
+ * | 12     | 19    |
+ * | 13     | 23    |
+ * | 14     | 18    |
+ * | 15     | 5     |
+ * | GND    | GND   |
+ *
  ********************************************************************************/
 static void test_master_init(void **context);
 static void test_master_deinit(void *context);
@@ -726,7 +732,7 @@ static void test_master_start(spi_device_handle_t *spi, int freq, const spitest_
         buspset.quadhd_io_num = UNCONNECTED_PIN;
     }
     spi_device_interface_config_t devpset = SPI_DEVICE_TEST_DEFAULT_CONFIG();
-    devpset.spics_io_num = PIN_NUM_CS;
+    devpset.spics_io_num = SPI2_IOMUX_PIN_NUM_CS;
     devpset.mode = pset->mode;
     const int cs_pretrans_max = 15;
     if (pset->dup == HALF_DUPLEX_MISO) {
@@ -870,7 +876,7 @@ static void timing_slave_start(int speed, const spitest_param_set_t *pset, spite
         slv_buscfg.quadhd_io_num = UNCONNECTED_PIN;
     }
     spi_slave_interface_config_t slvcfg = SPI_SLAVE_TEST_DEFAULT_CONFIG();
-    slvcfg.spics_io_num = PIN_NUM_CS;
+    slvcfg.spics_io_num = SPI2_IOMUX_PIN_NUM_CS;
     slvcfg.mode = pset->mode;
     //Enable pull-ups on SPI lines so we don't detect rogue pulses when no master is connected.
     slave_pull_up(&slv_buscfg, slvcfg.spics_io_num);
@@ -1058,6 +1064,19 @@ TEST_SPI_MASTER_SLAVE(TIMING, timing_conf, "")
 //Set to this input delay so that the master will read with delay until 7M
 #define DELAY_HCLK_UNTIL_7M    12.5*3
 
+static int test_freq_mode_ms[] = {
+    100 * 1000,
+    6 * 1000 * 1000,
+    7 * 1000 * 1000,
+    8 * 1000 * 1000, //maximum freq MISO stable before next latch edge
+    9 * 1000 * 1000, //maximum freq MISO stable before next latch edge
+    10 * 1000 * 1000,
+    11 * 1000 * 1000,
+    13 * 1000 * 1000,
+    16 * 1000 * 1000,
+    20 * 1000 * 1000,
+    0,
+};
 static int test_freq_20M_only[] = {
     20 * 1000 * 1000,
     0,
@@ -1067,7 +1086,7 @@ spitest_param_set_t mode_conf[] = {
     //non-DMA tests
     {
         .pset_name = "mode 0, no DMA",
-        .freq_list = test_freq_default,
+        .freq_list = test_freq_mode_ms,
         .master_limit = FREQ_LIMIT_MODE,
         .dup = FULL_DUPLEX,
         .master_iomux = true,
@@ -1077,7 +1096,7 @@ spitest_param_set_t mode_conf[] = {
     },
     {
         .pset_name = "mode 1, no DMA",
-        .freq_list = test_freq_default,
+        .freq_list = test_freq_mode_ms,
         .master_limit = FREQ_LIMIT_MODE,
         .dup = FULL_DUPLEX,
         .master_iomux = true,
@@ -1087,7 +1106,7 @@ spitest_param_set_t mode_conf[] = {
     },
     {
         .pset_name = "mode 2, no DMA",
-        .freq_list = test_freq_default,
+        .freq_list = test_freq_mode_ms,
         .master_limit = FREQ_LIMIT_MODE,
         .dup = FULL_DUPLEX,
         .master_iomux = true,
@@ -1097,7 +1116,7 @@ spitest_param_set_t mode_conf[] = {
     },
     {
         .pset_name = "mode 3, no DMA",
-        .freq_list = test_freq_default,
+        .freq_list = test_freq_mode_ms,
         .master_limit = FREQ_LIMIT_MODE,
         .dup = FULL_DUPLEX,
         .master_iomux = true,
@@ -1145,7 +1164,7 @@ spitest_param_set_t mode_conf[] = {
     //DMA tests
     {
         .pset_name = "mode 0, DMA",
-        .freq_list = test_freq_default,
+        .freq_list = test_freq_mode_ms,
         .master_limit = FREQ_LIMIT_MODE,
         .dup = FULL_DUPLEX,
         .master_iomux = true,
@@ -1158,7 +1177,7 @@ spitest_param_set_t mode_conf[] = {
     },
     {
         .pset_name = "mode 1, DMA",
-        .freq_list = test_freq_default,
+        .freq_list = test_freq_mode_ms,
         .master_limit = FREQ_LIMIT_MODE,
         .dup = FULL_DUPLEX,
         .master_iomux = true,
@@ -1171,7 +1190,7 @@ spitest_param_set_t mode_conf[] = {
     },
     {
         .pset_name = "mode 2, DMA",
-        .freq_list = test_freq_default,
+        .freq_list = test_freq_mode_ms,
         .master_limit = FREQ_LIMIT_MODE,
         .dup = FULL_DUPLEX,
         .master_iomux = true,
@@ -1184,7 +1203,7 @@ spitest_param_set_t mode_conf[] = {
     },
     {
         .pset_name = "mode 3, DMA",
-        .freq_list = test_freq_default,
+        .freq_list = test_freq_mode_ms,
         .master_limit = FREQ_LIMIT_MODE,
         .dup = FULL_DUPLEX,
         .master_iomux = true,
@@ -1242,16 +1261,21 @@ spitest_param_set_t mode_conf[] = {
     },
 };
 TEST_SPI_MASTER_SLAVE(MODE, mode_conf, "")
+
+#endif // !TEMPORARY_DISABLED_FOR_TARGETS(ESP32S2, ESP32S3, ESP32C3, ESP32C2)
+
 #endif // #if (TEST_SPI_PERIPH_NUM >= 2)
 
 #define TEST_STEP_LEN         96
 #define TEST_STEP             2
 static int s_spi_bus_freq[] = {
-    IDF_TARGET_MAX_SPI_CLK_FREQ / 10,
-    IDF_TARGET_MAX_SPI_CLK_FREQ / 7,
-    IDF_TARGET_MAX_SPI_CLK_FREQ / 4,
-    IDF_TARGET_MAX_SPI_CLK_FREQ / 2,
-    IDF_TARGET_MAX_SPI_CLK_FREQ,
+    IDF_PERFORMANCE_MAX_SPI_CLK_FREQ / 10,
+    IDF_PERFORMANCE_MAX_SPI_CLK_FREQ / 7,
+    IDF_PERFORMANCE_MAX_SPI_CLK_FREQ / 4,
+    IDF_PERFORMANCE_MAX_SPI_CLK_FREQ / 2,
+#if !CONFIG_IDF_TARGET_ESP32P4      //TODO: IDF-8313, update P4 defaulte clock source
+    IDF_PERFORMANCE_MAX_SPI_CLK_FREQ,
+#endif
 };
 
 //------------------------------------------- Full Duplex with DMA Freq test --------------------------------------
@@ -1276,12 +1300,12 @@ static void test_master_fd_dma(void)
                     .spics_io_num = PIN_NUM_CS,
                     .queue_size = 16,
                     .clock_speed_hz = s_spi_bus_freq[speed_level],
-                    .cs_ena_pretrans = 2,
                 };
 #if CONFIG_IDF_TARGET_ESP32
                 if (is_gpio && (s_spi_bus_freq[speed_level] >= 10 * 1000 * 1000)) {
                     continue;    //On esp32 with GPIO Matrix, clk freq <= 10MHz
                 }
+                devcfg.cs_ena_pretrans = 2;
                 devcfg.input_delay_ns = 12.5 * 2;
 #endif
                 TEST_ESP_OK(spi_bus_add_device(TEST_SPI_HOST, &devcfg, &dev0));
@@ -1391,12 +1415,12 @@ static void test_master_fd_no_dma(void)
                     .spics_io_num = PIN_NUM_CS,
                     .queue_size = 16,
                     .clock_speed_hz = s_spi_bus_freq[speed_level],
-                    .cs_ena_pretrans = 2,
                 };
 #if CONFIG_IDF_TARGET_ESP32
                 if (is_gpio && (s_spi_bus_freq[speed_level] >= 10 * 1000 * 1000)) {
                     continue;    //On esp32 with GPIO Matrix, clk freq <= 10MHz
                 }
+                devcfg.cs_ena_pretrans = 2,
                 devcfg.input_delay_ns = 12.5 * 2,
 #endif
                 TEST_ESP_OK(spi_bus_add_device(TEST_SPI_HOST, &devcfg, &dev0));
@@ -1503,17 +1527,10 @@ static void test_master_hd_dma(void)
             TEST_ESP_OK(spi_bus_initialize(TEST_SPI_HOST, &buscfg, SPI_DMA_CH_AUTO));
 
             for (uint8_t speed_level = 0; speed_level < sizeof(s_spi_bus_freq) / sizeof(int); speed_level++) {
-                spi_device_interface_config_t devcfg = {
-                    .spics_io_num = PIN_NUM_CS,
-                    .clock_speed_hz = s_spi_bus_freq[speed_level],
-                    .cs_ena_pretrans = 2,
-                    .mode = mode,
-                    .flags = SPI_DEVICE_HALFDUPLEX,
-                    .command_bits = 8,
-                    .address_bits = 8,
-                    .dummy_bits = 8,
-                    .queue_size = 10,
-                };
+                spi_device_interface_config_t devcfg = SPI_SLOT_TEST_DEFAULT_CONFIG();
+                devcfg.mode = mode;
+                devcfg.flags = SPI_DEVICE_HALFDUPLEX;
+                devcfg.clock_speed_hz = s_spi_bus_freq[speed_level];
                 TEST_ESP_OK(spi_bus_add_device(TEST_SPI_HOST, &devcfg, &dev0));
                 printf("Next trans: %s\tmode:%d\t@%.2f MHz\n", (is_gpio) ? "GPIO_Matrix" : "IOMUX", mode, s_spi_bus_freq[speed_level] / 1000000.f);
 
@@ -1612,17 +1629,10 @@ static void test_master_hd_no_dma(void)
             TEST_ESP_OK(spi_bus_initialize(TEST_SPI_HOST, &buscfg, SPI_DMA_DISABLED));
 
             for (uint8_t speed_level = 0; speed_level < sizeof(s_spi_bus_freq) / sizeof(int); speed_level++) {
-                spi_device_interface_config_t devcfg = {
-                    .spics_io_num = PIN_NUM_CS,
-                    .clock_speed_hz = s_spi_bus_freq[speed_level],
-                    .cs_ena_pretrans = 2,
-                    .mode = mode,
-                    .flags = SPI_DEVICE_HALFDUPLEX,
-                    .command_bits = 8,
-                    .address_bits = 8,
-                    .dummy_bits = 8,
-                    .queue_size = 10,
-                };
+                spi_device_interface_config_t devcfg = SPI_SLOT_TEST_DEFAULT_CONFIG();
+                devcfg.mode = mode;
+                devcfg.flags = SPI_DEVICE_HALFDUPLEX;
+                devcfg.clock_speed_hz = s_spi_bus_freq[speed_level];
                 TEST_ESP_OK(spi_bus_add_device(TEST_SPI_HOST, &devcfg, &dev0));
                 printf("Next trans: %s\tmode:%d\t@%.2f MHz\n", (is_gpio) ? "GPIO_Matrix" : "IOMUX", mode, s_spi_bus_freq[speed_level] / 1000000.f);
 
@@ -1739,10 +1749,10 @@ static void test_master_sio_dma(void)
                     .spics_io_num = PIN_NUM_CS,
                     .queue_size = 16,
                     .clock_speed_hz = s_spi_bus_freq[speed_level],
-                    .cs_ena_pretrans = 2,
                     .flags = SPI_DEVICE_HALFDUPLEX | SPI_DEVICE_3WIRE,
                 };
 #if CONFIG_IDF_TARGET_ESP32
+                devcfg.cs_ena_pretrans = 2;
                 devcfg.input_delay_ns = s_master_input_delay[speed_level];
 #endif
                 TEST_ESP_OK(spi_bus_add_device(TEST_SPI_HOST, &devcfg, &dev0));
@@ -1874,6 +1884,7 @@ static void test_master_sio_no_dma(void)
                     .flags = SPI_DEVICE_HALFDUPLEX | SPI_DEVICE_3WIRE,
                 };
 #if CONFIG_IDF_TARGET_ESP32
+                devcfg.cs_ena_pretrans = 2;
                 devcfg.input_delay_ns = s_master_input_delay[speed_level];
 #endif
                 TEST_ESP_OK(spi_bus_add_device(TEST_SPI_HOST, &devcfg, &dev0));

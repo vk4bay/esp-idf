@@ -1,7 +1,7 @@
 /*
- * SPDX-FileCopyrightText: 2022-2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2022-2023 Espressif Systems (Shanghai) CO LTD
  *
- * SPDX-License-Identifier: Apache-2.0 OR MIT
+ * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
 
@@ -53,6 +53,7 @@ extern "C" {
 #define SOC_ADDRESS_IN_DRAM0_CACHE(vaddr)            SOC_ADDRESS_IN_BUS(SOC_DRAM0_CACHE, vaddr)
 #define SOC_ADDRESS_IN_DRAM_FLASH(vaddr)             SOC_ADDRESS_IN_BUS(SOC_DRAM_FLASH, vaddr)
 #define SOC_ADDRESS_IN_DRAM_PSRAM(vaddr)             SOC_ADDRESS_IN_BUS(SOC_DRAM_PSRAM, vaddr)
+
 
 #define SOC_MMU_FLASH_VALID                 BIT(12)
 #define SOC_MMU_FLASH_INVALID               0
@@ -124,6 +125,7 @@ extern "C" {
 #else
 #define SOC_MMU_PSRAM_LINEAR_ADDRESS_HIGH     (SOC_MMU_LINEAR_ADDR_MASK + 1)
 #endif
+
 
 #ifdef __cplusplus
 }

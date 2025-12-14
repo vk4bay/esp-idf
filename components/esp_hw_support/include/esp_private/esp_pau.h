@@ -83,10 +83,8 @@ void pau_regdma_trigger_extra_link_restore(void);
  *        link entry configuration in always-on domain
  *
  * @param enable Set true to use always-on domain link configuration instead
- *
- * @return The origin aon link bypass enable status
  */
-bool pau_regdma_enable_aon_link_entry(bool enable);
+void pau_regdma_enable_aon_link_entry(bool enable);
 #endif
 
 #ifdef __cplusplus

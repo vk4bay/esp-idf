@@ -1,35 +1,7 @@
 idf_build_get_property(target IDF_TARGET)
-idf_build_get_property(esp_tee_build ESP_TEE_BUILD)
 
 if(${target} STREQUAL "linux")
     return() # This component is not supported by the POSIX/Linux simulator
-endif()
-
-if(esp_tee_build)
-    set(tee_inc_dirs "include"
-                     "private_include"
-                     "bootloader_flash/include")
-
-    set(tee_srcs "src/flash_partitions.c"
-                 "src/bootloader_sha.c"
-                 "src/bootloader_common_loader.c"
-                 "src/esp_image_format.c"
-                 "src/bootloader_utility.c"
-                 "src/bootloader_utility_tee.c"
-                 "bootloader_flash/src/bootloader_flash.c")
-
-    if(CONFIG_SECURE_BOOT_V2_ENABLED)
-        if(CONFIG_SECURE_SIGNED_APPS_RSA_SCHEME OR CONFIG_SECURE_SIGNED_APPS_ECDSA_V2_SCHEME)
-            list(APPEND tee_srcs "src/secure_boot_v2/secure_boot_signatures_bootloader.c"
-                                 "src/secure_boot_v2/secure_boot.c"
-                                 "src/${IDF_TARGET}/secure_boot_secure_features.c")
-        endif()
-    endif()
-
-    idf_component_register(SRCS ${tee_srcs}
-                           INCLUDE_DIRS ${tee_inc_dirs}
-                           PRIV_REQUIRES efuse esp_app_format esptool_py)
-    return()
 endif()
 
 set(srcs
@@ -64,7 +36,6 @@ if(CONFIG_APP_BUILD_TYPE_APP_2NDBOOT)
         )
 endif()
 
-list(APPEND srcs "src/bootloader_sha.c")
 if(CONFIG_ESP_ROM_REV0_HAS_NO_ECDSA_INTERFACE)
     list(APPEND srcs "src/${IDF_TARGET}/bootloader_ecdsa.c")
 endif()
@@ -72,31 +43,28 @@ endif()
 if(BOOTLOADER_BUILD OR CONFIG_APP_BUILD_TYPE_RAM)
     set(include_dirs "include" "bootloader_flash/include"
         "private_include")
-    set(priv_requires micro-ecc spi_flash efuse esp_bootloader_format esp_app_format esptool_py)
-    list(APPEND priv_requires esp_hal_wdt esp_hal_gpio)
+    set(priv_requires micro-ecc spi_flash efuse esp_bootloader_format esp_app_format)
     list(APPEND srcs
     "src/bootloader_init.c"
     "src/bootloader_clock_loader.c"
     "src/bootloader_console.c"
     "src/bootloader_console_loader.c"
+    "src/${IDF_TARGET}/bootloader_sha.c"
     "src/${IDF_TARGET}/bootloader_soc.c"
     "src/${IDF_TARGET}/bootloader_${IDF_TARGET}.c"
     )
-    if(CONFIG_SECURE_ENABLE_TEE)
-        list(APPEND srcs "src/bootloader_utility_tee.c")
-    endif()
+    list(APPEND priv_requires hal)
 else()
+    list(APPEND srcs
+        "src/idf/bootloader_sha.c")
     set(include_dirs "include" "bootloader_flash/include")
     set(priv_include_dirs "private_include")
     # heap is required for `heap_memory_layout.h` header
-    set(priv_requires spi_flash mbedtls efuse heap esp_bootloader_format esp_app_format esptool_py)
-    list(APPEND priv_requires esp_hal_wdt esp_hal_gpio)
+    set(priv_requires spi_flash mbedtls efuse heap esp_bootloader_format esp_app_format)
 endif()
 
 if(BOOTLOADER_BUILD)
     list(APPEND srcs "src/bootloader_panic.c")
-    list(APPEND priv_requires esp_security)
-
     if(CONFIG_SECURE_FLASH_ENC_ENABLED)
         list(APPEND srcs "src/flash_encryption/flash_encrypt.c"
                          "src/${IDF_TARGET}/flash_encryption_secure_features.c")
@@ -156,7 +124,6 @@ if(NOT BOOTLOADER_BUILD)
 endif()
 
 if(CONFIG_SECURE_SIGNED_APPS AND (CONFIG_SECURE_BOOT_V1_ENABLED OR CONFIG_SECURE_SIGNED_APPS_ECDSA_SCHEME))
-    idf_component_get_property(espsecure_py_cmd esptool_py ESPSECUREPY_CMD)
     if(BOOTLOADER_BUILD)
         # Whether CONFIG_SECURE_BOOT_BUILD_SIGNED_BINARIES or not, we need verification key to embed
         # in the library.
@@ -169,8 +136,8 @@ if(CONFIG_SECURE_SIGNED_APPS AND (CONFIG_SECURE_BOOT_V1_ENABLED OR CONFIG_SECURE
                 "signature_verification_key.bin"
                 ABSOLUTE BASE_DIR "${CMAKE_CURRENT_BINARY_DIR}")
             add_custom_command(OUTPUT "${secure_boot_verification_key}"
-                COMMAND ${espsecure_py_cmd}
-                extract-public-key --keyfile "${secure_boot_signing_key}"
+                COMMAND ${ESPSECUREPY}
+                extract_public_key --keyfile "${secure_boot_signing_key}"
                 "${secure_boot_verification_key}"
                 DEPENDS ${secure_boot_signing_key}
                 VERBATIM)
@@ -197,8 +164,8 @@ if(CONFIG_SECURE_SIGNED_APPS AND (CONFIG_SECURE_BOOT_V1_ENABLED OR CONFIG_SECURE
                 ABSOLUTE BASE_DIR "${project_dir}")
 
             add_custom_command(OUTPUT "${secure_boot_verification_key}"
-                COMMAND ${espsecure_py_cmd}
-                extract-public-key --keyfile "${secure_boot_signing_key}"
+                COMMAND ${ESPSECUREPY}
+                extract_public_key --keyfile "${secure_boot_signing_key}"
                 "${secure_boot_verification_key}"
                 WORKING_DIRECTORY ${project_dir}
                 DEPENDS ${secure_boot_signing_key}

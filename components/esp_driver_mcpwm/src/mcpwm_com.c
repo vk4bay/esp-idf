@@ -1,13 +1,26 @@
 /*
- * SPDX-FileCopyrightText: 2022-2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2022-2024 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include "mcpwm_private.h"
+#include <stdint.h>
+#include <sys/lock.h>
+#include "sdkconfig.h"
+#if CONFIG_MCPWM_ENABLE_DEBUG_LOG
+// The local log level must be defined before including esp_log.h
+// Set the maximum log level for this source file
+#define LOG_LOCAL_LEVEL ESP_LOG_DEBUG
+#endif
+#include "esp_log.h"
+#include "esp_check.h"
 #include "esp_clk_tree.h"
 #include "esp_private/esp_clk_tree_common.h"
 #include "esp_private/periph_ctrl.h"
+#include "soc/mcpwm_periph.h"
+#include "soc/soc_caps.h"
+#include "hal/mcpwm_ll.h"
+#include "mcpwm_private.h"
 #include "esp_private/rtc_clk.h"
 
 #if SOC_PERIPH_CLK_CTRL_SHARED
@@ -26,10 +39,12 @@
 static esp_err_t mcpwm_create_sleep_retention_link_cb(void *arg);
 #endif
 
+static const char *TAG = "mcpwm";
+
 typedef struct {
     _lock_t mutex;                           // platform level mutex lock
-    mcpwm_group_t *groups[MCPWM_LL_GET(GROUP_NUM)]; // array of MCPWM group instances
-    int group_ref_counts[MCPWM_LL_GET(GROUP_NUM)];  // reference count used to protect group install/uninstall
+    mcpwm_group_t *groups[SOC_MCPWM_GROUPS]; // array of MCPWM group instances
+    int group_ref_counts[SOC_MCPWM_GROUPS];  // reference count used to protect group install/uninstall
 } mcpwm_platform_t;
 
 static mcpwm_platform_t s_platform; // singleton platform
@@ -120,11 +135,9 @@ void mcpwm_release_group_handle(mcpwm_group_t *group)
         MCPWM_RCC_ATOMIC() {
             mcpwm_ll_enable_bus_clock(group_id, false);
         }
-#if CONFIG_PM_ENABLE
         if (group->pm_lock) {
             esp_pm_lock_delete(group->pm_lock);
         }
-#endif
 #if MCPWM_USE_RETENTION_LINK
         const periph_retention_module_t module_id = mcpwm_reg_retention_info[group_id].retention_module;
         if (sleep_retention_is_module_created(module_id)) {
@@ -190,6 +203,7 @@ esp_err_t mcpwm_select_periph_clock(mcpwm_group_t *group, soc_module_clk_t clk_s
     if (do_clock_init) {
 
 #if CONFIG_PM_ENABLE
+        sprintf(group->pm_lock_name, "mcpwm_%d", group_id); // e.g. mcpwm_0
         // to make the mcpwm works reliable, the source clock must stay alive and unchanged
         esp_pm_lock_type_t pm_lock_type = ESP_PM_NO_LIGHT_SLEEP;
 #if CONFIG_IDF_TARGET_ESP32 || CONFIG_IDF_TARGET_ESP32S3
@@ -197,11 +211,11 @@ esp_err_t mcpwm_select_periph_clock(mcpwm_group_t *group, soc_module_clk_t clk_s
         // thus we want to use the APB_MAX lock
         pm_lock_type = ESP_PM_APB_FREQ_MAX;
 #endif
-        ret  = esp_pm_lock_create(pm_lock_type, 0, soc_mcpwm_signals[group_id].module_name, &group->pm_lock);
+        ret  = esp_pm_lock_create(pm_lock_type, 0, group->pm_lock_name, &group->pm_lock);
         ESP_RETURN_ON_ERROR(ret, TAG, "create pm lock failed");
 #endif // CONFIG_PM_ENABLE
 
-        ESP_RETURN_ON_ERROR(esp_clk_tree_enable_src((soc_module_clk_t)clk_src, true), TAG, "clock source enable failed");
+        esp_clk_tree_enable_src((soc_module_clk_t)clk_src, true);
         MCPWM_CLOCK_SRC_ATOMIC() {
             mcpwm_ll_group_set_clock_source(group_id, clk_src);
         }
@@ -231,7 +245,7 @@ esp_err_t mcpwm_set_prescale(mcpwm_group_t *group, uint32_t expect_module_resolu
     uint32_t fit_group_prescale = 0;
     if (!(module_prescale >= 1 && module_prescale <= module_prescale_max)) {
         group_prescale = 0;
-        while (++group_prescale <= MCPWM_LL_GET(MAX_GROUP_PRESCALE)) {
+        while (++group_prescale <= MCPWM_LL_MAX_GROUP_PRESCALE) {
             group_resolution_hz = periph_src_clk_hz / group_prescale;
             module_prescale = group_resolution_hz / expect_module_resolution_hz;
             if (module_prescale >= 1 && module_prescale <= module_prescale_max) {
@@ -248,12 +262,12 @@ esp_err_t mcpwm_set_prescale(mcpwm_group_t *group, uint32_t expect_module_resolu
         }
         module_prescale = fit_module_prescale;
         group_prescale = fit_group_prescale;
-        ESP_RETURN_ON_FALSE(group_prescale > 0 && group_prescale <= MCPWM_LL_GET(MAX_GROUP_PRESCALE), ESP_ERR_INVALID_STATE, TAG,
-                            "set group prescale failed, group clock cannot match the resolution");
         group_resolution_hz = periph_src_clk_hz / group_prescale;
     }
 
     ESP_LOGD(TAG, "group (%d) calc prescale:%"PRIu32", module calc prescale:%"PRIu32"", group_id, group_prescale, module_prescale);
+    ESP_RETURN_ON_FALSE(group_prescale > 0 && group_prescale <= MCPWM_LL_MAX_GROUP_PRESCALE, ESP_ERR_INVALID_STATE, TAG,
+                        "set group prescale failed, group clock cannot match the resolution");
 
     // check if we need to update the group prescale, group prescale is shared by all mcpwm modules
     bool prescale_conflict = false;
@@ -307,11 +321,3 @@ void mcpwm_create_retention_module(mcpwm_group_t *group)
     _lock_release(&s_platform.mutex);
 }
 #endif // MCPWM_USE_RETENTION_LINK
-
-#if CONFIG_MCPWM_ENABLE_DEBUG_LOG
-__attribute__((constructor))
-static void mcpwm_override_default_log_level(void)
-{
-    esp_log_level_set(TAG, ESP_LOG_VERBOSE);
-}
-#endif

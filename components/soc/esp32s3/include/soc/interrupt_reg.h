@@ -1,7 +1,7 @@
 /*
- * SPDX-FileCopyrightText: 2017-2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2017-2022 Espressif Systems (Shanghai) CO LTD
  *
- * SPDX-License-Identifier: Apache-2.0 OR MIT
+ * SPDX-License-Identifier: Apache-2.0
  */
 
 #ifndef _SOC_INTERRUPT_REG_H_
@@ -15,8 +15,11 @@
 extern "C" {
 #endif
 
+
 #ifdef __cplusplus
 }
 #endif
+
+
 
 #endif /*_SOC_INTERRUPT_REG_H_ */

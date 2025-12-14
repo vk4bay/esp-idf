@@ -385,7 +385,6 @@ static IRAM_ATTR void next_operation(void)
 #if !CONFIG_IEEE802154_TEST
     if (s_pending_tx.frame) {
         // Here the driver needs to recover the setting of rx aborts, see function `ieee802154_transmit`.
-        ieee802154_ll_disable_rx_abort_events(IEEE802154_RX_ABORT_ALL);
         ieee802154_ll_enable_rx_abort_events(BIT(IEEE802154_RX_ABORT_BY_TX_ACK_TIMEOUT - 1) | BIT(IEEE802154_RX_ABORT_BY_TX_ACK_COEX_BREAK - 1));
         // Clear the RX abort event again for avoiding the risk if there are still some rx abort events created after last isr process.
         ieee802154_ll_clear_events(IEEE802154_EVENT_RX_ABORT);
@@ -651,7 +650,7 @@ static IRAM_ATTR void isr_handle_ed_done(void)
     if (s_ieee802154_state == IEEE802154_STATE_CCA) {
         esp_ieee802154_cca_done(ieee802154_ll_is_cca_busy());
     } else if (s_ieee802154_state == IEEE802154_STATE_ED) {
-        ieee802154_inner_energy_detect_done(ieee802154_ll_get_ed_rss() + IEEE802154_RSSI_COMPENSATION_VALUE);
+        ieee802154_inner_energy_detect_done(ieee802154_ll_get_ed_rss());
     }
 
     NEEDS_NEXT_OPT(true);

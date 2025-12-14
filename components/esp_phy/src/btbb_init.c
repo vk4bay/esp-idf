@@ -5,7 +5,6 @@
  */
 
 #include <stdint.h>
-#include "sys/lock.h"
 #include "esp_check.h"
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"

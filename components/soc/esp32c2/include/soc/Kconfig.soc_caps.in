@@ -227,10 +227,6 @@ config SOC_SHARED_IDCACHE_SUPPORTED
     bool
     default y
 
-config SOC_CACHE_FREEZE_SUPPORTED
-    bool
-    default y
-
 config SOC_CPU_CORES_NUM
     int
     default 1
@@ -271,6 +267,14 @@ config SOC_AHB_GDMA_VERSION
     int
     default 1
 
+config SOC_GDMA_NUM_GROUPS_MAX
+    int
+    default 1
+
+config SOC_GDMA_PAIRS_PER_GROUP_MAX
+    int
+    default 1
+
 config SOC_GPIO_PORT
     int
     default 1
@@ -280,6 +284,10 @@ config SOC_GPIO_PIN_COUNT
     default 21
 
 config SOC_GPIO_SUPPORT_PIN_GLITCH_FILTER
+    bool
+    default y
+
+config SOC_GPIO_FILTER_CLK_SUPPORT_APB
     bool
     default y
 
@@ -318,6 +326,22 @@ config SOC_GPIO_CLOCKOUT_BY_GPIO_MATRIX
 config SOC_GPIO_CLOCKOUT_CHANNEL_NUM
     int
     default 3
+
+config SOC_GPIO_SUPPORT_HOLD_IO_IN_DSLP
+    bool
+    default y
+
+config SOC_DEDIC_GPIO_OUT_CHANNELS_NUM
+    int
+    default 8
+
+config SOC_DEDIC_GPIO_IN_CHANNELS_NUM
+    int
+    default 8
+
+config SOC_DEDIC_PERIPH_ALWAYS_ENABLE
+    bool
+    default y
 
 config SOC_I2C_NUM
     int
@@ -575,6 +599,26 @@ config SOC_SYSTIMER_ALARM_MISS_COMPENSATE
     bool
     default y
 
+config SOC_TIMER_GROUPS
+    int
+    default 1
+
+config SOC_TIMER_GROUP_TIMERS_PER_GROUP
+    int
+    default 1
+
+config SOC_TIMER_GROUP_COUNTER_BIT_WIDTH
+    int
+    default 54
+
+config SOC_TIMER_GROUP_SUPPORT_XTAL
+    bool
+    default y
+
+config SOC_TIMER_GROUP_TOTAL_TIMERS
+    int
+    default 1
+
 config SOC_LP_TIMER_BIT_WIDTH_LO
     int
     default 32
@@ -596,10 +640,6 @@ config SOC_EFUSE_DIS_PAD_JTAG
     default y
 
 config SOC_EFUSE_DIS_DIRECT_BOOT
-    bool
-    default y
-
-config SOC_EFUSE_XTS_AES_KEY_128
     bool
     default y
 
@@ -667,10 +707,6 @@ config SOC_UART_SUPPORT_FSM_TX_WAIT_SEND
     bool
     default y
 
-config SOC_UART_WAKEUP_SUPPORT_ACTIVE_THRESH_MODE
-    bool
-    default y
-
 config SOC_SUPPORT_COEXISTENCE
     bool
     default y
@@ -727,19 +763,11 @@ config SOC_CLK_OSC_SLOW_SUPPORTED
     bool
     default y
 
-config SOC_CLK_LP_FAST_SUPPORT_XTAL_D2
-    bool
-    default y
-
 config SOC_WIFI_HW_TSF
     bool
     default y
 
 config SOC_WIFI_FTM_SUPPORT
-    bool
-    default y
-
-config SOC_WIFI_TXOP_SUPPORT
     bool
     default y
 

@@ -13,7 +13,6 @@
 #include "portTestMacro.h"
 
 /* ------------------------------------------------------------------------------------------------------------------ */
-#if SOC_GPTIMER_SUPPORTED
 
 /*
 Test vTaskDelay
@@ -179,4 +178,3 @@ TEST_CASE("Tasks: Test vTaskDelayUntil", "[freertos]")
 }
 
 #endif /* ( INCLUDE_xTaskDelayUntil == 1 ) */
-#endif //SOC_GPTIMER_SUPPORTED

@@ -6,7 +6,6 @@
 
 #include <string.h>
 #include <stdatomic.h>
-#include <sys/param.h>
 #include "sdkconfig.h"
 #include "esp_types.h"
 #include "esp_attr.h"
@@ -18,7 +17,6 @@
 #include "driver/spi_master.h"
 #include "driver/gpio.h"
 #include "esp_private/gpio.h"
-#include "esp_private/esp_gpio_reserve.h"
 #include "esp_private/periph_ctrl.h"
 #include "esp_private/spi_common_internal.h"
 #include "esp_private/spi_share_hw_ctrl.h"
@@ -26,21 +24,9 @@
 #include "esp_private/sleep_retention.h"
 #include "esp_dma_utils.h"
 #include "hal/spi_hal.h"
-#include "freertos/FreeRTOS.h"
+#include "hal/gpio_hal.h"
 #if CONFIG_IDF_TARGET_ESP32
 #include "soc/dport_reg.h"
-#endif
-
-#if SOC_PERIPH_CLK_CTRL_SHARED
-#define SPI_COMMON_PERI_CLOCK_ATOMIC() PERIPH_RCC_ATOMIC()
-#else
-#define SPI_COMMON_PERI_CLOCK_ATOMIC()
-#endif
-
-#if CONFIG_SPI_MASTER_ISR_IN_IRAM || CONFIG_SPI_SLAVE_ISR_IN_IRAM
-#define SPI_COMMON_ISR_ATTR IRAM_ATTR
-#else
-#define SPI_COMMON_ISR_ATTR
 #endif
 
 #if CONFIG_SPI_MASTER_ISR_IN_IRAM || CONFIG_SPI_SLAVE_ISR_IN_IRAM
@@ -49,20 +35,24 @@
 #define SPI_COMMON_MALLOC_CAPS    (MALLOC_CAP_DEFAULT)
 #endif
 
-static const char *SPI_TAG = "spi_common";
+static const char *SPI_TAG = "spi";
 
-#define SPI_CHECK(a, str, ret_val, ...)  ESP_RETURN_ON_FALSE(a, ret_val, SPI_TAG, str, ##__VA_ARGS__)
+#define SPI_CHECK(a, str, ret_val) ESP_RETURN_ON_FALSE(a, ret_val, SPI_TAG, str)
+
 #define SPI_CHECK_PIN(pin_num, pin_name, check_output) if (check_output) { \
             SPI_CHECK(GPIO_IS_VALID_OUTPUT_GPIO(pin_num), pin_name" not valid", ESP_ERR_INVALID_ARG); \
         } else { \
             SPI_CHECK(GPIO_IS_VALID_GPIO(pin_num), pin_name" not valid", ESP_ERR_INVALID_ARG); \
         }
+
 #define SPI_MAIN_BUS_DEFAULT() { \
         .host_id = 0, \
         .bus_attr = { \
             .max_transfer_sz = SOC_SPI_MAXIMUM_BUFFER_SIZE, \
         }, \
     }
+
+#define FUNC_GPIO   PIN_FUNC_GPIO
 
 typedef struct {
     int host_id;
@@ -71,6 +61,10 @@ typedef struct {
     void* destroy_arg;
     spi_bus_attr_t bus_attr;
     spi_dma_ctx_t *dma_ctx;
+#if SOC_GDMA_SUPPORTED
+    gdma_channel_handle_t tx_channel;
+    gdma_channel_handle_t rx_channel;
+#endif
 } spicommon_bus_context_t;
 
 static spicommon_bus_context_t s_mainbus = SPI_MAIN_BUS_DEFAULT();
@@ -82,38 +76,9 @@ static spicommon_bus_context_t* bus_ctx[SOC_SPI_PERIPH_NUM] = {&s_mainbus};
 static __attribute__((constructor)) void spi_bus_lock_init_main_bus(void)
 {
     /* Initialize bus context about the main SPI bus lock, called during chip startup. */
-    bus_ctx[0]->bus_attr.lock = g_main_spi_bus_lock;
+    spi_bus_main_set_lock(g_main_spi_bus_lock);
 }
 #endif
-
-esp_err_t spicommon_bus_alloc(spi_host_device_t host_id, const char *name)
-{
-    SPI_CHECK(spicommon_periph_claim(host_id, name), "host already in use", ESP_ERR_INVALID_STATE);
-
-    spicommon_bus_context_t *ctx = heap_caps_calloc(1, sizeof(spicommon_bus_context_t), SPI_COMMON_MALLOC_CAPS);
-    if (!ctx) {
-        spicommon_periph_free(host_id);
-        return ESP_ERR_NO_MEM;
-    }
-    SPI_COMMON_PERI_CLOCK_ATOMIC() {
-        spi_ll_enable_clock(host_id, true);
-    }
-    ctx->host_id = host_id;
-    bus_ctx[host_id] = ctx;
-    return ESP_OK;
-}
-
-esp_err_t spicommon_bus_free(spi_host_device_t host_id)
-{
-    assert(bus_ctx[host_id]);
-    spicommon_periph_free(host_id);
-    SPI_COMMON_PERI_CLOCK_ATOMIC() {
-        spi_ll_enable_clock(host_id, false);
-    }
-    free(bus_ctx[host_id]);
-    bus_ctx[host_id] = NULL;
-    return ESP_OK;
-}
 
 #if SOC_GDMA_SUPPORTED
 //NOTE!! If both A and B are not defined, '#if (A==B)' is true, because GCC use 0 stand for undefined symbol
@@ -152,7 +117,7 @@ int spicommon_irqdma_source_for_host(spi_host_device_t host)
 #if !SOC_GDMA_SUPPORTED
 
 #if SPI_LL_DMA_SHARED
-static inline shared_periph_module_t get_dma_periph(int dma_chan)
+static inline periph_module_t get_dma_periph(int dma_chan)
 {
     assert(dma_chan >= 1 && dma_chan <= SOC_SPI_DMA_CHAN_NUM);
     if (dma_chan == 1) {
@@ -249,10 +214,6 @@ static esp_err_t alloc_dma_chan(spi_host_device_t host_id, spi_dma_chan_t dma_ch
 
     spi_dma_enable_burst(dma_ctx->tx_dma_chan, true, true);
     spi_dma_enable_burst(dma_ctx->rx_dma_chan, true, true);
-
-    // Get DMA alignment constraints
-    spi_dma_get_alignment_constraints(dma_ctx->tx_dma_chan, &dma_ctx->dma_align_tx_int, &dma_ctx->dma_align_tx_ext);
-    spi_dma_get_alignment_constraints(dma_ctx->rx_dma_chan, &dma_ctx->dma_align_rx_int, &dma_ctx->dma_align_rx_ext);
     return ret;
 }
 
@@ -293,16 +254,13 @@ static esp_err_t alloc_dma_chan(spi_host_device_t host_id, spi_dma_chan_t dma_ch
             gdma_connect(dma_ctx->rx_dma_chan, GDMA_MAKE_TRIGGER(GDMA_TRIG_PERIPH_SPI, 3));
         }
 #endif
+        // TODO: add support to allow SPI transfer PSRAM buffer
         gdma_transfer_config_t trans_cfg = {
             .max_data_burst_size = 16,
-            .access_ext_mem = true, // allow to transfer data from/to external memory directly by DMA
+            .access_ext_mem = false,
         };
         ESP_RETURN_ON_ERROR(gdma_config_transfer(dma_ctx->tx_dma_chan, &trans_cfg), SPI_TAG, "config gdma tx transfer failed");
         ESP_RETURN_ON_ERROR(gdma_config_transfer(dma_ctx->rx_dma_chan, &trans_cfg), SPI_TAG, "config gdma rx transfer failed");
-
-        // Get DMA alignment constraints
-        gdma_get_alignment_constraints(dma_ctx->tx_dma_chan, &dma_ctx->dma_align_tx_int, &dma_ctx->dma_align_tx_ext);
-        gdma_get_alignment_constraints(dma_ctx->rx_dma_chan, &dma_ctx->dma_align_rx_int, &dma_ctx->dma_align_rx_ext);
     }
     return ret;
 }
@@ -361,7 +319,7 @@ esp_err_t spicommon_dma_desc_alloc(spi_dma_ctx_t *dma_ctx, int cfg_max_sz, int *
     return ESP_OK;
 }
 
-void SPI_COMMON_ISR_ATTR spicommon_dma_desc_setup_link(spi_dma_desc_t *dmadesc, const void *data, int len, bool is_rx)
+void IRAM_ATTR spicommon_dma_desc_setup_link(spi_dma_desc_t *dmadesc, const void *data, int len, bool is_rx)
 {
     dmadesc = ADDR_DMA_2_CPU(dmadesc);
     int n = 0;
@@ -496,14 +454,14 @@ static void bus_iomux_pins_set_oct(spi_host_device_t host, const spi_bus_config_
                      bus_config->sclk_io_num, bus_config->data4_io_num, bus_config->data5_io_num, bus_config->data6_io_num, bus_config->data7_io_num
                     };
     int io_signals[] = {spi_periph_signal[host].spid_in, spi_periph_signal[host].spiq_in, spi_periph_signal[host].spiwp_in,
-                        spi_periph_signal[host].spihd_in, spi_periph_signal[host].spiclk_in, spi_periph_signal[host].spid4_in,
-                        spi_periph_signal[host].spid5_in, spi_periph_signal[host].spid6_in, spi_periph_signal[host].spid7_in
+                        spi_periph_signal[host].spihd_in, spi_periph_signal[host].spiclk_in, spi_periph_signal[host].spid4_out,
+                        spi_periph_signal[host].spid5_out, spi_periph_signal[host].spid6_out, spi_periph_signal[host].spid7_out
                        };
     for (size_t i = 0; i < sizeof(io_nums) / sizeof(io_nums[0]); i++) {
         if (io_nums[i] > 0) {
+            gpio_iomux_in(io_nums[i], io_signals[i]);
             // In Octal mode use function channel 2
-            gpio_iomux_input(io_nums[i], SPI2_FUNC_NUM_OCT, io_signals[i]);
-            gpio_iomux_output(io_nums[i], SPI2_FUNC_NUM_OCT);
+            gpio_iomux_out(io_nums[i], SPI2_FUNC_NUM_OCT, false);
         }
     }
 }
@@ -512,51 +470,36 @@ static void bus_iomux_pins_set_oct(spi_host_device_t host, const spi_bus_config_
 static void bus_iomux_pins_set_quad(spi_host_device_t host, const spi_bus_config_t* bus_config)
 {
     if (bus_config->mosi_io_num >= 0) {
-        gpio_iomux_input(bus_config->mosi_io_num, spi_periph_signal[host].func, spi_periph_signal[host].spid_in);
-        gpio_iomux_output(bus_config->mosi_io_num, spi_periph_signal[host].func);
+        gpio_iomux_in(bus_config->mosi_io_num, spi_periph_signal[host].spid_in);
+        gpio_iomux_out(bus_config->mosi_io_num, spi_periph_signal[host].func, false);
     }
     if (bus_config->miso_io_num >= 0) {
-        gpio_iomux_input(bus_config->miso_io_num, spi_periph_signal[host].func, spi_periph_signal[host].spiq_in);
-        gpio_iomux_output(bus_config->miso_io_num, spi_periph_signal[host].func);
+        gpio_iomux_in(bus_config->miso_io_num, spi_periph_signal[host].spiq_in);
+        gpio_iomux_out(bus_config->miso_io_num, spi_periph_signal[host].func, false);
     }
     if (bus_config->quadwp_io_num >= 0) {
-        gpio_iomux_input(bus_config->quadwp_io_num, spi_periph_signal[host].func, spi_periph_signal[host].spiwp_in);
-        gpio_iomux_output(bus_config->quadwp_io_num, spi_periph_signal[host].func);
+        gpio_iomux_in(bus_config->quadwp_io_num, spi_periph_signal[host].spiwp_in);
+        gpio_iomux_out(bus_config->quadwp_io_num, spi_periph_signal[host].func, false);
     }
     if (bus_config->quadhd_io_num >= 0) {
-        gpio_iomux_input(bus_config->quadhd_io_num, spi_periph_signal[host].func, spi_periph_signal[host].spihd_in);
-        gpio_iomux_output(bus_config->quadhd_io_num, spi_periph_signal[host].func);
+        gpio_iomux_in(bus_config->quadhd_io_num, spi_periph_signal[host].spihd_in);
+        gpio_iomux_out(bus_config->quadhd_io_num, spi_periph_signal[host].func, false);
     }
     if (bus_config->sclk_io_num >= 0) {
-        gpio_iomux_input(bus_config->sclk_io_num, spi_periph_signal[host].func, spi_periph_signal[host].spiclk_in);
-        gpio_iomux_output(bus_config->sclk_io_num, spi_periph_signal[host].func);
+        gpio_iomux_in(bus_config->sclk_io_num, spi_periph_signal[host].spiclk_in);
+        gpio_iomux_out(bus_config->sclk_io_num, spi_periph_signal[host].func, false);
     }
 }
 
-// check if the GPIO is already used by others
-static void s_spi_common_gpio_check_reserve(gpio_num_t gpio_num)
+static void bus_iomux_pins_set(spi_host_device_t host, const spi_bus_config_t* bus_config)
 {
-    assert(GPIO_IS_VALID_GPIO(gpio_num));  //coverity check
-    uint64_t orig_occupied_map = esp_gpio_reserve(BIT64(gpio_num));
-    if (orig_occupied_map & BIT64(gpio_num)) {
-        ESP_LOGW(SPI_TAG, "GPIO %d is conflict with others and be overwritten", gpio_num);
+#if SOC_SPI_SUPPORT_OCT
+    if ((bus_config->flags & SPICOMMON_BUSFLAG_OCTAL) == SPICOMMON_BUSFLAG_OCTAL) {
+        bus_iomux_pins_set_oct(host, bus_config);
+        return;
     }
-}
-
-static void s_spi_common_bus_via_gpio(gpio_num_t gpio_num, int in_sig, int out_sig, uint64_t *io_mask)
-{
-    assert(GPIO_IS_VALID_GPIO(gpio_num));  //coverity check
-    if (in_sig != -1) {
-        gpio_input_enable(gpio_num);
-        esp_rom_gpio_connect_in_signal(gpio_num, in_sig, false);
-    }
-    if (out_sig != -1) {
-        // For gpio_matrix, reserve output pins, see 'esp_gpio_reserve.h'
-        *io_mask |= BIT64(gpio_num);
-        s_spi_common_gpio_check_reserve(gpio_num);
-        esp_rom_gpio_connect_out_signal(gpio_num, out_sig, false, false);
-    }
-    gpio_func_sel(gpio_num, PIN_FUNC_GPIO);
+#endif
+    bus_iomux_pins_set_quad(host, bus_config);
 }
 
 /*
@@ -564,7 +507,7 @@ Do the common stuff to hook up a SPI host to a bus defined by a bunch of GPIO pi
 bus config struct and it'll set up the GPIO matrix and enable the device. If a pin is set to non-negative value,
 it should be able to be initialized.
 */
-esp_err_t spicommon_bus_initialize_io(spi_host_device_t host, const spi_bus_config_t *bus_config, uint32_t flags, uint32_t* flags_o, uint64_t *io_reserved)
+esp_err_t spicommon_bus_initialize_io(spi_host_device_t host, const spi_bus_config_t *bus_config, uint32_t flags, uint32_t* flags_o)
 {
 #if SOC_SPI_SUPPORT_OCT
     // In the driver of previous version, spi data4 ~ spi data7 are not in spi_bus_config_t struct. So the new-added pins come as 0
@@ -578,33 +521,55 @@ esp_err_t spicommon_bus_initialize_io(spi_host_device_t host, const spi_bus_conf
 #endif //SOC_SPI_SUPPORT_OCT
 
     uint32_t temp_flag = 0;
-    uint64_t gpio_reserv = 0;
+
+    bool miso_need_output;
+    bool mosi_need_output;
+    bool sclk_need_output;
+    if ((flags & SPICOMMON_BUSFLAG_MASTER) != 0) {
+        //initial for master
+        miso_need_output = ((flags & SPICOMMON_BUSFLAG_DUAL) != 0) ? true : false;
+        mosi_need_output = true;
+        sclk_need_output = true;
+    } else {
+        //initial for slave
+        miso_need_output = true;
+        mosi_need_output = ((flags & SPICOMMON_BUSFLAG_DUAL) != 0) ? true : false;
+        sclk_need_output = false;
+    }
+
+    const bool wp_need_output = true;
+    const bool hd_need_output = true;
+
     //check pin capabilities
     if (bus_config->sclk_io_num >= 0) {
         temp_flag |= SPICOMMON_BUSFLAG_SCLK;
-        SPI_CHECK_PIN(bus_config->sclk_io_num, "sclk", (flags & SPICOMMON_BUSFLAG_MASTER));
+        SPI_CHECK_PIN(bus_config->sclk_io_num, "sclk", sclk_need_output);
     }
     if (bus_config->quadwp_io_num >= 0) {
-        SPI_CHECK_PIN(bus_config->quadwp_io_num, "wp", true);
+        SPI_CHECK_PIN(bus_config->quadwp_io_num, "wp", wp_need_output);
     }
     if (bus_config->quadhd_io_num >= 0) {
-        SPI_CHECK_PIN(bus_config->quadhd_io_num, "hd", true);
+        SPI_CHECK_PIN(bus_config->quadhd_io_num, "hd", hd_need_output);
     }
 #if SOC_SPI_SUPPORT_OCT
+    const bool io4_need_output = true;
+    const bool io5_need_output = true;
+    const bool io6_need_output = true;
+    const bool io7_need_output = true;
     // set flags for OCTAL mode according to the existence of spi data4 ~ spi data7
     if (io4_7_enabled) {
         temp_flag |= SPICOMMON_BUSFLAG_IO4_IO7;
         if (bus_config->data4_io_num >= 0) {
-            SPI_CHECK_PIN(bus_config->data4_io_num, "spi data4", true);
+            SPI_CHECK_PIN(bus_config->data4_io_num, "spi data4", io4_need_output);
         }
         if (bus_config->data5_io_num >= 0) {
-            SPI_CHECK_PIN(bus_config->data5_io_num, "spi data5", true);
+            SPI_CHECK_PIN(bus_config->data5_io_num, "spi data5", io5_need_output);
         }
         if (bus_config->data6_io_num >= 0) {
-            SPI_CHECK_PIN(bus_config->data6_io_num, "spi data6", true);
+            SPI_CHECK_PIN(bus_config->data6_io_num, "spi data6", io6_need_output);
         }
         if (bus_config->data7_io_num >= 0) {
-            SPI_CHECK_PIN(bus_config->data7_io_num, "spi data7", true);
+            SPI_CHECK_PIN(bus_config->data7_io_num, "spi data7", io7_need_output);
         }
     }
 #endif //SOC_SPI_SUPPORT_OCT
@@ -615,16 +580,15 @@ esp_err_t spicommon_bus_initialize_io(spi_host_device_t host, const spi_bus_conf
     }
     if (bus_config->mosi_io_num >= 0) {
         temp_flag |= SPICOMMON_BUSFLAG_MOSI;
-        SPI_CHECK_PIN(bus_config->mosi_io_num, "mosi", (flags & SPICOMMON_BUSFLAG_MASTER) || (temp_flag & SPICOMMON_BUSFLAG_DUAL));
+        SPI_CHECK_PIN(bus_config->mosi_io_num, "mosi", mosi_need_output);
     }
     if (bus_config->miso_io_num >= 0) {
         temp_flag |= SPICOMMON_BUSFLAG_MISO;
-        SPI_CHECK_PIN(bus_config->miso_io_num, "miso", !(flags & SPICOMMON_BUSFLAG_MASTER) || (temp_flag & SPICOMMON_BUSFLAG_DUAL));
+        SPI_CHECK_PIN(bus_config->miso_io_num, "miso", miso_need_output);
     }
     //set flags for DUAL mode according to output-capability of MOSI and MISO pins.
     if ((bus_config->mosi_io_num < 0 || GPIO_IS_VALID_OUTPUT_GPIO(bus_config->mosi_io_num)) &&
-            (bus_config->miso_io_num < 0 || GPIO_IS_VALID_OUTPUT_GPIO(bus_config->miso_io_num)) &&
-            (bus_config->miso_io_num != bus_config->mosi_io_num)) {
+            (bus_config->miso_io_num < 0 || GPIO_IS_VALID_OUTPUT_GPIO(bus_config->miso_io_num))) {
         temp_flag |= SPICOMMON_BUSFLAG_DUAL;
     }
 
@@ -665,131 +629,163 @@ esp_err_t spicommon_bus_initialize_io(spi_host_device_t host, const spi_bus_conf
             ESP_LOGE(SPI_TAG, "spi data4 ~ spi data7 are required.");
         }
 #endif
-        SPI_CHECK(false, "not all required capabilities satisfied.", ESP_ERR_INVALID_ARG);
+        SPI_CHECK(missing_flag == 0, "not all required capabilities satisfied.", ESP_ERR_INVALID_ARG);
     }
 
-    ESP_LOGD(SPI_TAG, "SPI%d use %s.", host + 1, use_iomux ? "iomux pins" : "gpio matrix");
     if (use_iomux) {
         //All SPI iomux pin selections resolve to 1, so we put that here instead of trying to figure
-        //out which PIN_FUNC_GPIOx_xSPIxx to grab; they all are defined to 1 anyway.
-        for (uint8_t i = 0; i < sizeof(bus_config->iocfg) / sizeof(bus_config->iocfg[0]); i++) {
-            if (!(flags & SPICOMMON_BUSFLAG_OCTAL) && (i >= 4)) {
-                break;
-            }
-            // For iomux, reserve all configured pins
-            if (GPIO_IS_VALID_GPIO(bus_config->iocfg[i])) {
-                gpio_reserv |= BIT64(bus_config->iocfg[i]);
-                s_spi_common_gpio_check_reserve(bus_config->iocfg[i]);
-            }
-        }
-        bus_iomux_pins_set_quad(host, bus_config);
-#if SOC_SPI_SUPPORT_OCT
-        if (flags & SPICOMMON_BUSFLAG_OCTAL) {
-            bus_iomux_pins_set_oct(host, bus_config);
-        }
-#endif
+        //out which FUNC_GPIOx_xSPIxx to grab; they all are defined to 1 anyway.
+        ESP_LOGD(SPI_TAG, "SPI%d use iomux pins.", host + 1);
+        bus_iomux_pins_set(host, bus_config);
     } else {
         //Use GPIO matrix
+        ESP_LOGD(SPI_TAG, "SPI%d use gpio matrix.", host + 1);
         if (bus_config->mosi_io_num >= 0) {
-            int in_sig = (!(flags & SPICOMMON_BUSFLAG_MASTER) || (temp_flag & SPICOMMON_BUSFLAG_DUAL)) ? spi_periph_signal[host].spid_in : -1;
-            int out_sig = ((flags & SPICOMMON_BUSFLAG_MASTER) || (temp_flag & SPICOMMON_BUSFLAG_DUAL)) ? spi_periph_signal[host].spid_out : -1;
-            s_spi_common_bus_via_gpio(bus_config->mosi_io_num, in_sig, out_sig, &gpio_reserv);
+            if (mosi_need_output || (temp_flag & SPICOMMON_BUSFLAG_DUAL)) {
+                gpio_set_direction(bus_config->mosi_io_num, GPIO_MODE_INPUT_OUTPUT);
+                esp_rom_gpio_connect_out_signal(bus_config->mosi_io_num, spi_periph_signal[host].spid_out, false, false);
+            } else {
+                gpio_set_direction(bus_config->mosi_io_num, GPIO_MODE_INPUT);
+            }
+            esp_rom_gpio_connect_in_signal(bus_config->mosi_io_num, spi_periph_signal[host].spid_in, false);
+#if CONFIG_IDF_TARGET_ESP32S2
+            PIN_INPUT_ENABLE(GPIO_PIN_MUX_REG[bus_config->mosi_io_num]);
+#endif
+            gpio_func_sel(bus_config->mosi_io_num, FUNC_GPIO);
         }
         if (bus_config->miso_io_num >= 0) {
-            int in_sig = ((flags & SPICOMMON_BUSFLAG_MASTER) || (temp_flag & SPICOMMON_BUSFLAG_DUAL)) ? spi_periph_signal[host].spiq_in : -1;
-            int out_sig = (!(flags & SPICOMMON_BUSFLAG_MASTER) || (temp_flag & SPICOMMON_BUSFLAG_DUAL)) ? spi_periph_signal[host].spiq_out : -1;
-            s_spi_common_bus_via_gpio(bus_config->miso_io_num, in_sig, out_sig, &gpio_reserv);
-        }
-        if (bus_config->sclk_io_num >= 0) {
-            int in_sig = (flags & SPICOMMON_BUSFLAG_MASTER) ? -1 : spi_periph_signal[host].spiclk_in;
-            int out_sig = (flags & SPICOMMON_BUSFLAG_MASTER) ? spi_periph_signal[host].spiclk_out : -1;
-            s_spi_common_bus_via_gpio(bus_config->sclk_io_num, in_sig, out_sig, &gpio_reserv);
+            if (miso_need_output || (temp_flag & SPICOMMON_BUSFLAG_DUAL)) {
+                gpio_set_direction(bus_config->miso_io_num, GPIO_MODE_INPUT_OUTPUT);
+                esp_rom_gpio_connect_out_signal(bus_config->miso_io_num, spi_periph_signal[host].spiq_out, false, false);
+            } else {
+                gpio_set_direction(bus_config->miso_io_num, GPIO_MODE_INPUT);
+            }
+            esp_rom_gpio_connect_in_signal(bus_config->miso_io_num, spi_periph_signal[host].spiq_in, false);
+#if CONFIG_IDF_TARGET_ESP32S2
+            PIN_INPUT_ENABLE(GPIO_PIN_MUX_REG[bus_config->miso_io_num]);
+#endif
+            gpio_func_sel(bus_config->miso_io_num, FUNC_GPIO);
         }
         if (bus_config->quadwp_io_num >= 0) {
-            s_spi_common_bus_via_gpio(bus_config->quadwp_io_num, spi_periph_signal[host].spiwp_in, spi_periph_signal[host].spiwp_out, &gpio_reserv);
+            gpio_set_direction(bus_config->quadwp_io_num, GPIO_MODE_INPUT_OUTPUT);
+            esp_rom_gpio_connect_out_signal(bus_config->quadwp_io_num, spi_periph_signal[host].spiwp_out, false, false);
+            esp_rom_gpio_connect_in_signal(bus_config->quadwp_io_num, spi_periph_signal[host].spiwp_in, false);
+#if CONFIG_IDF_TARGET_ESP32S2
+            PIN_INPUT_ENABLE(GPIO_PIN_MUX_REG[bus_config->quadwp_io_num]);
+#endif
+            gpio_func_sel(bus_config->quadwp_io_num, FUNC_GPIO);
         }
         if (bus_config->quadhd_io_num >= 0) {
-            s_spi_common_bus_via_gpio(bus_config->quadhd_io_num, spi_periph_signal[host].spihd_in, spi_periph_signal[host].spihd_out, &gpio_reserv);
+            gpio_set_direction(bus_config->quadhd_io_num, GPIO_MODE_INPUT_OUTPUT);
+            esp_rom_gpio_connect_out_signal(bus_config->quadhd_io_num, spi_periph_signal[host].spihd_out, false, false);
+            esp_rom_gpio_connect_in_signal(bus_config->quadhd_io_num, spi_periph_signal[host].spihd_in, false);
+#if CONFIG_IDF_TARGET_ESP32S2
+            PIN_INPUT_ENABLE(GPIO_PIN_MUX_REG[bus_config->quadhd_io_num]);
+#endif
+            gpio_func_sel(bus_config->quadhd_io_num, FUNC_GPIO);
+        }
+        if (bus_config->sclk_io_num >= 0) {
+            if (sclk_need_output) {
+                gpio_set_direction(bus_config->sclk_io_num, GPIO_MODE_INPUT_OUTPUT);
+                esp_rom_gpio_connect_out_signal(bus_config->sclk_io_num, spi_periph_signal[host].spiclk_out, false, false);
+            } else {
+                gpio_set_direction(bus_config->sclk_io_num, GPIO_MODE_INPUT);
+            }
+            esp_rom_gpio_connect_in_signal(bus_config->sclk_io_num, spi_periph_signal[host].spiclk_in, false);
+#if CONFIG_IDF_TARGET_ESP32S2
+            PIN_INPUT_ENABLE(GPIO_PIN_MUX_REG[bus_config->sclk_io_num]);
+#endif
+            gpio_func_sel(bus_config->sclk_io_num, FUNC_GPIO);
         }
 #if SOC_SPI_SUPPORT_OCT
-        if (flags & SPICOMMON_BUSFLAG_OCTAL) {
+        if ((flags & SPICOMMON_BUSFLAG_OCTAL) == SPICOMMON_BUSFLAG_OCTAL) {
             int io_nums[] = {bus_config->data4_io_num, bus_config->data5_io_num, bus_config->data6_io_num, bus_config->data7_io_num};
-            uint8_t io_signals[4][2] = {
-                {spi_periph_signal[host].spid4_out, spi_periph_signal[host].spid4_in},
+            uint8_t io_signals[4][2] = {{spi_periph_signal[host].spid4_out, spi_periph_signal[host].spid4_in},
                 {spi_periph_signal[host].spid5_out, spi_periph_signal[host].spid5_in},
                 {spi_periph_signal[host].spid6_out, spi_periph_signal[host].spid6_in},
                 {spi_periph_signal[host].spid7_out, spi_periph_signal[host].spid7_in}
             };
             for (size_t i = 0; i < sizeof(io_nums) / sizeof(io_nums[0]); i++) {
                 if (io_nums[i] >= 0) {
-                    s_spi_common_bus_via_gpio(io_nums[i], io_signals[i][1], io_signals[i][0], &gpio_reserv);
+                    gpio_set_direction(io_nums[i], GPIO_MODE_INPUT_OUTPUT);
+                    esp_rom_gpio_connect_out_signal(io_nums[i], io_signals[i][0], false, false);
+                    esp_rom_gpio_connect_in_signal(io_nums[i], io_signals[i][1], false);
+#if CONFIG_IDF_TARGET_ESP32S2
+                    PIN_INPUT_ENABLE(GPIO_PIN_MUX_REG[io_nums[i]]);
+#endif
+                    gpio_func_sel(io_nums[i], FUNC_GPIO);
                 }
             }
         }
 #endif //SOC_SPI_SUPPORT_OCT
     }
 
-    if (bus_ctx[host]) {
-        bus_ctx[host]->bus_attr.bus_cfg = *bus_config;
-        bus_ctx[host]->bus_attr.flags = temp_flag;
-        bus_ctx[host]->bus_attr.gpio_reserve = gpio_reserv;
-    }
     if (flags_o) {
         *flags_o = temp_flag;
     }
     return ESP_OK;
 }
 
-esp_err_t spicommon_bus_free_io_cfg(const spi_bus_config_t *bus_cfg, uint64_t *io_reserved)
+esp_err_t spicommon_bus_free_io_cfg(const spi_bus_config_t *bus_cfg)
 {
-    for (uint8_t i = 0; i < sizeof(bus_cfg->iocfg) / sizeof(bus_cfg->iocfg[0]); i++) {
-#if !SOC_SPI_SUPPORT_OCT
-        if (i > 4) {
-            break;
-        }
-#endif
-        if (GPIO_IS_VALID_GPIO(bus_cfg->iocfg[i]) && (*io_reserved & BIT64(bus_cfg->iocfg[i]))) {
-            *io_reserved &= ~BIT64(bus_cfg->iocfg[i]);
-            gpio_output_disable(bus_cfg->iocfg[i]);
-            esp_gpio_revoke(BIT64(bus_cfg->iocfg[i]));
+    int pin_array[] = {
+        bus_cfg->mosi_io_num,
+        bus_cfg->miso_io_num,
+        bus_cfg->sclk_io_num,
+        bus_cfg->quadwp_io_num,
+        bus_cfg->quadhd_io_num,
+    };
+    for (int i = 0; i < sizeof(pin_array) / sizeof(int); i ++) {
+        const int io = pin_array[i];
+        if (GPIO_IS_VALID_GPIO(io)) {
+            gpio_reset_pin(io);
         }
     }
     return ESP_OK;
 }
 
-void spicommon_cs_initialize(spi_host_device_t host, int cs_io_num, int cs_id, int force_gpio_matrix, uint64_t *io_reserved)
+void spicommon_cs_initialize(spi_host_device_t host, int cs_io_num, int cs_num, int force_gpio_matrix)
 {
-    uint64_t out_mask = 0;
-    if (!force_gpio_matrix && cs_io_num == spi_periph_signal[host].spics0_iomux_pin && cs_id == 0) {
-        out_mask |= BIT64(cs_io_num);
-        s_spi_common_gpio_check_reserve(cs_io_num);
+    if (!force_gpio_matrix && cs_io_num == spi_periph_signal[host].spics0_iomux_pin && cs_num == 0) {
         //The cs0s for all SPI peripherals map to pin mux source 1, so we use that instead of a define.
-        gpio_iomux_input(cs_io_num, spi_periph_signal[host].func, spi_periph_signal[host].spics_in);
-        gpio_iomux_output(cs_io_num, spi_periph_signal[host].func);
+        gpio_iomux_in(cs_io_num, spi_periph_signal[host].spics_in);
+        gpio_iomux_out(cs_io_num, spi_periph_signal[host].func, false);
     } else {
         //Use GPIO matrix
         if (GPIO_IS_VALID_OUTPUT_GPIO(cs_io_num)) {
-            out_mask |= BIT64(cs_io_num);
-            s_spi_common_gpio_check_reserve(cs_io_num);
-            esp_rom_gpio_connect_out_signal(cs_io_num, spi_periph_signal[host].spics_out[cs_id], false, false);
+            gpio_set_direction(cs_io_num, GPIO_MODE_INPUT_OUTPUT);
+            esp_rom_gpio_connect_out_signal(cs_io_num, spi_periph_signal[host].spics_out[cs_num], false, false);
+        } else {
+            gpio_set_direction(cs_io_num, GPIO_MODE_INPUT);
         }
-        // cs_id 0 is always used by slave for input
-        if (cs_id == 0) {
-            gpio_input_enable(cs_io_num);
+        if (cs_num == 0) {
             esp_rom_gpio_connect_in_signal(cs_io_num, spi_periph_signal[host].spics_in, false);
         }
-        gpio_func_sel(cs_io_num, PIN_FUNC_GPIO);
+#if CONFIG_IDF_TARGET_ESP32S2
+        PIN_INPUT_ENABLE(GPIO_PIN_MUX_REG[cs_io_num]);
+#endif
+        gpio_func_sel(cs_io_num, FUNC_GPIO);
     }
-    bus_ctx[host]->bus_attr.gpio_reserve |= out_mask;
 }
 
-void spicommon_cs_free_io(int cs_gpio_num, uint64_t *io_reserved)
+void spicommon_cs_free_io(int cs_gpio_num)
 {
-    if (GPIO_IS_VALID_GPIO(cs_gpio_num) && (*io_reserved & BIT64(cs_gpio_num))) {
-        *io_reserved &= ~BIT64(cs_gpio_num);
-        gpio_output_disable(cs_gpio_num);
-        esp_gpio_revoke(BIT64(cs_gpio_num));
-    }
+    assert(GPIO_IS_VALID_GPIO(cs_gpio_num));
+    gpio_reset_pin(cs_gpio_num);
+}
+
+bool spicommon_bus_using_iomux(spi_host_device_t host)
+{
+    CHECK_IOMUX_PIN(host, spid);
+    CHECK_IOMUX_PIN(host, spiq);
+    CHECK_IOMUX_PIN(host, spiwp);
+    CHECK_IOMUX_PIN(host, spihd);
+    return true;
+}
+
+void spi_bus_main_set_lock(spi_bus_lock_handle_t lock)
+{
+    bus_ctx[0]->bus_attr.lock = lock;
 }
 
 spi_bus_lock_handle_t spi_bus_lock_get_by_id(spi_host_device_t host_id)
@@ -811,6 +807,9 @@ static esp_err_t s_bus_create_sleep_retention_cb(void *arg)
 esp_err_t spi_bus_initialize(spi_host_device_t host_id, const spi_bus_config_t *bus_config, spi_dma_chan_t dma_chan)
 {
     esp_err_t err = ESP_OK;
+    spicommon_bus_context_t *ctx = NULL;
+    spi_bus_attr_t *bus_attr = NULL;
+
     SPI_CHECK(is_valid_host(host_id), "invalid host_id", ESP_ERR_INVALID_ARG);
     SPI_CHECK(bus_ctx[host_id] == NULL, "SPI bus already initialized.", ESP_ERR_INVALID_STATE);
 #ifdef CONFIG_IDF_TARGET_ESP32
@@ -820,7 +819,7 @@ esp_err_t spi_bus_initialize(spi_host_device_t host_id, const spi_bus_config_t *
 #elif SOC_GDMA_SUPPORTED
     SPI_CHECK(dma_chan == SPI_DMA_DISABLED || dma_chan == SPI_DMA_CH_AUTO, "invalid dma channel, chip only support spi dma channel auto-alloc", ESP_ERR_INVALID_ARG);
 #endif
-    SPI_CHECK((bus_config->intr_flags & (ESP_INTR_FLAG_HIGH | ESP_INTR_FLAG_EDGE | ESP_INTR_FLAG_SHARED | ESP_INTR_FLAG_INTRDISABLED)) == 0, "intr flag not allowed", ESP_ERR_INVALID_ARG);
+    SPI_CHECK((bus_config->intr_flags & (ESP_INTR_FLAG_HIGH | ESP_INTR_FLAG_EDGE | ESP_INTR_FLAG_INTRDISABLED)) == 0, "intr flag not allowed", ESP_ERR_INVALID_ARG);
 #ifndef CONFIG_SPI_MASTER_ISR_IN_IRAM
     SPI_CHECK((bus_config->intr_flags & ESP_INTR_FLAG_IRAM) == 0, "ESP_INTR_FLAG_IRAM should be disabled when CONFIG_SPI_MASTER_ISR_IN_IRAM is not set.", ESP_ERR_INVALID_ARG);
 #endif
@@ -828,13 +827,23 @@ esp_err_t spi_bus_initialize(spi_host_device_t host_id, const spi_bus_config_t *
     SPI_CHECK((bus_config->data_io_default_level == 0), "no support changing io default level ", ESP_ERR_INVALID_ARG);
 #endif
 
-    ESP_RETURN_ON_ERROR(spicommon_bus_alloc(host_id, "spi master"), SPI_TAG, "alloc host failed");
-    spicommon_bus_context_t *ctx = bus_ctx[host_id];
-    spi_bus_attr_t *bus_attr = &ctx->bus_attr;
+    bool spi_chan_claimed = spicommon_periph_claim(host_id, "spi master");
+    SPI_CHECK(spi_chan_claimed, "host_id already in use", ESP_ERR_INVALID_STATE);
 
-    bus_attr->dma_enabled = (dma_chan != SPI_DMA_DISABLED);
-    bus_attr->max_transfer_sz = SOC_SPI_MAXIMUM_BUFFER_SIZE;
-    if (bus_attr->dma_enabled) {
+    //clean and initialize the context
+    ctx = (spicommon_bus_context_t *)heap_caps_calloc(1, sizeof(spicommon_bus_context_t), SPI_COMMON_MALLOC_CAPS);
+    if (!ctx) {
+        err = ESP_ERR_NO_MEM;
+        goto cleanup;
+    }
+    bus_ctx[host_id] = ctx;
+    ctx->host_id = host_id;
+    bus_attr = &ctx->bus_attr;
+    bus_attr->bus_cfg = *bus_config;
+
+    if (dma_chan != SPI_DMA_DISABLED) {
+        bus_attr->dma_enabled = 1;
+
         err = spicommon_dma_chan_alloc(host_id, dma_chan, &ctx->dma_ctx);
         if (err != ESP_OK) {
             goto cleanup;
@@ -843,10 +852,14 @@ esp_err_t spi_bus_initialize(spi_host_device_t host_id, const spi_bus_config_t *
         if (err != ESP_OK) {
             goto cleanup;
         }
-
-        // Get cache alignment constraints
-        esp_cache_get_alignment(MALLOC_CAP_DMA, &bus_attr->cache_align_int);
-        esp_cache_get_alignment(MALLOC_CAP_SPIRAM, &bus_attr->cache_align_ext);
+#if SOC_CACHE_INTERNAL_MEM_VIA_L1CACHE
+        esp_cache_get_alignment(MALLOC_CAP_DMA, (size_t *)&bus_attr->internal_mem_align_size);
+#else
+        bus_attr->internal_mem_align_size = 4;
+#endif
+    } else {
+        bus_attr->dma_enabled = 0;
+        bus_attr->max_transfer_sz = SOC_SPI_MAXIMUM_BUFFER_SIZE;
     }
 
     spi_bus_lock_config_t lock_config = {
@@ -871,7 +884,7 @@ esp_err_t spi_bus_initialize(spi_host_device_t host_id, const spi_bus_config_t *
 
     _lock_acquire(&ctx->mutex);
     if (sleep_retention_module_init(spi_reg_retention_info[host_id - 1].module_id, &init_param) == ESP_OK) {
-        if ((bus_config->flags & SPICOMMON_BUSFLAG_SLP_ALLOW_PD) && (sleep_retention_module_allocate(spi_reg_retention_info[host_id - 1].module_id) != ESP_OK)) {
+        if ((bus_attr->bus_cfg.flags & SPICOMMON_BUSFLAG_SLP_ALLOW_PD) && (sleep_retention_module_allocate(spi_reg_retention_info[host_id - 1].module_id) != ESP_OK)) {
             // even though the sleep retention create failed, SPI driver should still work, so just warning here
             ESP_LOGW(SPI_TAG, "alloc sleep recover failed, peripherals may hold power on");
         }
@@ -881,7 +894,7 @@ esp_err_t spi_bus_initialize(spi_host_device_t host_id, const spi_bus_config_t *
     }
     _lock_release(&ctx->mutex);
 #else
-    if (bus_config->flags & SPICOMMON_BUSFLAG_SLP_ALLOW_PD) {
+    if (bus_attr->bus_cfg.flags & SPICOMMON_BUSFLAG_SLP_ALLOW_PD) {
         ESP_LOGE(SPI_TAG, "power down peripheral in sleep is not enabled or not supported on your target");
     }
 #endif  // SOC_SPI_SUPPORT_SLEEP_RETENTION
@@ -900,7 +913,7 @@ esp_err_t spi_bus_initialize(spi_host_device_t host_id, const spi_bus_config_t *
     }
 #endif //CONFIG_PM_ENABLE
 
-    err = spicommon_bus_initialize_io(host_id, bus_config, SPICOMMON_BUSFLAG_MASTER | bus_config->flags, NULL, NULL);
+    err = spicommon_bus_initialize_io(host_id, bus_config, SPICOMMON_BUSFLAG_MASTER | bus_config->flags, &bus_attr->flags);
     if (err != ESP_OK) {
         goto cleanup;
     }
@@ -922,23 +935,19 @@ cleanup:
             ctx->dma_ctx = NULL;
         }
     }
-    spicommon_bus_free(host_id);
+    spicommon_periph_free(host_id);
+    free(bus_ctx[host_id]);
+    bus_ctx[host_id] = NULL;
     return err;
 }
 
 void *spi_bus_dma_memory_alloc(spi_host_device_t host_id, size_t size, uint32_t extra_heap_caps)
 {
-    SPI_CHECK(bus_ctx[host_id], "SPI %d not initialized", NULL, host_id + 1);
+    (void) host_id; //remain for extendability
+    ESP_RETURN_ON_FALSE((extra_heap_caps & MALLOC_CAP_SPIRAM) == 0, NULL, SPI_TAG, "external memory is not supported now");
 
-    size_t alignment = 16;
-    // detailed alignment requirement is not available for slave bus, so use 16 bytes as default
-    if (bus_ctx[host_id]->bus_attr.flags & SPICOMMON_BUSFLAG_MASTER) {
-        // As don't know the buffer will used for TX or RX, so use the max alignment requirement
-        alignment = (extra_heap_caps & MALLOC_CAP_SPIRAM) ? \
-                    MAX(bus_ctx[host_id]->dma_ctx->dma_align_tx_ext, bus_ctx[host_id]->dma_ctx->dma_align_rx_ext) : \
-                    MAX(bus_ctx[host_id]->dma_ctx->dma_align_tx_int, bus_ctx[host_id]->dma_ctx->dma_align_rx_int);
-    }
-    return heap_caps_aligned_calloc(alignment, 1, size, extra_heap_caps | MALLOC_CAP_DMA);
+    size_t dma_requir = 16;  //TODO: IDF-10111, using max alignment temp, refactor to "gdma_get_alignment_constraints" instead
+    return heap_caps_aligned_calloc(dma_requir, 1, size, extra_heap_caps | MALLOC_CAP_DMA | MALLOC_CAP_INTERNAL);
 }
 
 const spi_bus_attr_t* spi_bus_get_attr(spi_host_device_t host_id)
@@ -975,7 +984,7 @@ esp_err_t spi_bus_free(spi_host_device_t host_id)
             return err;
         }
     }
-    spicommon_bus_free_io_cfg(&bus_attr->bus_cfg, &bus_attr->gpio_reserve);
+    spicommon_bus_free_io_cfg(&bus_attr->bus_cfg);
 
 #if SOC_SPI_SUPPORT_SLEEP_RETENTION && CONFIG_PM_POWER_DOWN_PERIPHERAL_IN_LIGHT_SLEEP
     const periph_retention_module_t retention_id = spi_reg_retention_info[host_id - 1].module_id;
@@ -1002,7 +1011,9 @@ esp_err_t spi_bus_free(spi_host_device_t host_id)
         spicommon_dma_chan_free(ctx->dma_ctx);
         ctx->dma_ctx = NULL;
     }
-    spicommon_bus_free(host_id);
+    spicommon_periph_free(host_id);
+    free(ctx);
+    bus_ctx[host_id] = NULL;
     return err;
 }
 
@@ -1024,7 +1035,7 @@ static void *dmaworkaround_cb_arg;
 static portMUX_TYPE dmaworkaround_mux = portMUX_INITIALIZER_UNLOCKED;
 static int dmaworkaround_waiting_for_chan = 0;
 
-bool SPI_COMMON_ISR_ATTR spicommon_dmaworkaround_req_reset(int dmachan, dmaworkaround_cb_t cb, void *arg)
+bool IRAM_ATTR spicommon_dmaworkaround_req_reset(int dmachan, dmaworkaround_cb_t cb, void *arg)
 {
 
     int otherchan = (dmachan == 1) ? 2 : 1;
@@ -1047,12 +1058,12 @@ bool SPI_COMMON_ISR_ATTR spicommon_dmaworkaround_req_reset(int dmachan, dmaworka
     return ret;
 }
 
-bool SPI_COMMON_ISR_ATTR spicommon_dmaworkaround_reset_in_progress(void)
+bool IRAM_ATTR spicommon_dmaworkaround_reset_in_progress(void)
 {
     return (dmaworkaround_waiting_for_chan != 0);
 }
 
-void SPI_COMMON_ISR_ATTR spicommon_dmaworkaround_idle(int dmachan)
+void IRAM_ATTR spicommon_dmaworkaround_idle(int dmachan)
 {
     portENTER_CRITICAL_ISR(&dmaworkaround_mux);
     dmaworkaround_channels_busy[dmachan - 1] = 0;
@@ -1069,7 +1080,7 @@ void SPI_COMMON_ISR_ATTR spicommon_dmaworkaround_idle(int dmachan)
     portEXIT_CRITICAL_ISR(&dmaworkaround_mux);
 }
 
-void SPI_COMMON_ISR_ATTR spicommon_dmaworkaround_transfer_active(int dmachan)
+void IRAM_ATTR spicommon_dmaworkaround_transfer_active(int dmachan)
 {
     portENTER_CRITICAL_ISR(&dmaworkaround_mux);
     dmaworkaround_channels_busy[dmachan - 1] = 1;

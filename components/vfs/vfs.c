@@ -1,20 +1,26 @@
 /*
- * SPDX-FileCopyrightText: 2015-2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2015-2024 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
 
 #include <stdlib.h>
 #include <string.h>
+#include <assert.h>
 #include <sys/errno.h>
 #include <sys/fcntl.h>
+#include <sys/ioctl.h>
 #include <sys/reent.h>
+#include <sys/unistd.h>
 #include <sys/lock.h>
+#include <sys/param.h>
 #include <dirent.h>
-#include "inttypes_ext.h"
 #include "freertos/FreeRTOS.h"
+#include "freertos/semphr.h"
 #include "esp_vfs.h"
 #include "esp_vfs_private.h"
+#include "include/esp_vfs.h"
+#include "sdkconfig.h"
 
 // Warn about using deprecated option
 #ifdef CONFIG_LWIP_USE_ONLY_LWIP_SELECT
@@ -41,11 +47,7 @@ static const char *TAG = "vfs";
 #define LEN_PATH_PREFIX_IGNORED SIZE_MAX /* special length value for VFS which is never recognised by open() */
 #define FD_TABLE_ENTRY_UNUSED   (fd_table_t) { .permanent = false, .has_pending_close = false, .has_pending_select = false, .vfs_index = -1, .local_fd = -1 }
 
-#ifdef CONFIG_IDF_TARGET_LINUX
-typedef uint16_t local_fd_t;
-#else
 typedef uint8_t local_fd_t;
-#endif
 _Static_assert((1 << (sizeof(local_fd_t)*8)) >= MAX_FDS, "file descriptor type too small");
 
 typedef int8_t vfs_index_t;
@@ -393,38 +395,20 @@ fail:
     return ESP_ERR_NO_MEM;
 }
 
-static bool is_path_prefix_valid(const char *path, size_t length) {
-    return (length >= 2)
-        && (length <= ESP_VFS_PATH_MAX)
-        && (path[0] == '/')
-        && (path[length - 1] != '/');
-}
-
-static esp_err_t esp_vfs_register_fs_common(
-    const char *base_path,
-    const esp_vfs_fs_ops_t *vfs,
-    int flags,
-    void *ctx,
-    int *vfs_index)
+static esp_err_t esp_vfs_register_fs_common(const char* base_path, size_t len, const esp_vfs_fs_ops_t* vfs, int flags, void* ctx, int *vfs_index)
 {
-    if (s_vfs_count >= VFS_MAX_COUNT) {
-        return  ESP_ERR_NO_MEM;
-    }
-
     if (vfs == NULL) {
         ESP_LOGE(TAG, "VFS is NULL");
         return ESP_ERR_INVALID_ARG;
     }
 
-    size_t base_path_len = 0;
-    const char *_base_path = "";
-
-    if (base_path != NULL) {
-        base_path_len = strlen(base_path);
-        _base_path = base_path;
-
-        if (base_path_len != 0 && !is_path_prefix_valid(base_path, base_path_len)) {
-            ESP_LOGE(TAG, "Invalid path prefix");
+    if (len != LEN_PATH_PREFIX_IGNORED) {
+        /* empty prefix is allowed, "/" is not allowed */
+        if ((len == 1) || (len > ESP_VFS_PATH_MAX)) {
+            return ESP_ERR_INVALID_ARG;
+        }
+        /* prefix has to start with "/" and not end with "/" */
+        if (len >= 2 && ((base_path[0] != '/') || (base_path[len - 1] == '/'))) {
             return ESP_ERR_INVALID_ARG;
         }
     }
@@ -442,20 +426,22 @@ static esp_err_t esp_vfs_register_fs_common(
         s_vfs_count++;
     }
 
-    vfs_entry_t *entry = heap_caps_malloc(sizeof(vfs_entry_t) + base_path_len + 1, VFS_MALLOC_FLAGS);
+    vfs_entry_t *entry = (vfs_entry_t*) heap_caps_malloc(sizeof(vfs_entry_t), VFS_MALLOC_FLAGS);
     if (entry == NULL) {
         return ESP_ERR_NO_MEM;
     }
 
     s_vfs[index] = entry;
-
-    entry->path_prefix_len = base_path == NULL ? LEN_PATH_PREFIX_IGNORED : base_path_len;
+    if (len != LEN_PATH_PREFIX_IGNORED) {
+        strcpy(entry->path_prefix, base_path); // we have already verified argument length
+    } else {
+        bzero(entry->path_prefix, sizeof(entry->path_prefix));
+    }
+    entry->path_prefix_len = len;
     entry->vfs = vfs;
     entry->ctx = ctx;
     entry->offset = index;
     entry->flags = flags;
-
-    memcpy((char *)(entry->path_prefix), _base_path, base_path_len + 1);
 
     if (vfs_index) {
         *vfs_index = index;
@@ -471,13 +457,8 @@ esp_err_t esp_vfs_register_fs(const char* base_path, const esp_vfs_fs_ops_t* vfs
         return ESP_ERR_INVALID_ARG;
     }
 
-    if (base_path == NULL) {
-        ESP_LOGE(TAG, "base_path cannot be null");
-        return ESP_ERR_INVALID_ARG;
-    }
-
     if ((flags & ESP_VFS_FLAG_STATIC)) {
-        return esp_vfs_register_fs_common(base_path, vfs, flags, ctx, NULL);
+        return esp_vfs_register_fs_common(base_path, strlen(base_path), vfs, flags, ctx, NULL);
     }
 
     esp_vfs_fs_ops_t *_vfs = esp_vfs_duplicate_fs_ops(vfs);
@@ -485,7 +466,7 @@ esp_err_t esp_vfs_register_fs(const char* base_path, const esp_vfs_fs_ops_t* vfs
         return ESP_ERR_NO_MEM;
     }
 
-    esp_err_t ret = esp_vfs_register_fs_common(base_path, _vfs, flags, ctx, NULL);
+    esp_err_t ret = esp_vfs_register_fs_common(base_path, strlen(base_path), _vfs, flags, ctx, NULL);
     if (ret != ESP_OK) {
         esp_vfs_free_fs_ops(_vfs);
         return ret;
@@ -506,29 +487,13 @@ esp_err_t esp_vfs_register_common(const char* base_path, size_t len, const esp_v
         return ESP_ERR_INVALID_ARG;
     }
 
-    if (len != LEN_PATH_PREFIX_IGNORED) {
-        if (base_path == NULL) {
-            ESP_LOGE(TAG, "Path prefix cannot be NULL");
-            return ESP_ERR_INVALID_ARG;
-        }
-
-        // This is for backwards compatibility
-        if (strlen(base_path) != len) {
-            ESP_LOGE(TAG, "Mismatch between real and given path prefix lengths.");
-            return ESP_ERR_INVALID_ARG;
-        }
-    } else {
-        // New API expects NULL in this case
-        base_path = NULL;
-    }
-
     esp_vfs_fs_ops_t *_vfs = NULL;
     esp_err_t ret = esp_vfs_make_fs_ops(vfs, &_vfs);
     if (ret != ESP_OK) {
         return ret;
     }
 
-    ret = esp_vfs_register_fs_common(base_path, _vfs, vfs->flags, ctx, vfs_index);
+    ret = esp_vfs_register_fs_common(base_path, len, _vfs, vfs->flags, ctx, vfs_index);
     if (ret != ESP_OK) {
         esp_vfs_free_fs_ops(_vfs);
         return ret;
@@ -545,7 +510,7 @@ esp_err_t esp_vfs_register(const char* base_path, const esp_vfs_t* vfs, void* ct
 esp_err_t esp_vfs_register_fd_range(const esp_vfs_t *vfs, void *ctx, int min_fd, int max_fd)
 {
     if (min_fd < 0 || max_fd < 0 || min_fd > MAX_FDS || max_fd > MAX_FDS || min_fd > max_fd) {
-        ESP_LOGD(TAG, "Invalid arguments: esp_vfs_register_fd_range(0x%p, 0x%p, %d, %d)", vfs, ctx, min_fd, max_fd);
+        ESP_LOGD(TAG, "Invalid arguments: esp_vfs_register_fd_range(0x%x, 0x%x, %d, %d)", (int) vfs, (int) ctx, min_fd, max_fd);
         return ESP_ERR_INVALID_ARG;
     }
 
@@ -586,7 +551,7 @@ esp_err_t esp_vfs_register_fs_with_id(const esp_vfs_fs_ops_t *vfs, int flags, vo
     }
 
     *vfs_id = -1;
-    return esp_vfs_register_fs_common(NULL, vfs, flags, ctx, vfs_id);
+    return esp_vfs_register_fs_common("", LEN_PATH_PREFIX_IGNORED, vfs, flags, ctx, vfs_id);
 }
 
 esp_err_t esp_vfs_register_with_id(const esp_vfs_t *vfs, void *ctx, esp_vfs_id_t *vfs_id)
@@ -621,9 +586,7 @@ esp_err_t esp_vfs_unregister_with_id(esp_vfs_id_t vfs_id)
 
 }
 
-#ifndef CONFIG_IDF_TARGET_LINUX
 esp_err_t esp_vfs_unregister_fs_with_id(esp_vfs_id_t vfs_id) __attribute__((alias("esp_vfs_unregister_with_id")));
-#endif
 
 esp_err_t esp_vfs_unregister(const char* base_path)
 {
@@ -641,9 +604,7 @@ esp_err_t esp_vfs_unregister(const char* base_path)
     return ESP_ERR_INVALID_STATE;
 }
 
-#ifndef CONFIG_IDF_TARGET_LINUX
 esp_err_t esp_vfs_unregister_fs(const char* base_path) __attribute__((alias("esp_vfs_unregister")));
-#endif
 
 esp_err_t esp_vfs_register_fd(esp_vfs_id_t vfs_id, int *fd)
 {
@@ -732,7 +693,7 @@ void esp_vfs_dump_registered_paths(FILE *fp)
     for (size_t i = 0; i < VFS_MAX_COUNT; ++i) {
         fprintf(
             fp,
-            "%" PRIuSIZE ": %s -> %p\n",
+            "%d:%s -> %p\n",
             i,
             s_vfs[i] ? s_vfs[i]->path_prefix : "NULL",
             s_vfs[i] ? s_vfs[i]->vfs : NULL
@@ -1013,7 +974,7 @@ ssize_t esp_vfs_read(struct _reent *r, int fd, void * dst, size_t size)
 
 ssize_t esp_vfs_pread(int fd, void *dst, size_t size, off_t offset)
 {
-    [[maybe_unused]] struct _reent *r = __getreent();
+    struct _reent *r = __getreent();
     const vfs_entry_t* vfs = get_vfs_for_fd(fd);
     const int local_fd = get_local_fd(vfs, fd);
     if (vfs == NULL || local_fd < 0) {
@@ -1027,7 +988,7 @@ ssize_t esp_vfs_pread(int fd, void *dst, size_t size, off_t offset)
 
 ssize_t esp_vfs_pwrite(int fd, const void *src, size_t size, off_t offset)
 {
-    [[maybe_unused]] struct _reent *r = __getreent();
+    struct _reent *r = __getreent();
     const vfs_entry_t* vfs = get_vfs_for_fd(fd);
     const int local_fd = get_local_fd(vfs, fd);
     if (vfs == NULL || local_fd < 0) {
@@ -1092,27 +1053,15 @@ int esp_vfs_ioctl(int fd, int cmd, ...)
 {
     const vfs_entry_t* vfs = get_vfs_for_fd(fd);
     const int local_fd = get_local_fd(vfs, fd);
-    [[maybe_unused]] struct _reent* r = __getreent();
+    struct _reent* r = __getreent();
     if (vfs == NULL || local_fd < 0) {
         __errno_r(r) = EBADF;
         return -1;
     }
-
+    int ret;
     va_list args;
     va_start(args, cmd);
-    if (vfs->vfs->ioctl == NULL) {
-        __errno_r(r) = ENOSYS;
-        va_end(args);
-        return -1;
-    }
-
-    int ret;
-    if (vfs->flags & ESP_VFS_FLAG_CONTEXT_PTR) {
-        ret = (*vfs->vfs->ioctl_p)(vfs->ctx, local_fd, cmd, args);
-    } else {
-        ret = (*vfs->vfs->ioctl)(local_fd, cmd, args);
-    }
-
+    CHECK_AND_CALL(ret, r, vfs, ioctl, local_fd, cmd, args);
     va_end(args);
     return ret;
 }
@@ -1121,7 +1070,7 @@ int esp_vfs_fsync(int fd)
 {
     const vfs_entry_t* vfs = get_vfs_for_fd(fd);
     const int local_fd = get_local_fd(vfs, fd);
-    [[maybe_unused]] struct _reent* r = __getreent();
+    struct _reent* r = __getreent();
     if (vfs == NULL || local_fd < 0) {
         __errno_r(r) = EBADF;
         return -1;
@@ -1150,7 +1099,7 @@ int esp_vfs_utime(const char *path, const struct utimbuf *times)
 {
     int ret;
     const vfs_entry_t* vfs = get_vfs_for_path(path);
-    [[maybe_unused]] struct _reent* r = __getreent();
+    struct _reent* r = __getreent();
     if (vfs == NULL) {
         __errno_r(r) = ENOENT;
         return -1;
@@ -1226,7 +1175,7 @@ int esp_vfs_rename(struct _reent *r, const char *src, const char *dst)
 DIR* esp_vfs_opendir(const char* name)
 {
     const vfs_entry_t* vfs = get_vfs_for_path(name);
-    [[maybe_unused]] struct _reent* r = __getreent();
+    struct _reent* r = __getreent();
     if (vfs == NULL) {
         __errno_r(r) = ENOENT;
         return NULL;
@@ -1243,7 +1192,7 @@ DIR* esp_vfs_opendir(const char* name)
 struct dirent* esp_vfs_readdir(DIR* pdir)
 {
     const vfs_entry_t* vfs = get_vfs_for_index(pdir->dd_vfs_idx);
-    [[maybe_unused]] struct _reent* r = __getreent();
+    struct _reent* r = __getreent();
     if (vfs == NULL) {
        __errno_r(r) = EBADF;
         return NULL;
@@ -1256,7 +1205,7 @@ struct dirent* esp_vfs_readdir(DIR* pdir)
 int esp_vfs_readdir_r(DIR* pdir, struct dirent* entry, struct dirent** out_dirent)
 {
     const vfs_entry_t* vfs = get_vfs_for_index(pdir->dd_vfs_idx);
-    [[maybe_unused]] struct _reent* r = __getreent();
+    struct _reent* r = __getreent();
     if (vfs == NULL) {
         errno = EBADF;
         return -1;
@@ -1269,7 +1218,7 @@ int esp_vfs_readdir_r(DIR* pdir, struct dirent* entry, struct dirent** out_diren
 long esp_vfs_telldir(DIR* pdir)
 {
     const vfs_entry_t* vfs = get_vfs_for_index(pdir->dd_vfs_idx);
-    [[maybe_unused]] struct _reent* r = __getreent();
+    struct _reent* r = __getreent();
     if (vfs == NULL) {
         errno = EBADF;
         return -1;
@@ -1282,7 +1231,7 @@ long esp_vfs_telldir(DIR* pdir)
 void esp_vfs_seekdir(DIR* pdir, long loc)
 {
     const vfs_entry_t* vfs = get_vfs_for_index(pdir->dd_vfs_idx);
-    [[maybe_unused]] struct _reent* r = __getreent();
+    struct _reent* r = __getreent();
     if (vfs == NULL) {
         errno = EBADF;
         return;
@@ -1298,7 +1247,7 @@ void esp_vfs_rewinddir(DIR* pdir)
 int esp_vfs_closedir(DIR* pdir)
 {
     const vfs_entry_t* vfs = get_vfs_for_index(pdir->dd_vfs_idx);
-    [[maybe_unused]] struct _reent* r = __getreent();
+    struct _reent* r = __getreent();
     if (vfs == NULL) {
         errno = EBADF;
         return -1;
@@ -1311,7 +1260,7 @@ int esp_vfs_closedir(DIR* pdir)
 int esp_vfs_mkdir(const char* name, mode_t mode)
 {
     const vfs_entry_t* vfs = get_vfs_for_path(name);
-    [[maybe_unused]] struct _reent* r = __getreent();
+    struct _reent* r = __getreent();
     if (vfs == NULL) {
         __errno_r(r) = ENOENT;
         return -1;
@@ -1328,7 +1277,7 @@ int esp_vfs_mkdir(const char* name, mode_t mode)
 int esp_vfs_rmdir(const char* name)
 {
     const vfs_entry_t* vfs = get_vfs_for_path(name);
-    [[maybe_unused]] struct _reent* r = __getreent();
+    struct _reent* r = __getreent();
     if (vfs == NULL) {
         __errno_r(r) = ENOENT;
         return -1;
@@ -1346,7 +1295,7 @@ int esp_vfs_access(const char *path, int amode)
 {
     int ret;
     const vfs_entry_t* vfs = get_vfs_for_path(path);
-    [[maybe_unused]] struct _reent* r = __getreent();
+    struct _reent* r = __getreent();
     if (vfs == NULL) {
         __errno_r(r) = ENOENT;
         return -1;
@@ -1360,7 +1309,7 @@ int esp_vfs_truncate(const char *path, off_t length)
 {
     int ret;
     const vfs_entry_t* vfs = get_vfs_for_path(path);
-    [[maybe_unused]] struct _reent* r = __getreent();
+    struct _reent* r = __getreent();
     if (vfs == NULL) {
         __errno_r(r) = ENOENT;
         return -1;
@@ -1377,7 +1326,7 @@ int esp_vfs_ftruncate(int fd, off_t length)
 {
     const vfs_entry_t* vfs = get_vfs_for_fd(fd);
     int local_fd = get_local_fd(vfs, fd);
-    [[maybe_unused]] struct _reent* r = __getreent();
+    struct _reent* r = __getreent();
     if (vfs == NULL || local_fd < 0) {
         __errno_r(r) = EBADF;
         return -1;
@@ -1467,7 +1416,7 @@ int esp_vfs_select(int nfds, fd_set *readfds, fd_set *writefds, fd_set *errorfds
     // NOTE: Please see the "Synchronous input/output multiplexing" section of the ESP-IDF Programming Guide
     // (API Reference -> Storage -> Virtual Filesystem) for a general overview of the implementation of VFS select().
     int ret = 0;
-    [[maybe_unused]] struct _reent* r = __getreent();
+    struct _reent* r = __getreent();
 
     ESP_LOGD(TAG, "esp_vfs_select starts with nfds = %d", nfds);
     if (timeout) {
@@ -1589,7 +1538,7 @@ int esp_vfs_select(int nfds, fd_set *readfds, fd_set *writefds, fd_set *errorfds
 
         // call start_select for all non-socket VFSs with has at least one FD set in readfds, writefds, or errorfds
         // note: it can point to socket VFS but item->isset will be false for that
-        ESP_LOGD(TAG, "calling start_select for VFS ID % " PRIuSIZE " with the following local FDs", i);
+        ESP_LOGD(TAG, "calling start_select for VFS ID %d with the following local FDs", i);
         esp_vfs_log_fd_set("readfds", &item->readfds);
         esp_vfs_log_fd_set("writefds", &item->writefds);
         esp_vfs_log_fd_set("errorfds", &item->errorfds);
@@ -1739,7 +1688,7 @@ int tcgetattr(int fd, struct termios *p)
 {
     const vfs_entry_t* vfs = get_vfs_for_fd(fd);
     const int local_fd = get_local_fd(vfs, fd);
-    [[maybe_unused]] struct _reent* r = __getreent();
+    struct _reent* r = __getreent();
     if (vfs == NULL || local_fd < 0) {
         __errno_r(r) = EBADF;
         return -1;
@@ -1753,7 +1702,7 @@ int tcsetattr(int fd, int optional_actions, const struct termios *p)
 {
     const vfs_entry_t* vfs = get_vfs_for_fd(fd);
     const int local_fd = get_local_fd(vfs, fd);
-    [[maybe_unused]] struct _reent* r = __getreent();
+    struct _reent* r = __getreent();
     if (vfs == NULL || local_fd < 0) {
         __errno_r(r) = EBADF;
         return -1;
@@ -1767,7 +1716,7 @@ int tcdrain(int fd)
 {
     const vfs_entry_t* vfs = get_vfs_for_fd(fd);
     const int local_fd = get_local_fd(vfs, fd);
-    [[maybe_unused]] struct _reent* r = __getreent();
+    struct _reent* r = __getreent();
     if (vfs == NULL || local_fd < 0) {
         __errno_r(r) = EBADF;
         return -1;
@@ -1781,7 +1730,7 @@ int tcflush(int fd, int select)
 {
     const vfs_entry_t* vfs = get_vfs_for_fd(fd);
     const int local_fd = get_local_fd(vfs, fd);
-    [[maybe_unused]] struct _reent* r = __getreent();
+    struct _reent* r = __getreent();
     if (vfs == NULL || local_fd < 0) {
         __errno_r(r) = EBADF;
         return -1;
@@ -1795,7 +1744,7 @@ int tcflow(int fd, int action)
 {
     const vfs_entry_t* vfs = get_vfs_for_fd(fd);
     const int local_fd = get_local_fd(vfs, fd);
-    [[maybe_unused]] struct _reent* r = __getreent();
+    struct _reent* r = __getreent();
     if (vfs == NULL || local_fd < 0) {
         __errno_r(r) = EBADF;
         return -1;
@@ -1809,7 +1758,7 @@ pid_t tcgetsid(int fd)
 {
     const vfs_entry_t* vfs = get_vfs_for_fd(fd);
     const int local_fd = get_local_fd(vfs, fd);
-    [[maybe_unused]] struct _reent* r = __getreent();
+    struct _reent* r = __getreent();
     if (vfs == NULL || local_fd < 0) {
         __errno_r(r) = EBADF;
         return -1;
@@ -1823,7 +1772,7 @@ int tcsendbreak(int fd, int duration)
 {
     const vfs_entry_t* vfs = get_vfs_for_fd(fd);
     const int local_fd = get_local_fd(vfs, fd);
-    [[maybe_unused]] struct _reent* r = __getreent();
+    struct _reent* r = __getreent();
     if (vfs == NULL || local_fd < 0) {
         __errno_r(r) = EBADF;
         return -1;
@@ -1835,8 +1784,7 @@ int tcsendbreak(int fd, int duration)
 #endif // CONFIG_VFS_SUPPORT_TERMIOS
 
 
-#ifndef CONFIG_IDF_TARGET_LINUX
-/* Create aliases for libc syscalls
+/* Create aliases for newlib syscalls
 
    These functions are also available in ROM as stubs which use the syscall table, but linking them
    directly here saves an additional function call when a software function is linked to one, and
@@ -1908,7 +1856,6 @@ void seekdir(DIR* pdir, long loc)
 void rewinddir(DIR* pdir)
     __attribute__((alias("esp_vfs_rewinddir")));
 #endif // CONFIG_VFS_SUPPORT_DIR
-#endif //CONFIG_IDF_TARGET_LINUX
 
 void vfs_include_syscalls_impl(void)
 {

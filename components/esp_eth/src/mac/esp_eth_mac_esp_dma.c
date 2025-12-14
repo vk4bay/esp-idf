@@ -19,13 +19,10 @@
 #define EMAC_TDES0_FS_CTRL_FLAGS_MASK 0x0FCC0000 // modifiable bits mask associated with the First Segment
 #define EMAC_TDES0_LS_CTRL_FLAGS_MASK 0x40000000 // modifiable bits mask associated with the Last Segment
 
-#define PTP_TX_TIMESTAMP_TO 50 //  maximum loops observed on P4 was 31 @ETH frame 1500B
-
 #if SOC_CACHE_INTERNAL_MEM_VIA_L1CACHE
 #define DMA_CACHE_WB(addr, size) do {                                                           \
     esp_err_t msync_ret = esp_cache_msync((void *)addr, size, ESP_CACHE_MSYNC_FLAG_DIR_C2M);    \
     assert(msync_ret == ESP_OK);                                                                \
-    (void)msync_ret;                                                                            \
     } while(0)
 #else
 #define DMA_CACHE_WB(addr, size)
@@ -35,7 +32,6 @@
 #define DMA_CACHE_INVALIDATE(addr, size) do {                                                   \
     esp_err_t msync_ret = esp_cache_msync((void *)addr, size, ESP_CACHE_MSYNC_FLAG_DIR_M2C);    \
     assert(msync_ret == ESP_OK);                                                                \
-    (void)msync_ret;                                                                            \
     } while(0)
 #else
 #define DMA_CACHE_INVALIDATE(addr, size)
@@ -120,15 +116,6 @@ void emac_esp_dma_clear_tdes0_ctrl_bits(emac_esp_dma_handle_t emac_esp_dma, uint
     emac_esp_dma->tx_desc_flags &= ~flag;
 }
 
-void emac_esp_dma_ts_enable(emac_esp_dma_handle_t emac_esp_dma, bool enable)
-{
-    if (enable) {
-        emac_esp_dma_set_tdes0_ctrl_bits(emac_esp_dma, EMAC_HAL_TDES0_TX_TS_ENABLE);
-    } else {
-        emac_esp_dma_clear_tdes0_ctrl_bits(emac_esp_dma, EMAC_HAL_TDES0_TX_TS_ENABLE);
-    }
-}
-
 uint32_t emac_esp_dma_transmit_frame(emac_esp_dma_handle_t emac_esp_dma, uint8_t *buf, uint32_t length)
 {
     /* Get the number of Tx buffers to use for the frame */
@@ -196,19 +183,16 @@ err:
     return 0;
 }
 
-uint32_t emac_esp_dma_transmit_frame_ext(emac_esp_dma_handle_t emac_esp_dma, emac_esp_dma_transmit_buff_t *buffs_array, uint32_t buffs_cnt, eth_mac_time_t *ts)
+uint32_t emac_esp_dma_transmit_multiple_buf_frame(emac_esp_dma_handle_t emac_esp_dma, uint8_t **buffs, uint32_t *lengths, uint32_t buffs_cnt)
 {
     /* Get the number of Tx buffers to use for the frame */
     uint32_t dma_bufcount = 0;
     uint32_t sentout = 0;
+    uint8_t *ptr = buffs[0];
+    uint32_t lastlen = lengths[0];
     uint32_t avail_len = CONFIG_ETH_DMA_BUFFER_SIZE;
-    uint8_t *ptr = buffs_array->buf;
-    uint32_t lastlen = buffs_array->size;
 
     eth_dma_tx_descriptor_t *desc_iter = emac_esp_dma->tx_desc;
-#if SOC_EMAC_IEEE1588V2_SUPPORTED
-    eth_dma_tx_descriptor_t *desc_last = desc_iter;
-#endif
     /* A frame is transmitted in multiple descriptor */
     while (dma_bufcount < CONFIG_ETH_DMA_TX_BUFFER_NUM) {
         DMA_CACHE_INVALIDATE(desc_iter, EMAC_HAL_DMA_DESC_SIZE);
@@ -238,9 +222,8 @@ uint32_t emac_esp_dma_transmit_frame_ext(emac_esp_dma_handle_t emac_esp_dma, ema
 
                 /* Update processed input buffers info */
                 buffs_cnt--;
-                buffs_array++;
-                ptr = buffs_array->buf;
-                lastlen = buffs_array->size;
+                ptr = *(++buffs);
+                lastlen = *(++lengths);
                 /* There is only limited available space in the current descriptor, use it all */
             } else {
                 /* copy data from uplayer stack buffer */
@@ -254,9 +237,8 @@ uint32_t emac_esp_dma_transmit_frame_ext(emac_esp_dma_handle_t emac_esp_dma, ema
                 } else {
                     /* Update processed input buffers info */
                     buffs_cnt--;
-                    buffs_array++;
-                    ptr = buffs_array->buf;
-                    lastlen = buffs_array->size;
+                    ptr = *(++buffs);
+                    lastlen = *(++lengths);
                 }
                 avail_len = CONFIG_ETH_DMA_BUFFER_SIZE;
                 desc_iter->TDES1.TransmitBuffer1Size = CONFIG_ETH_DMA_BUFFER_SIZE;
@@ -273,9 +255,6 @@ uint32_t emac_esp_dma_transmit_frame_ext(emac_esp_dma_handle_t emac_esp_dma, ema
             /* Setting the last segment bit */
             desc_iter->TDES0.LastSegment = 1;
             desc_iter->TDES0.Value |= emac_esp_dma->tx_desc_flags & EMAC_TDES0_LS_CTRL_FLAGS_MASK;
-#if SOC_EMAC_IEEE1588V2_SUPPORTED
-            desc_last = desc_iter;
-#endif
             break;
         }
 
@@ -291,23 +270,6 @@ uint32_t emac_esp_dma_transmit_frame_ext(emac_esp_dma_handle_t emac_esp_dma, ema
     }
 
     emac_hal_transmit_poll_demand(&emac_esp_dma->hal);
-
-#if SOC_EMAC_IEEE1588V2_SUPPORTED
-    if (ts != NULL) {
-        uint32_t timeout = 0;
-        do {
-            timeout++;
-            DMA_CACHE_INVALIDATE(desc_last, EMAC_HAL_DMA_DESC_SIZE);
-        } while (emac_hal_get_txdesc_timestamp(&emac_esp_dma->hal, desc_last, &ts->seconds, &ts->nanoseconds) == ESP_ERR_INVALID_STATE &&
-                 timeout < PTP_TX_TIMESTAMP_TO);
-        if (timeout >= PTP_TX_TIMESTAMP_TO) {
-            /* zeros indicate invalid time stamp since it is not possible to ever get "zero time" under normal conditions */
-            ts->seconds = 0;
-            ts->nanoseconds = 0;
-        }
-    }
-#endif
-
     return sentout;
 err:
     return 0;
@@ -398,7 +360,7 @@ uint8_t *emac_esp_dma_alloc_recv_buf(emac_esp_dma_handle_t emac_esp_dma, uint32_
     return buf;
 }
 
-uint32_t emac_esp_dma_receive_frame(emac_esp_dma_handle_t emac_esp_dma, uint8_t *buf, uint32_t size, eth_mac_time_t *ts)
+uint32_t emac_esp_dma_receive_frame(emac_esp_dma_handle_t emac_esp_dma, uint8_t *buf, uint32_t size)
 {
     uint32_t ret_len = 0;
     uint32_t copy_len = 0;
@@ -433,25 +395,14 @@ uint32_t emac_esp_dma_receive_frame(emac_esp_dma_handle_t emac_esp_dma, uint8_t 
         }
         DMA_CACHE_INVALIDATE(desc_iter->Buffer1Addr, CONFIG_ETH_DMA_BUFFER_SIZE);
         memcpy(buf, (void *)(desc_iter->Buffer1Addr), copy_len);
-        /* `copy_len` does not include CRC (which may be stored in separate buffer), hence check if we reached the last descriptor */
-        while (!desc_iter->RDES0.LastDescriptor) {
-            desc_iter->RDES0.Own = EMAC_LL_DMADESC_OWNER_DMA;
-            DMA_CACHE_WB(desc_iter, EMAC_HAL_DMA_DESC_SIZE);
-            desc_iter = (eth_dma_rx_descriptor_t *)(desc_iter->Buffer2NextDescAddr);
-        }
-#if SOC_EMAC_IEEE1588V2_SUPPORTED
-        if (ts != NULL) {
-            if (emac_hal_get_rxdesc_timestamp(&emac_esp_dma->hal, desc_iter, &ts->seconds, &ts->nanoseconds) != ESP_OK) {
-                /* zeros indicate invalid time stamp since it is not possible to ever get "zero time" under normal conditions */
-                ts->seconds = 0;
-                ts->nanoseconds = 0;
-            }
-        }
-#endif
-        /* return last descriptor to DMA */
         desc_iter->RDES0.Own = EMAC_LL_DMADESC_OWNER_DMA;
         DMA_CACHE_WB(desc_iter, EMAC_HAL_DMA_DESC_SIZE);
-
+        /* `copy_len` does not include CRC (which may be stored in separate buffer), hence check if we reached the last descriptor */
+        while (!desc_iter->RDES0.LastDescriptor) {
+            desc_iter = (eth_dma_rx_descriptor_t *)(desc_iter->Buffer2NextDescAddr);
+            desc_iter->RDES0.Own = EMAC_LL_DMADESC_OWNER_DMA;
+            DMA_CACHE_WB(desc_iter, EMAC_HAL_DMA_DESC_SIZE);
+        }
         /* update rxdesc */
         emac_esp_dma->rx_desc = (eth_dma_rx_descriptor_t *)(desc_iter->Buffer2NextDescAddr);
         /* poll rx demand */

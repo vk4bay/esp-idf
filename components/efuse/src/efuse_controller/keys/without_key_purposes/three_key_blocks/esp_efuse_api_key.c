@@ -18,7 +18,7 @@
  * There are no eFuse key purpose fields (added only virtual key purposes to support key APIs).
  */
 
-ESP_LOG_ATTR_TAG(TAG, "efuse");
+static __attribute__((unused)) const char *TAG = "efuse";
 
 /**
  * @brief Keys and their attributes are packed into a structure

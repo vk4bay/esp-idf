@@ -13,7 +13,6 @@
 
 #define TAG                     "NimBLE_BLE_PAwR_CONN"
 #define TARGET_NAME             "Nimble_PAwR_CONN"
-#define BLE_PAWR_RSP_SLOT_INDEX  (2)
 #define BLE_PAWR_RSP_DATA_LEN   (10)
 static uint8_t sub_data_pattern[BLE_PAWR_RSP_DATA_LEN] = {0};
 
@@ -115,7 +114,7 @@ gap_event_cb(struct ble_gap_event *event, void *arg)
             .request_event = event->periodic_report.event_counter,
             .request_subevent = event->periodic_report.subevent,
             .response_subevent = event->periodic_report.subevent,
-            .response_slot = BLE_PAWR_RSP_SLOT_INDEX,
+            .response_slot = 2,
         };
 
         struct os_mbuf *data = os_msys_get_pkthdr(BLE_PAWR_RSP_DATA_LEN, 0);
@@ -186,8 +185,8 @@ static int
 create_periodic_sync(struct ble_gap_ext_disc_desc *disc)
 {
     int rc;
-    struct ble_gap_periodic_sync_params params = {0};
-    memset(&params, 0, sizeof(params));
+    struct ble_gap_periodic_sync_params params;
+
     params.skip = 0;
     params.sync_timeout = 4000;
     params.reports_disabled = 0;
@@ -219,7 +218,6 @@ start_scan(void)
     /* Perform a passive scan.  I.e., don't send follow-up scan requests to
      * each advertiser.
      */
-    memset(&disc_params, 0, sizeof(disc_params));
     disc_params.itvl = BLE_GAP_SCAN_ITVL_MS(600);
     disc_params.window = BLE_GAP_SCAN_ITVL_MS(300);
     disc_params.passive = 1;
@@ -239,6 +237,23 @@ on_reset(int reason)
 {
     ESP_LOGE(TAG, "Resetting state; reason=%d\n", reason);
 }
+
+/* Cnnot find `ble_single_xxxx()`, workaround */
+// static void
+// on_sync(void)
+// {
+//     int ble_single_env_init(void);
+//     int ble_single_init(void);
+
+//     int rc;
+
+//     rc = ble_single_env_init();
+//     assert(!rc);
+//     rc = ble_single_init();
+//     assert(!rc);
+
+//     start_scan();
+// }
 
 static void
 on_sync(void)

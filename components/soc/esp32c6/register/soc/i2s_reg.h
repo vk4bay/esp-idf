@@ -1,7 +1,7 @@
 /**
- * SPDX-FileCopyrightText: 2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2022 Espressif Systems (Shanghai) CO LTD
  *
- *  SPDX-License-Identifier: Apache-2.0 OR MIT
+ *  SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
 
@@ -10,8 +10,6 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-#define REG_I2S_BASE(i)                         (DR_REG_I2S_BASE)                        // only one I2S on C6
 
 /** I2S_INT_RAW_REG register
  *  I2S interrupt raw register, valid in level.

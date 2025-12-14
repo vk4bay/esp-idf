@@ -47,22 +47,16 @@ Examples
 
     * - **Code Example**
       - **Description**
-    * - :example:`nvs_rw_blob <storage/nvs/nvs_rw_blob>`
+    * - :example:`nvs_rw_blob <storage/nvs_rw_blob>`
       - Shows the use of the C-style API to read and write blob data types in NVS flash.
-    * - :example:`nvs_rw_value <storage/nvs/nvs_rw_value>`
+    * - :example:`nvs_rw_value <storage/nvs_rw_value>`
       - Shows the use of the C-style API to read and write integer data types in NVS flash.
-    * - :example:`nvs_rw_value_cxx <storage/nvs/nvs_rw_value_cxx>`
+    * - :example:`nvs_rw_value_cxx <storage/nvs_rw_value_cxx>`
       - Shows the use of the C++-style API to read and write integer data types in NVS flash.
-    * - :example:`nvs_statistics <storage/nvs/nvs_statistics>`
-      - Shows the use of the C-style API to obtain NVS usage statistics: free/used/available/total number of entries and number of namespaces in given NVS partition.
-    * - :example:`nvs_iteration <storage/nvs/nvs_iteration>`
-      - Shows the use of the C-style API to iterate over entries of specific (or any) NVS data type and how to obtain info about such entries.
-    * - :example:`nvs_bootloader <storage/nvs/nvs_bootloader>`
+    * - :example:`nvs_bootloader <storage/nvs_bootloader>`
       - Shows the use of the API available to the bootloader code to read NVS data.
-    * - :example:`nvsgen <storage/nvs/nvsgen>`
+    * - :example:`nvsgen <storage/nvsgen>`
       - Demonstrates how to use the Python-based NVS image generation tool to create an NVS partition image from the contents of a CSV file.
-    * - :example:`nvs_console <storage/nvs/nvs_console>`
-      - Demonstrates how to use NVS through an interactive console interface.
 
 .. list-table:: Common Filesystem API
     :widths: 25 75

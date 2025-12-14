@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2022-2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2022-2024 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -10,7 +10,6 @@
 
 #pragma once
 
-#include <stdint.h>
 #include "esp_attr.h"
 #include "hal/misc.h"
 #include "hal/assert.h"
@@ -39,14 +38,9 @@ extern "C" {
     (num) == 3 ? (&UART3) : \
     (num) == 4 ? (&UART4) : (&LP_UART))
 
-#define UART_LL_REG_FIELD_BIT_SHIFT(hw)     (((hw) == &LP_UART) ? 3 : 0)
+#define UART_LL_REG_FIELD_BIT_SHIFT(hw) (((hw) == &LP_UART) ? 3 : 0)
 
-#define UART_LL_PULSE_TICK_CNT_MAX          UART_LOWPULSE_MIN_CNT_V
-
-#define UART_LL_WAKEUP_EDGE_THRED_MIN       (3)
-#define UART_LL_WAKEUP_EDGE_THRED_MAX(hw)   (((hw) == &LP_UART) ? LP_UART_ACTIVE_THRESHOLD_V : UART_ACTIVE_THRESHOLD_V )
-#define UART_LL_WAKEUP_FIFO_THRED_MAX(hw)   (((hw) == &LP_UART) ? LP_UART_RX_WAKE_UP_THRHD_V : UART_RX_WAKE_UP_THRHD_V )
-
+#define UART_LL_MIN_WAKEUP_THRESH (3)
 #define UART_LL_INTR_MASK         (0x7ffff) //All interrupt mask
 
 #define UART_LL_FSM_IDLE                       (0x0)
@@ -107,7 +101,6 @@ FORCE_INLINE_ATTR void lp_uart_ll_get_sclk(uart_dev_t *hw, soc_module_clk_t *sou
     case 1:
         *source_clk = (soc_module_clk_t)LP_UART_SCLK_XTAL_D2;
         break;
-    // TODO: IDF-9581
     // case 2:
     //     *source_clk = (soc_module_clk_t)LP_UART_SCLK_LP_PLL;
     //     break;
@@ -140,10 +133,7 @@ static inline void lp_uart_ll_set_source_clk(uart_dev_t *hw, soc_periph_lp_uart_
 }
 
 // LPPERI.core_clk_sel is a shared register, so this function must be used in an atomic way
-#define lp_uart_ll_set_source_clk(...) do { \
-        (void)__DECLARE_RCC_ATOMIC_ENV; \
-        lp_uart_ll_set_source_clk(__VA_ARGS__); \
-    } while(0)
+#define lp_uart_ll_set_source_clk(...) (void)__DECLARE_RCC_ATOMIC_ENV; lp_uart_ll_set_source_clk(__VA_ARGS__)
 
 /**
  * @brief  Configure the lp uart baud-rate.
@@ -186,10 +176,7 @@ static inline void _lp_uart_ll_enable_bus_clock(int hw_id, bool enable)
 }
 
 // LPPERI.clk_en is a shared register, so this function must be used in an atomic way
-#define lp_uart_ll_enable_bus_clock(...) do { \
-        (void)__DECLARE_RCC_ATOMIC_ENV; \
-        _lp_uart_ll_enable_bus_clock(__VA_ARGS__); \
-    } while(0)
+#define lp_uart_ll_enable_bus_clock(...) (void)__DECLARE_RCC_ATOMIC_ENV; _lp_uart_ll_enable_bus_clock(__VA_ARGS__)
 
 /**
  * @brief  Enable the UART clock.
@@ -228,10 +215,7 @@ static inline void lp_uart_ll_reset_register(int hw_id)
 }
 
 // LPPERI.reset_en is a shared register, so this function must be used in an atomic way
-#define lp_uart_ll_reset_register(...) do { \
-        (void)__DECLARE_RCC_ATOMIC_ENV; \
-        lp_uart_ll_reset_register(__VA_ARGS__); \
-    } while(0)
+#define lp_uart_ll_reset_register(...) (void)__DECLARE_RCC_ATOMIC_ENV; lp_uart_ll_reset_register(__VA_ARGS__)
 
 /*************************************** General LL functions ******************************************/
 
@@ -323,10 +307,7 @@ static inline void _uart_ll_enable_bus_clock(uart_port_t uart_num, bool enable)
     }
 }
 // HP_SYS_CLKRST.soc_clk_ctrlx are shared registers, so this function must be used in an atomic way
-#define uart_ll_enable_bus_clock(...) do { \
-        (void)__DECLARE_RCC_ATOMIC_ENV; \
-        _uart_ll_enable_bus_clock(__VA_ARGS__); \
-    } while(0)
+#define uart_ll_enable_bus_clock(...) (void)__DECLARE_RCC_ATOMIC_ENV; _uart_ll_enable_bus_clock(__VA_ARGS__)
 
 /**
  * @brief Reset UART module
@@ -364,10 +345,7 @@ static inline void uart_ll_reset_register(uart_port_t uart_num)
     }
 }
 //  HP_SYS_CLKRST.hp_rst_en1 is a shared register, so this function must be used in an atomic way
-#define uart_ll_reset_register(...) do { \
-        (void)__DECLARE_RCC_ATOMIC_ENV; \
-        uart_ll_reset_register(__VA_ARGS__); \
-    } while(0)
+#define uart_ll_reset_register(...) (void)__DECLARE_RCC_ATOMIC_ENV; uart_ll_reset_register(__VA_ARGS__)
 
 /**
  * @brief  Enable the UART clock.
@@ -397,10 +375,7 @@ FORCE_INLINE_ATTR void _uart_ll_sclk_enable(uart_dev_t *hw)
     hw->clk_conf.rx_sclk_en = 1;
 }
 // HP_SYS_CLKRST.peri_clk_ctrlxxx are shared registers, so this function must be used in an atomic way
-#define uart_ll_sclk_enable(...) do { \
-        (void)__DECLARE_RCC_ATOMIC_ENV; \
-        _uart_ll_sclk_enable(__VA_ARGS__); \
-    } while(0)
+#define uart_ll_sclk_enable(...) (void)__DECLARE_RCC_ATOMIC_ENV; _uart_ll_sclk_enable(__VA_ARGS__)
 
 /**
  * @brief  Disable the UART clock.
@@ -429,10 +404,7 @@ FORCE_INLINE_ATTR void _uart_ll_sclk_disable(uart_dev_t *hw)
     hw->clk_conf.rx_sclk_en = 0;
 }
 // HP_SYS_CLKRST.peri_clk_ctrlxxx are shared registers, so this function must be used in an atomic way
-#define uart_ll_sclk_disable(...) do { \
-        (void)__DECLARE_RCC_ATOMIC_ENV; \
-        _uart_ll_sclk_disable(__VA_ARGS__); \
-    } while(0)
+#define uart_ll_sclk_disable(...) (void)__DECLARE_RCC_ATOMIC_ENV; _uart_ll_sclk_disable(__VA_ARGS__)
 
 /**
  * @brief  Set the UART source clock.
@@ -476,10 +448,7 @@ FORCE_INLINE_ATTR void uart_ll_set_sclk(uart_dev_t *hw, soc_module_clk_t source_
     }
 }
 //HP_SYS_CLKRST.peri_clk_ctrlxxx are shared registers, so this function must be used in an atomic way
-#define uart_ll_set_sclk(...) do { \
-        (void)__DECLARE_RCC_ATOMIC_ENV; \
-        uart_ll_set_sclk(__VA_ARGS__); \
-    } while(0)
+#define uart_ll_set_sclk(...) (void)__DECLARE_RCC_ATOMIC_ENV; uart_ll_set_sclk(__VA_ARGS__)
 
 /**
  * @brief  Get the UART source clock type.
@@ -530,7 +499,7 @@ FORCE_INLINE_ATTR void uart_ll_get_sclk(uart_dev_t *hw, soc_module_clk_t *source
  *
  * @return True if baud-rate set successfully; False if baud-rate requested cannot be achieved
  */
-FORCE_INLINE_ATTR bool _uart_ll_set_baudrate(uart_dev_t *hw, uint32_t baud, uint32_t sclk_freq)
+FORCE_INLINE_ATTR bool uart_ll_set_baudrate(uart_dev_t *hw, uint32_t baud, uint32_t sclk_freq)
 {
     if ((hw) == &LP_UART) {
         abort(); // need to call lp_uart_ll_set_baudrate()
@@ -569,16 +538,10 @@ FORCE_INLINE_ATTR bool _uart_ll_set_baudrate(uart_dev_t *hw, uint32_t baud, uint
     uart_ll_update(hw);
     return true;
 }
-
+#if !BOOTLOADER_BUILD
 //HP_SYS_CLKRST.peri_clk_ctrlxxx are shared registers, so this function must be used in an atomic way
-#define uart_ll_set_baudrate(...) ({                \
-    (void)__DECLARE_RCC_ATOMIC_ENV;                 \
-    int _temp;                                      \
-    do {                                            \
-        _temp = _uart_ll_set_baudrate(__VA_ARGS__); \
-    } while(0);                                     \
-    _temp;                                          \
-})
+#define uart_ll_set_baudrate(...) uart_ll_set_baudrate(__VA_ARGS__); (void)__DECLARE_RCC_ATOMIC_ENV
+#endif
 
 /**
  * @brief  Get the current baud-rate.
@@ -659,11 +622,6 @@ FORCE_INLINE_ATTR uint32_t uart_ll_get_intsts_mask(uart_dev_t *hw)
     return hw->int_st.val;
 }
 
-FORCE_INLINE_ATTR volatile void* uart_ll_get_intr_status_reg(uart_dev_t *hw)
-{
-    return &hw->int_st.val;
-}
-
 /**
  * @brief  Clear the UART interrupt status based on the given mask.
  *
@@ -701,7 +659,7 @@ FORCE_INLINE_ATTR uint32_t uart_ll_get_intr_ena_status(uart_dev_t *hw)
 FORCE_INLINE_ATTR void uart_ll_read_rxfifo(uart_dev_t *hw, uint8_t *buf, uint32_t rd_len)
 {
     for (int i = 0; i < (int)rd_len; i++) {
-        buf[i] = hw->fifo.val;
+        buf[i] = hw->fifo.rxfifo_rd_byte;
     }
 }
 
@@ -1060,114 +1018,10 @@ FORCE_INLINE_ATTR void uart_ll_set_dtr_active_level(uart_dev_t *hw, int level)
  *
  * @return None.
  */
-FORCE_INLINE_ATTR void uart_ll_set_wakeup_edge_thrd(uart_dev_t *hw, uint32_t wakeup_thrd)
+FORCE_INLINE_ATTR void uart_ll_set_wakeup_thrd(uart_dev_t *hw, uint32_t wakeup_thrd)
 {
     // System would wakeup when the number of positive edges of RxD signal is larger than or equal to (UART_ACTIVE_THRESHOLD+3)
-    hw->sleep_conf2.active_threshold = wakeup_thrd - UART_LL_WAKEUP_EDGE_THRED_MIN;
-}
-
-
-/**
- * @brief  Set the number of received data bytes for the RX FIFO threshold wake-up mode.
- *
- * @param  hw Beginning address of the peripheral registers.
- * @param  wakeup_thrd The wakeup threshold value in bytes to be set.
- *
- * @return None.
- */
-FORCE_INLINE_ATTR void uart_ll_set_wakeup_fifo_thrd(uart_dev_t *hw, uint32_t wakeup_thrd)
-{
-    // System would wakeup when reach the number of the received data number threshold.
-    HAL_FORCE_MODIFY_U32_REG_FIELD(hw->sleep_conf2, rx_wake_up_thrhd, wakeup_thrd << UART_LL_REG_FIELD_BIT_SHIFT(hw));
-}
-
-/**
- * @brief  Set the UART wakeup mode.
- *
- * @param  hw Beginning address of the peripheral registers.
- * @param  mode UART wakeup mode to be set.
- *
- * @return None.
- */
-FORCE_INLINE_ATTR void uart_ll_set_wakeup_mode(uart_dev_t *hw, uart_wakeup_mode_t mode)
-{
-    switch(mode){
-        case UART_WK_MODE_ACTIVE_THRESH:
-            hw->sleep_conf2.wk_mode_sel = 0;
-            break;
-        case UART_WK_MODE_FIFO_THRESH:
-            hw->sleep_conf2.wk_mode_sel = 1;
-            break;
-        case UART_WK_MODE_START_BIT:
-            hw->sleep_conf2.wk_mode_sel = 2;
-            break;
-        case UART_WK_MODE_CHAR_SEQ:
-            hw->sleep_conf2.wk_mode_sel = 3;
-            break;
-        default:
-            abort();
-            break;
-    }
-}
-
-/**
- * @brief  Set the UART specific character sequence wakeup mode mask.
- *
- * @param  hw Beginning address of the peripheral registers.
- * @param  mask UART wakeup char seq mask to be set.
- *
- * @return None.
- */
-FORCE_INLINE_ATTR void uart_ll_set_wakeup_char_seq_mask(uart_dev_t *hw, uint32_t mask)
-{
-    hw->sleep_conf2.wk_char_mask = mask;
-}
-
-/**
- * @brief  Set the UART specific character sequence wakeup phrase size.
- *
- * @param  hw Beginning address of the peripheral registers.
- * @param  char_num UART wakeup char seq phrase size to be set.
- *
- * @return None.
- */
-FORCE_INLINE_ATTR void uart_ll_set_wakeup_char_seq_char_num(uart_dev_t *hw, uint32_t char_num)
-{
-    hw->sleep_conf2.wk_char_num = char_num;
-}
-
-/**
- * @brief  Set the UART specific character sequence wakeup mode char.
- *
- * @param  hw Beginning address of the peripheral registers.
- * @param  char_position UART wakeup char seq char position to be set.
- * @param  value UART wakeup char seq char value to be set.
- *
- * @return None.
- */
-FORCE_INLINE_ATTR void uart_ll_set_char_seq_wk_char(uart_dev_t *hw, uint32_t char_position, char value)
-{
-    switch (char_position) {
-        case 0:
-            HAL_FORCE_MODIFY_U32_REG_FIELD(hw->sleep_conf1, wk_char0, value);
-            break;
-        case 1:
-            HAL_FORCE_MODIFY_U32_REG_FIELD(hw->sleep_conf0, wk_char1, value);
-            break;
-        case 2:
-            HAL_FORCE_MODIFY_U32_REG_FIELD(hw->sleep_conf0, wk_char2, value);
-            break;
-        case 3:
-            HAL_FORCE_MODIFY_U32_REG_FIELD(hw->sleep_conf0, wk_char3, value);
-            break;
-        case 4:
-            HAL_FORCE_MODIFY_U32_REG_FIELD(hw->sleep_conf0, wk_char4, value);
-            break;
-        default:
-            abort();
-            break;
-    }
-
+    hw->sleep_conf2.active_threshold = wakeup_thrd - UART_LL_MIN_WAKEUP_THRESH;
 }
 
 /**
@@ -1192,10 +1046,7 @@ FORCE_INLINE_ATTR void _uart_ll_enable_pad_sleep_clock(uart_dev_t *hw, bool enab
 }
 
 // LP_AON_CLKRST.hp_clk_ctrl is a shared register, so this function must be used in an atomic way
-#define uart_ll_enable_pad_sleep_clock(...) do { \
-        (void)__DECLARE_RCC_ATOMIC_ENV; \
-        _uart_ll_enable_pad_sleep_clock(__VA_ARGS__); \
-    } while(0)
+#define uart_ll_enable_pad_sleep_clock(...) (void)__DECLARE_RCC_ATOMIC_ENV; _uart_ll_enable_pad_sleep_clock(__VA_ARGS__)
 
 /**
  * @brief  Configure the UART work in normal mode.
@@ -1370,9 +1221,9 @@ FORCE_INLINE_ATTR void uart_ll_get_at_cmd_char(uart_dev_t *hw, uint8_t *cmd_char
  *
  * @return The UART wakeup threshold value.
  */
-FORCE_INLINE_ATTR uint32_t uart_ll_get_wakeup_edge_thrd(uart_dev_t *hw)
+FORCE_INLINE_ATTR uint32_t uart_ll_get_wakeup_thrd(uart_dev_t *hw)
 {
-    return hw->sleep_conf2.active_threshold + UART_LL_WAKEUP_EDGE_THRED_MIN;
+    return hw->sleep_conf2.active_threshold + UART_LL_MIN_WAKEUP_THRESH;
 }
 
 /**

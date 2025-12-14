@@ -21,7 +21,6 @@
 
 #include <stddef.h>
 #include <stdlib.h>
-#include "bt_common.h"
 #include "esp_heap_caps.h"
 
 char *osi_strdup(const char *str);

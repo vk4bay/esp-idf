@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2015-2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2015-2024 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -16,7 +16,7 @@
 #include "driver/uart_vfs.h"
 #include "driver/uart.h"
 #include "driver/uart_select.h"
-#include "esp_rom_serial_output.h"
+#include "esp_rom_uart.h"
 #include "hal/uart_ll.h"
 #include "soc/soc_caps.h"
 #include "esp_vfs_dev.h" // Old headers for the aliasing functions
@@ -27,17 +27,17 @@
 // Token signifying that no character is available
 #define NONE -1
 
-#if CONFIG_LIBC_STDOUT_LINE_ENDING_CRLF
+#if CONFIG_NEWLIB_STDOUT_LINE_ENDING_CRLF
 #   define DEFAULT_TX_MODE ESP_LINE_ENDINGS_CRLF
-#elif CONFIG_LIBC_STDOUT_LINE_ENDING_CR
+#elif CONFIG_NEWLIB_STDOUT_LINE_ENDING_CR
 #   define DEFAULT_TX_MODE ESP_LINE_ENDINGS_CR
 #else
 #   define DEFAULT_TX_MODE ESP_LINE_ENDINGS_LF
 #endif
 
-#if CONFIG_LIBC_STDIN_LINE_ENDING_CRLF
+#if CONFIG_NEWLIB_STDIN_LINE_ENDING_CRLF
 #   define DEFAULT_RX_MODE ESP_LINE_ENDINGS_CRLF
-#elif CONFIG_LIBC_STDIN_LINE_ENDING_CR
+#elif CONFIG_NEWLIB_STDIN_LINE_ENDING_CR
 #   define DEFAULT_RX_MODE ESP_LINE_ENDINGS_CR
 #else
 #   define DEFAULT_RX_MODE ESP_LINE_ENDINGS_LF
@@ -215,7 +215,7 @@ static int uart_rx_char(int fd)
 static int uart_rx_char_via_driver(int fd)
 {
     uint8_t c;
-    TickType_t timeout = s_ctx[fd]->non_blocking ? 0 : portMAX_DELAY;
+    int timeout = s_ctx[fd]->non_blocking ? 0 : portMAX_DELAY;
     int n = uart_read_bytes(fd, &c, 1, timeout);
     if (n <= 0) {
         return NONE;
@@ -226,23 +226,21 @@ static int uart_rx_char_via_driver(int fd)
 static ssize_t uart_write(int fd, const void * data, size_t size)
 {
     assert(fd >= 0 && fd < 3);
-    tx_func_t tx_func = s_ctx[fd]->tx_func;
-    esp_line_endings_t tx_mode = s_ctx[fd]->tx_mode;
     const char *data_c = (const char *)data;
-    /*  Even though libc does stream locking on each individual stream, we need
+    /*  Even though newlib does stream locking on each individual stream, we need
      *  a dedicated UART lock if two streams (stdout and stderr) point to the
      *  same UART.
      */
     _lock_acquire_recursive(&s_ctx[fd]->write_lock);
     for (size_t i = 0; i < size; i++) {
         int c = data_c[i];
-        if (c == '\n' && tx_mode != ESP_LINE_ENDINGS_LF) {
-            tx_func(fd, '\r');
-            if (tx_mode == ESP_LINE_ENDINGS_CR) {
+        if (c == '\n' && s_ctx[fd]->tx_mode != ESP_LINE_ENDINGS_LF) {
+            s_ctx[fd]->tx_func(fd, '\r');
+            if (s_ctx[fd]->tx_mode == ESP_LINE_ENDINGS_CR) {
                 continue;
             }
         }
-        tx_func(fd, c);
+        s_ctx[fd]->tx_func(fd, c);
     }
     _lock_release_recursive(&s_ctx[fd]->write_lock);
     return size;
@@ -443,32 +441,13 @@ static esp_err_t unregister_select(uart_select_args_t *args)
         for (int i = 0; i < s_registered_select_num; ++i) {
             if (s_registered_selects[i] == args) {
                 const int new_size = s_registered_select_num - 1;
-                // Move last element to fill gap (only if not removing the last element)
-                if (i < new_size) {
-                    s_registered_selects[i] = s_registered_selects[new_size];
-                }
-                if (new_size == 0) {
-                    // Free the entire array
-                    free(s_registered_selects);
-                    s_registered_selects = NULL;
-                    s_registered_select_num = 0;
-                    ret = ESP_OK;
-                } else {
-                    // Shrink the array
-                    uart_select_args_t **new_selects = heap_caps_realloc(s_registered_selects, new_size * sizeof(uart_select_args_t *), UART_VFS_MALLOC_FLAGS);
-                    if (new_selects == NULL) {
-                        // Realloc failed - restore moved element
-                        if (i < new_size) {
-                            s_registered_selects[new_size] = s_registered_selects[i];
-                        }
-                        ret = ESP_ERR_NO_MEM;
-                    } else {
-                        // Success - update pointer
-                        s_registered_selects = new_selects;
-                        s_registered_select_num = new_size;
-                        ret = ESP_OK;
-                    }
-                }
+                // The item is removed by overwriting it with the last item. The subsequent rellocation will drop the
+                // last item.
+                s_registered_selects[i] = s_registered_selects[new_size];
+                s_registered_selects = heap_caps_realloc(s_registered_selects, new_size * sizeof(uart_select_args_t *), UART_VFS_MALLOC_FLAGS);
+                // Shrinking a buffer with realloc is guaranteed to succeed.
+                s_registered_select_num = new_size;
+                ret = ESP_OK;
                 break;
             }
         }
@@ -1174,3 +1153,19 @@ void uart_vfs_include_dev_init(void)
 {
     // Linker hook function, exists to make the linker examine this file
 }
+
+// -------------------------- esp_vfs_dev_uart_xxx ALIAS (deprecated) ----------------------------
+
+void esp_vfs_dev_uart_register(void) __attribute__((alias("uart_vfs_dev_register")));
+
+void esp_vfs_dev_uart_set_rx_line_endings(esp_line_endings_t mode) __attribute__((alias("uart_vfs_dev_set_rx_line_endings")));
+
+void esp_vfs_dev_uart_set_tx_line_endings(esp_line_endings_t mode) __attribute__((alias("uart_vfs_dev_set_tx_line_endings")));
+
+int esp_vfs_dev_uart_port_set_rx_line_endings(int uart_num, esp_line_endings_t mode) __attribute__((alias("uart_vfs_dev_port_set_rx_line_endings")));
+
+int esp_vfs_dev_uart_port_set_tx_line_endings(int uart_num, esp_line_endings_t mode) __attribute__((alias("uart_vfs_dev_port_set_tx_line_endings")));
+
+void esp_vfs_dev_uart_use_nonblocking(int uart_num) __attribute__((alias("uart_vfs_dev_use_nonblocking")));
+
+void esp_vfs_dev_uart_use_driver(int uart_num) __attribute__((alias("uart_vfs_dev_use_driver")));

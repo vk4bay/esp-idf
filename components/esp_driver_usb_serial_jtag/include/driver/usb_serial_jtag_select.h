@@ -1,6 +1,6 @@
 
 /*
- * SPDX-FileCopyrightText: 2024-2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2024 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -19,20 +19,13 @@ typedef enum {
     USJ_SELECT_ERROR_NOTIF,
 } usj_select_notif_t;
 
-typedef void (*usj_select_notif_callback_t)(usj_select_notif_t usb_serial_jtag_select_notif, int *task_woken);
+typedef void (*usj_select_notif_callback_t)(usj_select_notif_t usb_serial_jtag_select_notif, BaseType_t *task_woken);
 
 /**
  * @brief Set notification callback function for select() events
  * @param usb_serial_jtag_select_notif_callback callback function
  */
 void usb_serial_jtag_set_select_notif_callback(usj_select_notif_callback_t usb_serial_jtag_select_notif_callback);
-
-/**
- * @brief Return the number of bytes available for reading
- *
- * @return the number of bytes available for reading in the buffer
- */
-size_t usb_serial_jtag_get_read_bytes_available(void);
 
 /**
  * @brief Return the readiness status of the driver for read operation

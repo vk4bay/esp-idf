@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2022-2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2022-2024 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -11,7 +11,6 @@
 #include "soc/efuse_periph.h"
 #include "hal/assert.h"
 #include "rom/efuse.h"
-#include "hal/config.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -25,25 +24,6 @@ typedef enum {
     EFUSE_CONTROLLER_STATE_BLK0_CRC_CHECK   = 4,    ///< efuse_controllerid is on checking block0 crc state.
     EFUSE_CONTROLLER_STATE_READ_RS_BLK      = 5,    ///< efuse_controllerid is on reading RS block state.
 } efuse_controller_state_t;
-
-/* Revision-aware eFuse feature macros
- *
- * These macros indicate whether an eFuse feature is available given the
- * configured minimum supported chip revision (HAL_CONFIG(CHIP_SUPPORT_MIN_REV)).
- * Use them when a feature's presence depends on the chosen minimum revision.
- *
- * Note: SOC_* capability macros describe silicon capabilities; these
- * EFUSE_LL_HAS_* macros reflect availability relative to the configured min revision.
- * If a feature is present in silicon and does not depend on the chip revision,
- * then add SOC_* macro in soc_caps.h instead.
- */
-#if HAL_CONFIG(CHIP_SUPPORT_MIN_REV) >= 300
-// Rev 3.00+: key_purpose fields expanded from 4 to 5 bits, enabling additional key types.
-#define EFUSE_LL_HAS_ECDSA_KEY_P192    (1)
-#define EFUSE_LL_HAS_ECDSA_KEY_P384    (1)
-#define EFUSE_LL_HAS_PSRAM_ENCRYPTION_XTS_AES_128  (1)
-#define EFUSE_LL_HAS_PSRAM_ENCRYPTION_XTS_AES_256  (1)
-#endif
 
 // Always inline these functions even no gcc optimization is applied.
 
@@ -77,7 +57,7 @@ __attribute__((always_inline)) static inline bool efuse_ll_get_secure_boot_v2_en
 // use efuse_hal_get_major_chip_version() to get major chip version
 __attribute__((always_inline)) static inline uint32_t efuse_ll_get_chip_wafer_version_major(void)
 {
-    return (EFUSE.rd_mac_sys_2.wafer_version_major_hi << 2) | EFUSE.rd_mac_sys_2.wafer_version_major_lo;
+    return EFUSE.rd_mac_sys_2.wafer_version_major;
 }
 
 // use efuse_hal_get_minor_chip_version() to get minor chip version
@@ -109,6 +89,11 @@ __attribute__((always_inline)) static inline bool efuse_ll_get_disable_blk_versi
 __attribute__((always_inline)) static inline uint32_t efuse_ll_get_chip_ver_pkg(void)
 {
     return EFUSE.rd_mac_sys_2.pkg_version;
+}
+
+__attribute__((always_inline)) static inline void efuse_ll_set_ecdsa_key_blk(int efuse_blk)
+{
+    EFUSE.conf.cfg_ecdsa_blk = efuse_blk;
 }
 
 /******************* eFuse control functions *************************/
@@ -157,21 +142,6 @@ __attribute__((always_inline)) static inline void efuse_ll_rs_bypass_update(void
 __attribute__((always_inline)) static inline uint32_t efuse_ll_get_controller_state(void)
 {
     return EFUSE.status.state;
-}
-
-__attribute__((always_inline)) static inline uint32_t efuse_ll_get_active_hp_dbias(void)
-{
-    return EFUSE.rd_mac_sys_4.active_hp_dbias;
-}
-
-__attribute__((always_inline)) static inline uint32_t efuse_ll_get_active_lp_dbias(void)
-{
-    return EFUSE.rd_mac_sys_4.active_lp_dbias;
-}
-
-__attribute__((always_inline)) static inline int32_t efuse_ll_get_dbias_vol_gap(void)
-{
-    return EFUSE.rd_mac_sys_5.lp_dcdc_dbias_vol_gap;
 }
 
 /******************* eFuse control functions *************************/

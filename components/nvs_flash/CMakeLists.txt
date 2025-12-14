@@ -1,48 +1,16 @@
-idf_build_get_property(esp_tee_build ESP_TEE_BUILD)
-
 if(BOOTLOADER_BUILD)
     # bootloader build simplified version
-    set(srcs "src/nvs_bootloader.c"
-             "src/nvs_bootloader_aes.c"
-             "src/nvs_bootloader_xts_aes.c")
-
+    set(srcs "src/nvs_bootloader.c")
     set(requires "esp_partition")
-    set(priv_requires "mbedtls" "nvs_sec_provider")
 
     idf_component_register(SRCS "${srcs}"
                         REQUIRES "${requires}"
-                        PRIV_REQUIRES "${priv_requires}"
                         INCLUDE_DIRS "include"
                         PRIV_INCLUDE_DIRS "private_include"
     )
 
-elseif(esp_tee_build)
-    # esp-tee build simplified version
-    set(srcs "src/nvs_api.cpp"
-             "src/nvs_item_hash_list.cpp"
-             "src/nvs_page.cpp"
-             "src/nvs_pagemanager.cpp"
-             "src/nvs_storage.cpp"
-             "src/nvs_handle_simple.cpp"
-             "src/nvs_handle_locked.cpp"
-             "src/nvs_partition.cpp"
-             "src/nvs_encrypted_partition.cpp"
-             "src/nvs_partition_lookup.cpp"
-             "src/nvs_partition_manager.cpp"
-             "src/nvs_types.cpp"
-             "src/nvs_platform.cpp")
-
-    set(requires esp_partition esp_blockdev mbedtls)
-    set(priv_requires spi_flash esp_libc cxx)
-
-    idf_component_register(SRCS "${srcs}"
-                    REQUIRES "${requires}"
-                    PRIV_REQUIRES "${priv_requires}"
-                    INCLUDE_DIRS "include"
-                    PRIV_INCLUDE_DIRS "private_include")
-
 else()
-    # regular, OS build
+    # regular, non bootloader build
     idf_build_get_property(target IDF_TARGET)
 
     set(srcs "src/nvs_api.cpp"
@@ -60,10 +28,11 @@ else()
             "src/nvs_platform.cpp"
             "src/nvs_bootloader.c")
 
-    set(requires esp_partition esp_blockdev)
-    set(priv_requires spi_flash)
-    if(NOT ${target} STREQUAL "linux")
-        list(APPEND priv_requires esp_libc esptool_py nvs_sec_provider)
+    set(requires esp_partition)
+    if(${target} STREQUAL "linux")
+        set(priv_requires spi_flash)
+    else()
+        set(priv_requires spi_flash newlib)
     endif()
 
     idf_component_register(SRCS "${srcs}"
@@ -83,9 +52,7 @@ else()
         target_compile_options(${COMPONENT_LIB} PUBLIC --coverage)
         target_link_libraries(${COMPONENT_LIB} PUBLIC --coverage)
     else()
-        target_sources(${COMPONENT_LIB} PRIVATE "src/nvs_encrypted_partition.cpp"
-                                                "src/nvs_bootloader_aes.c"
-                                                "src/nvs_bootloader_xts_aes.c")
+        target_sources(${COMPONENT_LIB} PRIVATE "src/nvs_encrypted_partition.cpp")
         target_link_libraries(${COMPONENT_LIB} PRIVATE idf::mbedtls)
     endif()
 
@@ -93,4 +60,4 @@ else()
         target_compile_options(${COMPONENT_LIB} PUBLIC "-fno-analyzer")
     endif()
 
-endif() #non-OS build
+endif() #bootloader build

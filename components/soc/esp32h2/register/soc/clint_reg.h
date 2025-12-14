@@ -1,7 +1,7 @@
 /*
- * SPDX-FileCopyrightText: 2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2022 Espressif Systems (Shanghai) CO LTD
  *
- * SPDX-License-Identifier: Apache-2.0 OR MIT
+ * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
 
@@ -11,7 +11,6 @@ extern "C" {
 
 #define DR_REG_CLINT_M_BASE    ( 0x20001800)
 #define DR_REG_CLINT_U_BASE    ( 0x20001C00)
-#define DR_REG_CLINT_U_END     ( 0x20002000)
 
 /*CLINT MINT*/
 #define CLINT_MINT_SIP_REG          (DR_REG_CLINT_M_BASE + 0x0)

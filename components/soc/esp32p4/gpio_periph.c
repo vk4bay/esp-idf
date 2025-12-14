@@ -1,11 +1,10 @@
 /*
- * SPDX-FileCopyrightText: 2022-2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2022-2023 Espressif Systems (Shanghai) CO LTD
  *
- * SPDX-License-Identifier: Apache-2.0 OR MIT
+ * SPDX-License-Identifier: Apache-2.0
  */
 
 #include "soc/gpio_periph.h"
-#include "soc/io_mux_reg.h"
 #include "esp_assert.h"
 
 const uint32_t GPIO_PIN_MUX_REG[] = {

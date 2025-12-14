@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2019-2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2019-2024 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -26,8 +26,6 @@ extern "C" {
 #define LEDC_LL_HPOINT_VAL_MAX     (LEDC_HPOINT_LSCH0_V)
 #define LEDC_LL_FRACTIONAL_BITS    (8)
 #define LEDC_LL_FRACTIONAL_MAX     ((1 << LEDC_LL_FRACTIONAL_BITS) - 1)
-/// Get the mask of the fade end interrupt status register.
-#define LEDC_LL_FADE_END_INTR_MASK  (0xffffUL << LEDC_DUTY_CHNG_END_HSCH0_INT_ENA_S)
 
 #define LEDC_LL_GLOBAL_CLOCKS { \
                                 LEDC_SLOW_CLK_APB, \
@@ -59,10 +57,7 @@ static inline void ledc_ll_enable_bus_clock(bool enable)
 
 /// use a macro to wrap the function, force the caller to use it in a critical section
 /// the critical section needs to declare the __DECLARE_RCC_ATOMIC_ENV variable in advance
-#define ledc_ll_enable_bus_clock(...) do { \
-        (void)__DECLARE_RCC_ATOMIC_ENV; \
-        ledc_ll_enable_bus_clock(__VA_ARGS__); \
-    } while(0)
+#define ledc_ll_enable_bus_clock(...) (void)__DECLARE_RCC_ATOMIC_ENV; ledc_ll_enable_bus_clock(__VA_ARGS__)
 
 /**
  * @brief Reset whole peripheral register to init value defined by HW design
@@ -78,10 +73,7 @@ static inline void ledc_ll_enable_reset_reg(bool enable)
 
 /// use a macro to wrap the function, force the caller to use it in a critical section
 /// the critical section needs to declare the __DECLARE_RCC_ATOMIC_ENV variable in advance
-#define ledc_ll_enable_reset_reg(...) do { \
-        (void)__DECLARE_RCC_ATOMIC_ENV; \
-        ledc_ll_enable_reset_reg(__VA_ARGS__); \
-    } while(0)
+#define ledc_ll_enable_reset_reg(...) (void)__DECLARE_RCC_ATOMIC_ENV; ledc_ll_enable_reset_reg(__VA_ARGS__)
 
 /**
  * @brief Enable the power for LEDC memory block
@@ -102,32 +94,6 @@ static inline void ledc_ll_enable_mem_power(bool enable)
 static inline void ledc_ll_enable_clock(ledc_dev_t *hw, bool en)
 {
     //resolve for compatibility
-}
-
-/**
- * @brief Enable the power for LEDC channel
- *
- * @param hw Beginning address of the peripheral registers
- * @param speed_mode LEDC speed_mode, low-speed mode only
- * @param channel_num LEDC channel index (0-7), select from ledc_channel_t
- * @param en True to enable, false to disable
- */
-static inline void ledc_ll_enable_channel_power(ledc_dev_t *hw, ledc_mode_t speed_mode, ledc_channel_t channel_num, bool en)
-{
-    // No per channel power control on ESP32
-}
-
-/**
- * @brief Enable the power for LEDC timer
- *
- * @param hw Beginning address of the peripheral registers
- * @param speed_mode LEDC speed_mode, low-speed mode only
- * @param timer_sel LEDC timer index (0-7), select from ledc_timer_t
- * @param en True to enable, false to disable
- */
-static inline void ledc_ll_enable_timer_power(ledc_dev_t *hw, ledc_mode_t speed_mode, ledc_timer_t timer_sel, bool en)
-{
-    // No per timer power control on ESP32
 }
 
 /**
@@ -509,15 +475,13 @@ static inline void ledc_ll_set_sig_out_en(ledc_dev_t *hw, ledc_mode_t speed_mode
  * @param hw Beginning address of the peripheral registers
  * @param speed_mode LEDC speed_mode, high-speed mode or low-speed mode
  * @param channel_num LEDC channel index (0-7), select from ledc_channel_t
+ * @param duty_start The duty start
  *
  * @return None
  */
-static inline void ledc_ll_set_duty_start(ledc_dev_t *hw, ledc_mode_t speed_mode, ledc_channel_t channel_num)
+static inline void ledc_ll_set_duty_start(ledc_dev_t *hw, ledc_mode_t speed_mode, ledc_channel_t channel_num, bool duty_start)
 {
-    // wait until the last duty change took effect (duty_start bit will be self-cleared when duty update or fade is done)
-    // this is necessary on ESP32 only, otherwise, internal logic might mess up (later targets with SOC_LEDC_SUPPORT_FADE_STOP allow to re-configure parameters while last update is still in progress)
-    while (hw->channel_group[speed_mode].channel[channel_num].conf1.duty_start);
-    hw->channel_group[speed_mode].channel[channel_num].conf1.duty_start = 1;
+    hw->channel_group[speed_mode].channel[channel_num].conf1.duty_start = duty_start;
 }
 
 /**
@@ -558,6 +522,7 @@ static inline void ledc_ll_set_fade_end_intr(ledc_dev_t *hw, ledc_mode_t speed_m
  *
  * @param hw Beginning address of the peripheral registers
  * @param speed_mode LEDC speed_mode, high-speed mode or low-speed mode
+ * @param channel_num LEDC channel index (0-7), select from ledc_channel_t
  * @param intr_status The fade end interrupt status
  *
  * @return None
@@ -568,18 +533,6 @@ static inline void ledc_ll_get_fade_end_intr_status(ledc_dev_t *hw, ledc_mode_t 
     uint32_t int_en_base = (speed_mode == LEDC_LOW_SPEED_MODE) ? LEDC_DUTY_CHNG_END_LSCH0_INT_ENA_S : LEDC_DUTY_CHNG_END_HSCH0_INT_ENA_S;
     *intr_status = (value >> int_en_base) & 0xff;
 }
-
-/**
- * @brief Get the address of the fade end interrupt status register.
- *
- * @param hw Beginning address of the peripheral registers
- * @return Pointer to the fade end interrupt status register.
- */
-static inline volatile void* ledc_ll_get_fade_end_intr_addr(ledc_dev_t *hw)
-{
-    return &hw->int_st.val;
-}
-
 
 /**
  * @brief Clear fade end interrupt status

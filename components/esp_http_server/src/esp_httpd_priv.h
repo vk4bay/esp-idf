@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2018-2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2018-2024 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -22,7 +22,7 @@
 extern "C" {
 #endif
 
-#if CONFIG_LIBC_NEWLIB_NANO_FORMAT
+#if CONFIG_NEWLIB_NANO_FORMAT
 #define NEWLIB_NANO_COMPAT_FORMAT            PRIu32
 #define NEWLIB_NANO_COMPAT_CAST(size_t_var)  (uint32_t)size_t_var
 #else
@@ -31,24 +31,15 @@ extern "C" {
 #endif
 
 /* Size of request data block/chunk (not to be confused with chunked encoded data)
- * that is received and parsed in one turn of the parsing process. */
+ * that is received and parsed in one turn of the parsing process. This should not
+ * exceed the scratch buffer size and should at least be 8 bytes */
 #define PARSER_BLOCK_SIZE  128
+
+/* Calculate the maximum size needed for the scratch buffer */
+#define HTTPD_SCRATCH_BUF  MAX(HTTPD_MAX_REQ_HDR_LEN, HTTPD_MAX_URI_LEN)
 
 /* Formats a log string to prepend context function name */
 #define LOG_FMT(x)      "%s: " x, __func__
-
-/**
- * @brief Control message data structure for internal use. Sent to control socket.
- */
-struct httpd_ctrl_data {
-    enum httpd_ctrl_msg {
-        HTTPD_CTRL_SHUTDOWN,
-        HTTPD_CTRL_WORK,
-        HTTPD_CTRL_MAX,
-    } hc_msg;
-    httpd_work_fn_t hc_work;
-    void *hc_work_arg;
-};
 
 /**
  * @brief Thread related data for internal use
@@ -97,11 +88,7 @@ struct sock_db {
  */
 struct httpd_req_aux {
     struct sock_db *sd;                             /*!< Pointer to socket database */
-    char           *scratch;                        /*!< Temporary buffer for our operations (1 byte extra for null termination) */
-    size_t          scratch_size_limit;             /*!< Scratch buffer size limit (By default this value is set to CONFIG_HTTPD_MAX_REQ_HDR_LEN, overwrite is possible) */
-    size_t          scratch_cur_size;               /*!< Scratch buffer cur size (By default this value is set to CONFIG_HTTPD_MAX_URI_LEN, overwrite is possible) */
-    size_t          max_req_hdr_len;             /*!< Header buffer size limit */
-    size_t          max_uri_len;             /*!< URI buffer size limit */
+    char            scratch[HTTPD_SCRATCH_BUF + 1]; /*!< Temporary buffer for our operations (1 byte extra for null termination) */
     size_t          remaining_len;                  /*!< Amount of data remaining to be fetched */
     char           *status;                         /*!< HTTP response's status code */
     char           *content_type;                   /*!< HTTP response's content type */
@@ -140,20 +127,10 @@ struct httpd_data {
     struct httpd_req hd_req;                /*!< The current HTTPD request */
     struct httpd_req_aux hd_req_aux;        /*!< Additional data about the HTTPD request kept unexposed */
     uint64_t lru_counter;                   /*!< LRU counter */
-    esp_http_server_event_id_t http_server_state;              /*!< HTTPD server state */
 
     /* Array of registered error handler functions */
     httpd_err_handler_func_t *err_handler_fns;
 };
-
-/**
- * @brief Options for receiving HTTP request data
- */
-typedef enum {
-    HTTPD_RECV_OPT_NONE               = 0,
-    HTTPD_RECV_OPT_HALT_AFTER_PENDING = 1,   /*!< Halt immediately after receiving from pending buffer */
-    HTTPD_RECV_OPT_BLOCKING           = 2,   /*!< Receive blocking (don't return partial length) */
-} httpd_recv_opt_t;
 
 /******************* Group : Session Management ********************/
 /** @name Session Management
@@ -445,27 +422,22 @@ int httpd_send(httpd_req_t *req, const char *buf, size_t buf_len);
  *
  * @note    The exposed API httpd_recv() is simply this function with last parameter
  *          set as false. This function is used internally during reception and
- *          processing of a new request.
- *
- *          There are 2 options available that affect the behavior of the function:
- *          - HTTPD_RECV_OPT_HALT_AFTER_PENDING
- *            The option to halt after receiving pending data prevents the server from
- *            requesting more data than is needed for completing a packet in case when
- *            all the remaining part of the packet is in the pending buffer.
- *
- *          - HTTPD_RECV_OPT_BLOCKING
- *            The option to not return until the `buf_len` bytes have been read.
+ *          processing of a new request. The option to halt after receiving pending
+ *          data prevents the server from requesting more data than is needed for
+ *          completing a packet in case when all the remaining part of the packet is
+ *          in the pending buffer.
  *
  * @param[in]  req    Pointer to new HTTP request which only has the socket descriptor
  * @param[out] buf    Pointer to the buffer which will be filled with the received data
  * @param[in] buf_len Length of the buffer
- * @param[in] opt     Receive option
+ * @param[in] halt_after_pending When set true, halts immediately after receiving from
+ *                               pending buffer
  *
  * @return
  *  - Length of data : if successful
  *  - ESP_FAIL       : if failed
  */
-int httpd_recv_with_opt(httpd_req_t *r, char *buf, size_t buf_len, httpd_recv_opt_t opt);
+int httpd_recv_with_opt(httpd_req_t *r, char *buf, size_t buf_len, bool halt_after_pending);
 
 /**
  * @brief   For un-receiving HTTP request data
@@ -592,8 +564,6 @@ esp_err_t httpd_sess_trigger_close_(httpd_handle_t handle, struct sock_db *sessi
  *
  */
 void esp_http_server_dispatch_event(int32_t event_id, const void* event_data, size_t event_data_size);
-
-esp_err_t httpd_crypto_sha1(const uint8_t *data, size_t data_len, uint8_t *hash);
 
 #ifdef __cplusplus
 }

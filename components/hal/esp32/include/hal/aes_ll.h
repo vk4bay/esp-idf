@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2020-2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2020-2024 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -43,10 +43,7 @@ static inline void aes_ll_enable_bus_clock(bool enable)
 
 /// use a macro to wrap the function, force the caller to use it in a critical section
 /// the critical section needs to declare the __DECLARE_RCC_ATOMIC_ENV variable in advance
-#define aes_ll_enable_bus_clock(...) do { \
-        (void)__DECLARE_RCC_ATOMIC_ENV; \
-        aes_ll_enable_bus_clock(__VA_ARGS__); \
-    } while(0)
+#define aes_ll_enable_bus_clock(...) (void)__DECLARE_RCC_ATOMIC_ENV; aes_ll_enable_bus_clock(__VA_ARGS__)
 
 /**
  * @brief Reset the AES peripheral module
@@ -63,10 +60,7 @@ static inline void aes_ll_reset_register(void)
 
 /// use a macro to wrap the function, force the caller to use it in a critical section
 /// the critical section needs to declare the __DECLARE_RCC_ATOMIC_ENV variable in advance
-#define aes_ll_reset_register(...) do { \
-        (void)__DECLARE_RCC_ATOMIC_ENV; \
-        aes_ll_reset_register(__VA_ARGS__); \
-    } while(0)
+#define aes_ll_reset_register(...) (void)__DECLARE_RCC_ATOMIC_ENV; aes_ll_reset_register(__VA_ARGS__)
 
 /**
  * @brief Write the encryption/decryption key to hardware

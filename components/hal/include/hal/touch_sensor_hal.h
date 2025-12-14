@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2019-2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2019-2024 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -10,14 +10,13 @@
  * See readme.md in hal/include/hal/readme.md
  ******************************************************************************/
 
-// The legacy HAL layer for touch sensor (common part)
+// The HAL layer for touch sensor (common part)
 
 #pragma once
 
-#include "soc/soc_caps.h"
 #if SOC_TOUCH_SENSOR_SUPPORTED
 #include "hal/touch_sensor_ll.h"
-#include "hal/touch_sensor_legacy_types.h"
+#include "hal/touch_sensor_types.h"
 #endif
 
 #ifdef __cplusplus
@@ -54,22 +53,22 @@ typedef struct {
 #define touch_hal_get_sleep_time(sleep_time) touch_ll_get_sleep_time(sleep_time)
 
 /**
- * Set touch sensor high / low voltage threshold of charge.
+ * Set touch sensor high / low voltage threshold of chanrge.
  * The touch sensor measures the channel capacitance value by charging and discharging the channel.
  * So charge threshold should be less than the supply voltage.
  * The actual charge threshold is high voltage threshold minus attenuation value.
  *
- * @param refh The high voltage threshold of charge.
+ * @param refh The high voltage threshold of chanrge.
  */
 void touch_hal_set_voltage(const touch_hal_volt_t *volt);
 
 /**
- * Get touch sensor high / low voltage threshold of charge.
+ * Get touch sensor high / low voltage threshold of chanrge.
  * The touch sensor measures the channel capacitance value by charging and discharging the channel.
  * So charge threshold should be less than the supply voltage.
  * The actual charge threshold is high voltage threshold minus attenuation value.
  *
- * @param refh The voltage threshold of charge / discharge.
+ * @param refh The voltage threshold of chanrge / discharge.
  */
 void touch_hal_get_voltage(touch_hal_volt_t *volt);
 

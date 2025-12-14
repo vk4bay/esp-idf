@@ -6,9 +6,6 @@
 #pragma once
 
 #include "esp_err.h"
-#ifndef LINUX_TARGET
-#include <sys/lock.h>
-#endif
 
 namespace nvs
 {

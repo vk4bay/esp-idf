@@ -387,16 +387,6 @@ void vRingbufferReturnItem(RingbufHandle_t xRingbuffer, void *pvItem);
 void vRingbufferReturnItemFromISR(RingbufHandle_t xRingbuffer, void *pvItem, BaseType_t *pxHigherPriorityTaskWoken);
 
 /**
- * @brief   Reset a ring buffer back to its original empty state
- *
- * @param[in]   xRingbuffer     Ring buffer to reset
- *
- * @return ESP_ERR_INVALID_STATE if one or more items are not sent, completed or returned
- *         ESP_OK if the operation was successful
- */
-esp_err_t vRingbufferReset(RingbufHandle_t xRingbuffer);
-
-/**
  * @brief   Delete a ring buffer
  *
  * @param[in]   xRingbuffer     Ring buffer to delete
@@ -431,6 +421,10 @@ size_t xRingbufferGetMaxItemSize(RingbufHandle_t xRingbuffer);
  * This gives the real time free space available for an item/data in the ring
  * buffer. This represents the maximum size an item/data can have if it was
  * currently sent to the ring buffer.
+ *
+ * @warning This API is not thread safe. So, if multiple threads are accessing
+ *          the same ring buffer, it is the application's responsibility to
+ *          ensure atomic access to this API and the subsequent Send
  *
  * @note    An empty no-split buffer has a max current free size for an item
  *          that is limited to ((buffer_size/2)-header_size). See API reference

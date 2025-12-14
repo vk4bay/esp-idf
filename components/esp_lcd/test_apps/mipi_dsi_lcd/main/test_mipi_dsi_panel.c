@@ -28,6 +28,7 @@ TEST_CASE("MIPI DSI Pattern Generator (EK79007)", "[mipi_dsi]")
     esp_lcd_dsi_bus_config_t bus_config = {
         .bus_id = 0,
         .num_data_lanes = 2,
+        .phy_clk_src = MIPI_DSI_PHY_CLK_SRC_DEFAULT,
         .lane_bit_rate_mbps = 1000, // 1000 Mbps
     };
     TEST_ESP_OK(esp_lcd_new_dsi_bus(&bus_config, &mipi_dsi_bus));
@@ -88,7 +89,7 @@ TEST_CASE("MIPI DSI Pattern Generator (EK79007)", "[mipi_dsi]")
 
 #define TEST_IMG_SIZE (100 * 100 * sizeof(uint16_t))
 
-TEST_CASE("MIPI DSI draw RGB bitmap (EK79007)", "[mipi_dsi]")
+TEST_CASE("MIPI DSI draw bitmap (EK79007)", "[mipi_dsi]")
 {
     esp_lcd_dsi_bus_handle_t mipi_dsi_bus;
     esp_lcd_panel_io_handle_t mipi_dbi_io;
@@ -102,6 +103,7 @@ TEST_CASE("MIPI DSI draw RGB bitmap (EK79007)", "[mipi_dsi]")
     esp_lcd_dsi_bus_config_t bus_config = {
         .bus_id = 0,
         .num_data_lanes = 2,
+        .phy_clk_src = MIPI_DSI_PHY_CLK_SRC_DEFAULT,
         .lane_bit_rate_mbps = 1000, // 1000 Mbps
     };
     TEST_ESP_OK(esp_lcd_new_dsi_bus(&bus_config, &mipi_dsi_bus));
@@ -162,7 +164,7 @@ TEST_CASE("MIPI DSI draw RGB bitmap (EK79007)", "[mipi_dsi]")
     test_bsp_disable_dsi_phy_power();
 }
 
-TEST_CASE("MIPI DSI use multiple frame buffers (EK79007)", "[mipi_dsi]")
+TEST_CASE("MIPI DSI with multiple frame buffers (EK79007)", "[mipi_dsi]")
 {
     esp_lcd_dsi_bus_handle_t mipi_dsi_bus;
     esp_lcd_panel_io_handle_t mipi_dbi_io;
@@ -173,6 +175,7 @@ TEST_CASE("MIPI DSI use multiple frame buffers (EK79007)", "[mipi_dsi]")
     esp_lcd_dsi_bus_config_t bus_config = {
         .bus_id = 0,
         .num_data_lanes = 2,
+        .phy_clk_src = MIPI_DSI_PHY_CLK_SRC_DEFAULT,
         .lane_bit_rate_mbps = 1000, // 1000 Mbps
     };
     TEST_ESP_OK(esp_lcd_new_dsi_bus(&bus_config, &mipi_dsi_bus));
@@ -241,7 +244,7 @@ TEST_CASE("MIPI DSI use multiple frame buffers (EK79007)", "[mipi_dsi]")
     test_bsp_disable_dsi_phy_power();
 }
 
-TEST_CASE("MIPI DSI draw YUV422 image (EK79007)", "[mipi_dsi]")
+TEST_CASE("MIPI DSI draw YUV422 (EK79007)", "[mipi_dsi]")
 {
     esp_lcd_dsi_bus_handle_t mipi_dsi_bus;
     esp_lcd_panel_io_handle_t mipi_dbi_io;
@@ -249,9 +252,13 @@ TEST_CASE("MIPI DSI draw YUV422 image (EK79007)", "[mipi_dsi]")
 
     test_bsp_enable_dsi_phy_power();
 
+    uint8_t *img = malloc(TEST_IMG_SIZE);
+    TEST_ASSERT_NOT_NULL(img);
+
     esp_lcd_dsi_bus_config_t bus_config = {
         .bus_id = 0,
         .num_data_lanes = 2,
+        .phy_clk_src = MIPI_DSI_PHY_CLK_SRC_DEFAULT,
         .lane_bit_rate_mbps = 1000, // 1000 Mbps
     };
     TEST_ESP_OK(esp_lcd_new_dsi_bus(&bus_config, &mipi_dsi_bus));
@@ -269,7 +276,7 @@ TEST_CASE("MIPI DSI draw YUV422 image (EK79007)", "[mipi_dsi]")
         .virtual_channel = 0,
 
         // YUV422 -> RGB888
-        .in_color_format = LCD_COLOR_FMT_YUV422_YUYV,
+        .in_color_format = LCD_COLOR_FMT_YUV422,
         .out_color_format = LCD_COLOR_FMT_RGB888,
 
         .video_timing = {
@@ -282,6 +289,10 @@ TEST_CASE("MIPI DSI draw YUV422 image (EK79007)", "[mipi_dsi]")
             .vsync_pulse_width = MIPI_DSI_LCD_VSYNC,
             .vsync_front_porch = MIPI_DSI_LCD_VFP,
         },
+
+        .flags = {
+            .use_dma2d = true,
+        }
     };
     ek79007_vendor_config_t vendor_config = {
         .mipi_config = {
@@ -298,12 +309,15 @@ TEST_CASE("MIPI DSI draw YUV422 image (EK79007)", "[mipi_dsi]")
     TEST_ESP_OK(esp_lcd_new_panel_ek79007(mipi_dbi_io, &lcd_dev_config, &mipi_dpi_panel));
 
     // Set color conversion configuration
-    esp_lcd_color_conv_yuv_config_t convert_config = {
+    esp_lcd_color_conv_config_t convert_config = {
         .in_color_range = LCD_COLOR_RANGE_FULL,
         .out_color_range = LCD_COLOR_RANGE_FULL,
-        .conv_std = LCD_YUV_CONV_STD_BT601,
+        .spec.yuv = {
+            .conv_std = LCD_YUV_CONV_STD_BT601,
+            .yuv422.in_pack_order = LCD_YUV422_PACK_ORDER_YUYV,
+        }
     };
-    TEST_ESP_OK(esp_lcd_dpi_panel_set_yuv_conversion(mipi_dpi_panel, &convert_config));
+    TEST_ESP_OK(esp_lcd_dpi_panel_set_color_conversion(mipi_dpi_panel, &convert_config));
 
     TEST_ESP_OK(esp_lcd_panel_reset(mipi_dpi_panel));
     TEST_ESP_OK(esp_lcd_panel_init(mipi_dpi_panel));
@@ -323,88 +337,7 @@ TEST_CASE("MIPI DSI draw YUV422 image (EK79007)", "[mipi_dsi]")
     TEST_ESP_OK(esp_lcd_panel_del(mipi_dpi_panel));
     TEST_ESP_OK(esp_lcd_panel_io_del(mipi_dbi_io));
     TEST_ESP_OK(esp_lcd_del_dsi_bus(mipi_dsi_bus));
+    free(img);
 
     test_bsp_disable_dsi_phy_power();
 }
-
-#if !(CONFIG_IDF_TARGET_ESP32P4 && CONFIG_ESP32P4_REV_MIN_FULL < 300)
-
-TEST_CASE("MIPI DSI draw Gray8 image (EK79007)", "[mipi_dsi]")
-{
-    esp_lcd_dsi_bus_handle_t mipi_dsi_bus;
-    esp_lcd_panel_io_handle_t mipi_dbi_io;
-    esp_lcd_panel_handle_t mipi_dpi_panel;
-
-    test_bsp_enable_dsi_phy_power();
-
-    esp_lcd_dsi_bus_config_t bus_config = {
-        .bus_id = 0,
-        .num_data_lanes = 2,
-        .lane_bit_rate_mbps = 1000, // 1000 Mbps
-    };
-    TEST_ESP_OK(esp_lcd_new_dsi_bus(&bus_config, &mipi_dsi_bus));
-
-    esp_lcd_dbi_io_config_t dbi_config = {
-        .virtual_channel = 0,
-        .lcd_cmd_bits = 8,
-        .lcd_param_bits = 8,
-    };
-    TEST_ESP_OK(esp_lcd_new_panel_io_dbi(mipi_dsi_bus, &dbi_config, &mipi_dbi_io));
-
-    esp_lcd_dpi_panel_config_t dpi_config = {
-        .dpi_clk_src = MIPI_DSI_DPI_CLK_SRC_DEFAULT,
-        .dpi_clock_freq_mhz = MIPI_DSI_DPI_CLK_MHZ,
-        .virtual_channel = 0,
-
-        // Gray8 -> RGB888
-        .in_color_format = LCD_COLOR_FMT_GRAY8,
-        .out_color_format = LCD_COLOR_FMT_RGB888,
-
-        .video_timing = {
-            .h_size = MIPI_DSI_LCD_H_RES,
-            .v_size = MIPI_DSI_LCD_V_RES,
-            .hsync_back_porch = MIPI_DSI_LCD_HBP,
-            .hsync_pulse_width = MIPI_DSI_LCD_HSYNC,
-            .hsync_front_porch = MIPI_DSI_LCD_HFP,
-            .vsync_back_porch = MIPI_DSI_LCD_VBP,
-            .vsync_pulse_width = MIPI_DSI_LCD_VSYNC,
-            .vsync_front_porch = MIPI_DSI_LCD_VFP,
-        },
-    };
-    ek79007_vendor_config_t vendor_config = {
-        .mipi_config = {
-            .dsi_bus = mipi_dsi_bus,
-            .dpi_config = &dpi_config,
-        },
-    };
-    esp_lcd_panel_dev_config_t lcd_dev_config = {
-        .reset_gpio_num = -1,
-        .rgb_ele_order = LCD_RGB_ELEMENT_ORDER_RGB,
-        .bits_per_pixel = 24,
-        .vendor_config = &vendor_config,
-    };
-    TEST_ESP_OK(esp_lcd_new_panel_ek79007(mipi_dbi_io, &lcd_dev_config, &mipi_dpi_panel));
-
-    TEST_ESP_OK(esp_lcd_panel_reset(mipi_dpi_panel));
-    TEST_ESP_OK(esp_lcd_panel_init(mipi_dpi_panel));
-
-    // YUV images are embedded in the firmware binary
-    extern const uint8_t image_hello_gray_start[] asm("_binary_hello_gray_start");
-    extern const uint8_t image_world_gray_start[] asm("_binary_world_gray_start");
-
-    printf("Draw Gray8 images\r\n");
-    for (int i = 0; i < 4; i++) {
-        TEST_ESP_OK(esp_lcd_panel_draw_bitmap(mipi_dpi_panel, 0, 0, 320, 320, image_hello_gray_start));
-        vTaskDelay(pdMS_TO_TICKS(1000));
-        TEST_ESP_OK(esp_lcd_panel_draw_bitmap(mipi_dpi_panel, 0, 0, 320, 320, image_world_gray_start));
-        vTaskDelay(pdMS_TO_TICKS(1000));
-    }
-
-    TEST_ESP_OK(esp_lcd_panel_del(mipi_dpi_panel));
-    TEST_ESP_OK(esp_lcd_panel_io_del(mipi_dbi_io));
-    TEST_ESP_OK(esp_lcd_del_dsi_bus(mipi_dsi_bus));
-
-    test_bsp_disable_dsi_phy_power();
-}
-
-#endif

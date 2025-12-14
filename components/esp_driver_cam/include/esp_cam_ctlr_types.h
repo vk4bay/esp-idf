@@ -15,47 +15,47 @@ extern "C" {
 #endif
 
 /**
- * @brief Maximum timeout value in ticks for the ESP CAM controller.
+ * @brief ESP CAM controller max timeout value
  */
 #define ESP_CAM_CTLR_MAX_DELAY UINT32_MAX
 
 /**
- * @brief Handle for the ESP CAM controller.
+ * @brief ESP CAM controller handle
  */
 typedef struct esp_cam_ctlr_t *esp_cam_ctlr_handle_t;
 
 /**
- * @brief Transaction type for the ESP CAM controller.
+ * @brief ESP CAM controller transaction type
  */
 typedef struct {
-    void *buffer;            /*!< Transaction buffer. */
-    size_t buflen;           /*!< Length of the transaction buffer. */
-    size_t received_size;    /*!< Received size. This value is written by the driver and indicates the actual received size. */
+    void *buffer;            ///< Transaction buffer
+    size_t buflen;           ///< Len of the transaction buffer
+    size_t received_size;    ///< Received size, this received_size will be written by the driver, indicating the real received size
 } esp_cam_ctlr_trans_t;
 
 /**
- * @brief Event callbacks for the ESP CAM controller.
+ * @brief ESP CAM controller event callbacks
  */
 typedef struct {
     /**
-     * @brief Callback for receiving a new transaction.
+     * @brief On get new transaction callback
      *
-     * @param[in] handle ESP CAM controller handle.
-     * @param[in] trans New transaction.
-     * @param[in] user_data User-registered data.
+     * @param[in] handle     ESP CAM controller handle
+     * @param[in] trans      New transaction
+     * @param[in] user_data  User registered data
      *
-     * @return Whether a high-priority task is woken up by this function.
+     * @return Whether a high priority task is woken up by this function
      */
     bool (*on_get_new_trans)(esp_cam_ctlr_handle_t handle, esp_cam_ctlr_trans_t *trans, void *user_data);
 
     /**
-     * @brief Callback for a finished transaction.
+     * @brief On transaction finish callback
      *
-     * @param[in] handle ESP CAM controller handle.
-     * @param[out] trans Finished transaction.
-     * @param[in] user_data User-registered data.
+     * @param[in] handle     ESP CAM controller handle
+     * @param[out] trans     Finished transaction
+     * @param[in] user_data  User registered data
      *
-     * @return Whether a high-priority task is woken up by this function.
+     * @return Whether a high priority task is woken up by this function
      */
     bool (*on_trans_finished)(esp_cam_ctlr_handle_t handle, esp_cam_ctlr_trans_t *trans, void *user_data);
 

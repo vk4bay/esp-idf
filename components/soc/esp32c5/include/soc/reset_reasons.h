@@ -1,7 +1,7 @@
 /*
- * SPDX-FileCopyrightText: 2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2024 Espressif Systems (Shanghai) CO LTD
  *
- * SPDX-License-Identifier: Apache-2.0 OR MIT
+ * SPDX-License-Identifier: Apache-2.0
  */
 
 #pragma once
@@ -21,6 +21,7 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+
 
 /**
  * @brief Naming conventions: RESET_REASON_{reset level}_{reset reason}
@@ -48,6 +49,7 @@ typedef enum {
     RESET_REASON_CORE_PWR_GLITCH = 0x19, // Glitch on power resets the digital core and rtc module
     RESET_REASON_CPU0_LOCKUP     = 0x1A, // Triggered when the CPU enters lockup (exception inside the exception handler would cause this)
 } soc_reset_reason_t;
+
 
 #ifdef __cplusplus
 }

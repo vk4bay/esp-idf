@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2021-2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2021-2024 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -23,13 +23,17 @@ typedef struct esp_lcd_i80_bus_t *esp_lcd_i80_bus_handle_t;   /*!< Type of LCD i
  * @brief LCD Intel 8080 bus configuration structure
  */
 typedef struct {
-    gpio_num_t dc_gpio_num; /*!< GPIO used for D/C line */
-    gpio_num_t wr_gpio_num; /*!< GPIO used for WR line */
+    int dc_gpio_num; /*!< GPIO used for D/C line */
+    int wr_gpio_num; /*!< GPIO used for WR line */
     lcd_clock_source_t clk_src; /*!< Clock source for the I80 LCD peripheral */
-    gpio_num_t data_gpio_nums[ESP_LCD_I80_BUS_WIDTH_MAX]; /*!< GPIOs used for data lines */
+    int data_gpio_nums[ESP_LCD_I80_BUS_WIDTH_MAX]; /*!< GPIOs used for data lines */
     size_t bus_width;          /*!< Number of data lines, 8 or 16 */
     size_t max_transfer_bytes; /*!< Maximum transfer size, this determines the length of internal DMA link */
-    size_t dma_burst_size;     /*!< DMA burst size, in bytes */
+    union {
+        size_t psram_trans_align __attribute__((deprecated)); /*!< DMA transfer alignment for data allocated from PSRAM */
+        size_t dma_burst_size;     /*!< DMA burst size, in bytes */
+    };
+    size_t sram_trans_align __attribute__((deprecated)); /*!< DMA transfer alignment for data allocated from SRAM */
 } esp_lcd_i80_bus_config_t;
 
 /**
@@ -60,7 +64,7 @@ esp_err_t esp_lcd_del_i80_bus(esp_lcd_i80_bus_handle_t bus);
  * @brief Panel IO configuration structure, for intel 8080 interface
  */
 typedef struct {
-    gpio_num_t cs_gpio_num;  /*!< GPIO used for CS line, set to -1 will declaim exclusively use of I80 bus */
+    int cs_gpio_num;         /*!< GPIO used for CS line, set to -1 will declaim exclusively use of I80 bus */
     uint32_t pclk_hz;        /*!< Frequency of pixel clock */
     size_t trans_queue_depth; /*!< Transaction queue size, larger queue, higher throughput */
     esp_lcd_panel_io_color_trans_done_cb_t on_color_trans_done; /*!< Callback invoked when color data was transferred done */

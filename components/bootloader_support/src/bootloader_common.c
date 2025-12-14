@@ -17,7 +17,7 @@
 #include "bootloader_flash_priv.h"
 #include "bootloader_common.h"
 #include "bootloader_utility.h"
-#include "soc/soc_caps.h"
+#include "soc/gpio_periph.h"
 #include "soc/rtc.h"
 #include "soc/efuse_reg.h"
 #include "hal/gpio_ll.h"
@@ -27,7 +27,7 @@
 
 #define ESP_PARTITION_HASH_LEN 32 /* SHA-256 digest length */
 
-ESP_LOG_ATTR_TAG(TAG, "boot_comm");
+static const char* TAG = "boot_comm";
 
 esp_comm_gpio_hold_t bootloader_common_check_long_hold_gpio(uint32_t num_pin, uint32_t delay_sec)
 {
@@ -140,13 +140,13 @@ bool bootloader_common_erase_part_type_data(const char *list_erase, bool ota_dat
     return ret;
 }
 
-esp_err_t bootloader_common_get_sha256_of_partition(uint32_t address, uint32_t size, int type, uint8_t *out_sha_256)
+esp_err_t bootloader_common_get_sha256_of_partition (uint32_t address, uint32_t size, int type, uint8_t *out_sha_256)
 {
     if (out_sha_256 == NULL || size == 0) {
         return ESP_ERR_INVALID_ARG;
     }
 
-    if (type == PART_TYPE_APP || type == PART_TYPE_BOOTLOADER) {
+    if (type == PART_TYPE_APP) {
         const esp_partition_pos_t partition_pos = {
             .offset = address,
             .size = size,

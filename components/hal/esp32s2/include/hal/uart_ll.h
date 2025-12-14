@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2015-2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2015-2024 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -28,11 +28,7 @@ extern "C" {
 // Get UART hardware instance with giving uart num
 #define UART_LL_GET_HW(num) (((num) == UART_NUM_0) ? (&UART0) : (&UART1))
 
-#define UART_LL_PULSE_TICK_CNT_MAX          UART_LOWPULSE_MIN_CNT_V
-
-#define UART_LL_WAKEUP_EDGE_THRED_MIN       (3)
-#define UART_LL_WAKEUP_EDGE_THRED_MAX(hw)   UART_ACTIVE_THRESHOLD_V
-
+#define UART_LL_MIN_WAKEUP_THRESH (3)
 #define UART_LL_INTR_MASK         (0x7ffff) //All interrupt mask
 
 // Define UART interrupts
@@ -72,7 +68,7 @@ FORCE_INLINE_ATTR bool uart_ll_is_enabled(uint32_t uart_num)
                             (uart_num == 1) ? DPORT_UART1_RST : 0);
     uint32_t uart_en_bit  = ((uart_num == 0) ? DPORT_UART_CLK_EN :
                             (uart_num == 1) ? DPORT_UART1_CLK_EN : 0);
-    return DPORT_REG_GET_BIT(DPORT_PERIP_RST_EN0_REG, uart_rst_bit) == 0 &&
+    return DPORT_REG_GET_BIT(DPORT_PERIP_RST_EN_REG, uart_rst_bit) == 0 &&
         DPORT_REG_GET_BIT(DPORT_PERIP_CLK_EN_REG, uart_en_bit) != 0;
 }
 
@@ -99,10 +95,7 @@ static inline void uart_ll_enable_bus_clock(uart_port_t uart_num, bool enable)
     }
     WRITE_PERI_REG(DPORT_PERIP_CLK_EN0_REG, reg_val);
 }
-#define uart_ll_enable_bus_clock(...) do { \
-        (void)__DECLARE_RCC_ATOMIC_ENV; \
-        uart_ll_enable_bus_clock(__VA_ARGS__); \
-    } while(0)
+#define uart_ll_enable_bus_clock(...) (void)__DECLARE_RCC_ATOMIC_ENV; uart_ll_enable_bus_clock(__VA_ARGS__)
 
 /**
  * @brief Reset UART module
@@ -112,12 +105,12 @@ static inline void uart_ll_reset_register(uart_port_t uart_num)
 {
     switch (uart_num) {
     case 0:
-        DPORT_SET_PERI_REG_MASK(DPORT_PERIP_RST_EN0_REG, DPORT_UART_RST);
-        DPORT_CLEAR_PERI_REG_MASK(DPORT_PERIP_RST_EN0_REG, DPORT_UART_RST);
+        DPORT_SET_PERI_REG_MASK(DPORT_PERIP_RST_EN_REG, DPORT_UART_RST);
+        DPORT_CLEAR_PERI_REG_MASK(DPORT_PERIP_RST_EN_REG, DPORT_UART_RST);
         break;
     case 1:
-        DPORT_SET_PERI_REG_MASK(DPORT_PERIP_RST_EN0_REG, DPORT_UART1_RST);
-        DPORT_CLEAR_PERI_REG_MASK(DPORT_PERIP_RST_EN0_REG, DPORT_UART1_RST);
+        DPORT_SET_PERI_REG_MASK(DPORT_PERIP_RST_EN_REG, DPORT_UART1_RST);
+        DPORT_CLEAR_PERI_REG_MASK(DPORT_PERIP_RST_EN_REG, DPORT_UART1_RST);
         break;
     default:
         abort();
@@ -125,10 +118,7 @@ static inline void uart_ll_reset_register(uart_port_t uart_num)
     }
 }
 // SYSTEM.perip_rst_enx are shared registers, so this function must be used in an atomic way
-#define uart_ll_reset_register(...) do { \
-        (void)__DECLARE_RCC_ATOMIC_ENV; \
-        uart_ll_reset_register(__VA_ARGS__); \
-    } while(0)
+#define uart_ll_reset_register(...) (void)__DECLARE_RCC_ATOMIC_ENV; uart_ll_reset_register(__VA_ARGS__)
 
 /**
  * @brief  Enable the UART clock.
@@ -204,7 +194,7 @@ FORCE_INLINE_ATTR void uart_ll_get_sclk(uart_dev_t *hw, soc_module_clk_t *source
 
  * @return True if baud-rate set successfully; False if baud-rate requested cannot be achieved
  */
-FORCE_INLINE_ATTR bool _uart_ll_set_baudrate(uart_dev_t *hw, uint32_t baud, uint32_t sclk_freq)
+FORCE_INLINE_ATTR bool uart_ll_set_baudrate(uart_dev_t *hw, uint32_t baud, uint32_t sclk_freq)
 {
     if (baud == 0) {
         return false;
@@ -220,8 +210,6 @@ FORCE_INLINE_ATTR bool _uart_ll_set_baudrate(uart_dev_t *hw, uint32_t baud, uint
     hw->clk_div.div_frag = clkdiv_frag;
     return true;
 }
-
-#define uart_ll_set_baudrate(...) _uart_ll_set_baudrate(__VA_ARGS__)
 
 /**
  * @brief  Get the current baud-rate.
@@ -286,11 +274,6 @@ static inline uint32_t uart_ll_get_intraw_mask(uart_dev_t *hw)
 FORCE_INLINE_ATTR uint32_t uart_ll_get_intsts_mask(uart_dev_t *hw)
 {
     return hw->int_st.val;
-}
-
-FORCE_INLINE_ATTR volatile void* uart_ll_get_intr_status_reg(uart_dev_t *hw)
-{
-    return &hw->int_st.val;
 }
 
 /**
@@ -674,17 +657,11 @@ FORCE_INLINE_ATTR void uart_ll_set_dtr_active_level(uart_dev_t *hw, int level)
  *
  * @return None.
  */
-FORCE_INLINE_ATTR void uart_ll_set_wakeup_edge_thrd(uart_dev_t *hw, uint32_t wakeup_thrd)
+FORCE_INLINE_ATTR void uart_ll_set_wakeup_thrd(uart_dev_t *hw, uint32_t wakeup_thrd)
 {
     // System would wakeup when the number of positive edges of RxD signal is larger than or equal to (UART_ACTIVE_THRESHOLD+3)
-    hw->sleep_conf.active_threshold = wakeup_thrd - UART_LL_WAKEUP_EDGE_THRED_MIN;
+    hw->sleep_conf.active_threshold = wakeup_thrd - UART_LL_MIN_WAKEUP_THRESH;
 }
-
-/**
- * @brief  Mocking the selection of the UART wakeup mode, as it is not supported by this SOC.
- */
-FORCE_INLINE_ATTR void uart_ll_set_wakeup_mode(uart_dev_t *hw, uart_wakeup_mode_t mode)
-{}
 
 /**
  * @brief   Enable/disable the UART pad clock in sleep_state
@@ -697,10 +674,7 @@ FORCE_INLINE_ATTR void _uart_ll_enable_pad_sleep_clock(uart_dev_t *hw, bool enab
     (void)hw; (void)enable;
 }
 
-#define uart_ll_enable_pad_sleep_clock(...) do { \
-        (void)__DECLARE_RCC_ATOMIC_ENV; \
-        _uart_ll_enable_pad_sleep_clock(__VA_ARGS__); \
-    } while(0)
+#define uart_ll_enable_pad_sleep_clock(...) (void)__DECLARE_RCC_ATOMIC_ENV; _uart_ll_enable_pad_sleep_clock(__VA_ARGS__)
 
 /**
  * @brief  Configure the UART work in normal mode.
@@ -839,9 +813,9 @@ FORCE_INLINE_ATTR void uart_ll_get_at_cmd_char(uart_dev_t *hw, uint8_t *cmd_char
  *
  * @return The UART wakeup threshold value.
  */
-FORCE_INLINE_ATTR uint32_t uart_ll_get_wakeup_edge_thrd(uart_dev_t *hw)
+FORCE_INLINE_ATTR uint32_t uart_ll_get_wakeup_thrd(uart_dev_t *hw)
 {
-    return hw->sleep_conf.active_threshold + UART_LL_WAKEUP_EDGE_THRED_MIN;
+    return hw->sleep_conf.active_threshold + UART_LL_MIN_WAKEUP_THRESH;
 }
 
 /**

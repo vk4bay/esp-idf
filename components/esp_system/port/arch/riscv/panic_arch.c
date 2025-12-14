@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2020-2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2020-2024 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -12,8 +12,9 @@
 #include "riscv/rvruntime-frames.h"
 #include "riscv/rv_utils.h"
 #include "esp_private/cache_err_int.h"
+#include "soc/timer_periph.h"
 
-#if CONFIG_ESP_SYSTEM_MEMPROT && CONFIG_ESP_SYSTEM_MEMPROT_PMS
+#if CONFIG_ESP_SYSTEM_MEMPROT_FEATURE
 #include "esp_private/esp_memprot_internal.h"
 #include "esp_memprot.h"
 #endif
@@ -21,10 +22,6 @@
 #if CONFIG_ESP_SYSTEM_USE_EH_FRAME
 #include "esp_private/eh_frame_parser.h"
 #include "esp_private/cache_utils.h"
-#endif
-
-#if CONFIG_ESP_SYSTEM_USE_FRAME_POINTER
-#include "esp_private/fp_unwind.h"
 #endif
 
 #if CONFIG_ESP_SYSTEM_HW_STACK_GUARD
@@ -42,11 +39,9 @@
  */
 static inline void print_cache_err_details(const void *frame)
 {
-    esp_cache_err_info_t err_info = {};
-    esp_cache_err_get_panic_info(&err_info);
-
-    if (err_info.err_str) {
-        panic_print_str(err_info.err_str);
+    const char* cache_err_msg = esp_cache_err_panic_string();
+    if (cache_err_msg) {
+        panic_print_str(cache_err_msg);
     } else {
         panic_print_str("Cache error active, but failed to find a corresponding error message");
     }
@@ -87,7 +82,7 @@ static inline void print_assist_debug_details(const void *frame)
  * Function called when a memory protection error occurs (PMS). It prints details such as the
  * explanation of why the panic occurred.
  */
-#if CONFIG_ESP_SYSTEM_MEMPROT && CONFIG_ESP_SYSTEM_MEMPROT_PMS
+#if CONFIG_ESP_SYSTEM_MEMPROT_FEATURE
 
 static esp_memp_intr_source_t s_memp_intr = {MEMPROT_TYPE_INVALID, -1};
 
@@ -150,7 +145,7 @@ static inline void print_memprot_err_details(const void *frame __attribute__((un
 
     panic_print_str("\r\n");
 }
-#endif //CONFIG_ESP_SYSTEM_MEMPROT && CONFIG_ESP_SYSTEM_MEMPROT_PMS
+#endif
 
 static void panic_print_register_array(const char* names[], const uint32_t* regs, int size)
 {
@@ -255,13 +250,13 @@ void panic_soc_fill_info(void *f, panic_info_t *info)
         info->details = print_assist_debug_details;
     }
 #endif
-#if CONFIG_ESP_SYSTEM_MEMPROT && CONFIG_ESP_SYSTEM_MEMPROT_PMS
+#if CONFIG_ESP_SYSTEM_MEMPROT_FEATURE
     else if (frame->mcause == ETS_MEMPROT_ERR_INUM) {
         info->reason = "Memory protection fault";
         info->details = print_memprot_err_details;
         info->core = esp_mprot_get_active_intr(&s_memp_intr) == ESP_OK ? s_memp_intr.core : -1;
     }
-#endif //CONFIG_ESP_SYSTEM_MEMPROT && CONFIG_ESP_SYSTEM_MEMPROT_PMS
+#endif
 }
 
 void panic_arch_fill_info(void *frame, panic_info_t *info)
@@ -308,7 +303,6 @@ void panic_arch_fill_info(void *frame, panic_info_t *info)
     info->addr = (void *) regs->mepc;
 }
 
-#if !CONFIG_ESP_SYSTEM_USE_FRAME_POINTER
 static void panic_print_basic_backtrace(const void *frame, int core)
 {
     // Basic backtrace
@@ -326,7 +320,6 @@ static void panic_print_basic_backtrace(const void *frame, int core)
         }
     }
 }
-#endif
 
 void panic_print_backtrace(const void *frame, int core)
 {
@@ -338,8 +331,6 @@ void panic_print_backtrace(const void *frame, int core)
     } else {
         esp_eh_frame_print_backtrace(frame);
     }
-#elif CONFIG_ESP_SYSTEM_USE_FRAME_POINTER
-    esp_fp_print_backtrace(frame);
 #else
     panic_print_basic_backtrace(frame, core);
 #endif
@@ -372,11 +363,4 @@ void panic_prepare_frame_from_ctx(void* frame)
     ((RvExcFrame *)frame)->mtval = MCAUSE_INVALID_VALUE;
 
     ((RvExcFrame *)frame)->mhartid = RV_READ_CSR(mhartid);
-}
-
-void panic_clear_active_interrupts(const void *frame)
-{
-    if (((RvExcFrame *)frame)->mcause == ETS_CACHEERR_INUM) {
-        esp_cache_err_clear_active_err();
-    }
 }

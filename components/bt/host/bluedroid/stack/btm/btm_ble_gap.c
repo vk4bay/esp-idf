@@ -72,9 +72,7 @@ static tBTM_BLE_CTRL_FEATURES_CBACK    *p_ctrl_le_feature_rd_cmpl_cback = NULL;
 
 tBTM_CallbackFunc conn_callback_func;
 // BLE vendor HCI event callback
-#if (BLE_VENDOR_HCI_EN == TRUE)
 static tBTM_BLE_VENDOR_HCI_EVT_CBACK *ble_vs_evt_callback = NULL;
-#endif // #if (BLE_VENDOR_HCI_EN == TRUE)
 /*******************************************************************************
 **  Local functions
 *******************************************************************************/
@@ -355,12 +353,10 @@ void BTM_BleRegiseterPktLengthChangeCallback(tBTM_SET_PKT_DATA_LENGTH_CBACK *ptk
     conn_callback_func.set_pkt_data_length_cb = ptk_len_chane_cb;
 }
 
-#if (BLE_VENDOR_HCI_EN == TRUE)
 void BTM_BleRegisterVendorHciEventCallback(tBTM_BLE_VENDOR_HCI_EVT_CBACK *vendor_hci_evt_cb)
 {
     ble_vs_evt_callback = vendor_hci_evt_cb;
 }
-#endif // #if (BLE_VENDOR_HCI_EN == TRUE)
 
 /*******************************************************************************
 **
@@ -2063,6 +2059,7 @@ UINT8 *BTM_CheckAdvData( UINT8 *p_adv, UINT16 adv_data_len, UINT8 type, UINT8 *p
     UINT8 *p = p_adv;
     UINT8 length;
     UINT8 adv_type;
+    BTM_TRACE_API("BTM_CheckAdvData type=0x%02X", type);
 
     STREAM_TO_UINT8(length, p);
 
@@ -2070,13 +2067,6 @@ UINT8 *BTM_CheckAdvData( UINT8 *p_adv, UINT16 adv_data_len, UINT8 type, UINT8 *p
         STREAM_TO_UINT8(adv_type, p);
 
         if ( adv_type == type ) {
-
-            if((p + length - 1) > (p_adv + adv_data_len)) {
-                /* avoid memory overflow*/
-                *p_length = 0;
-                return NULL;
-            }
-
             /* length doesn't include itself */
             *p_length = length - 1; /* minus the length of type */
             return p;
@@ -2136,7 +2126,6 @@ void BTM_Recovery_Pre_State(void)
 {
 #if ((BLE_42_ADV_EN == TRUE) || (BLE_42_SCAN_EN == TRUE))
     tBTM_BLE_INQ_CB *ble_inq_cb = &btm_cb.ble_ctr_cb.inq_var;
-    BTM_TRACE_DEBUG("%s state=0x%x", __func__, ble_inq_cb->state);
 #endif // #if ((BLE_42_ADV_EN == TRUE) || (BLE_42_SCAN_EN == TRUE))
 #if (BLE_42_ADV_EN == TRUE)
     if (ble_inq_cb->state & BTM_BLE_ADVERTISING) {
@@ -3111,13 +3100,6 @@ void btm_ble_cache_adv_data(BD_ADDR bda, tBTM_INQ_RESULTS *p_cur, UINT8 data_len
         memset(p_le_inq_cb->adv_data_cache, 0, BTM_BLE_CACHE_ADV_DATA_MAX);
         p_cur->adv_data_len = 0;
         p_cur->scan_rsp_len = 0;
-    }
-
-    /* Additional validation to prevent potential integer overflow */
-    if (data_len > BTM_BLE_CACHE_ADV_DATA_MAX) {
-        BTM_TRACE_ERROR("BLE advertising data length exceeds maximum: %u > %u",
-                    data_len, BTM_BLE_CACHE_ADV_DATA_MAX);
-        return;
     }
 
     if (data_len > 0) {
@@ -4566,7 +4548,6 @@ BOOLEAN btm_ble_update_mode_operation(UINT8 link_role, BD_ADDR bd_addr, UINT8 st
     return bg_con;
 }
 
-#if (BLE_VENDOR_HCI_EN == TRUE)
 static void btm_ble_vs_evt_callback(UINT8 len, UINT8 *p)
 {
     UINT8 sub_event;
@@ -4578,7 +4559,7 @@ static void btm_ble_vs_evt_callback(UINT8 len, UINT8 *p)
     STREAM_TO_UINT8(sub_event, p);
     len--;
 
-    if (sub_event < HCI_VSE_LE_SUBEVT_BASE) {
+    if (sub_event < HCI_VSE_LE_LEGACY_SCAN_REQ_RECEIVED_EVT) {
         return;
     }
 
@@ -4586,7 +4567,6 @@ static void btm_ble_vs_evt_callback(UINT8 len, UINT8 *p)
         ble_vs_evt_callback(sub_event, len, p);
     }
 }
-#endif // #if (BLE_VENDOR_HCI_EN == TRUE)
 
 /*******************************************************************************
 **
@@ -4646,9 +4626,8 @@ void btm_ble_init (void)
     btm_ble_adv_filter_init();
 #endif // #if BLE_ANDROID_CONTROLLER_SCAN_FILTER == TRUE
 #endif
-#if (BLE_VENDOR_HCI_EN == TRUE)
+
     BTM_RegisterForVSEvents(btm_ble_vs_evt_callback, TRUE);
-#endif // #if (BLE_VENDOR_HCI_EN == TRUE)
 }
 
 /*******************************************************************************
@@ -4775,7 +4754,6 @@ BOOLEAN BTM_Ble_Authorization(BD_ADDR bd_addr, BOOLEAN authorize)
     return FALSE;
 }
 
-#if (BLE_VENDOR_HCI_EN == TRUE)
 /*******************************************************************************
 **
 ** Function         BTM_BleClearAdv
@@ -4797,30 +4775,6 @@ BOOLEAN BTM_BleClearAdv(tBTM_CLEAR_ADV_CMPL_CBACK *p_clear_adv_cback)
     p_cb->inq_var.p_clear_adv_cb = p_clear_adv_cback;
     return TRUE;
 }
-
-BOOLEAN BTM_BleSetCsaSupport(UINT8 csa_select, tBTM_SET_CSA_SUPPORT_CMPL_CBACK *p_callback)
-{
-    if (btsnd_hcic_ble_set_csa_support(csa_select) != TRUE) {
-        BTM_TRACE_ERROR("LE SetCsaSupport csa_select=%d: error", csa_select);
-        return FALSE;
-    }
-
-    btm_cb.ble_ctr_cb.set_csa_support_cmpl_cb = p_callback;
-    return TRUE;
-}
-
-BOOLEAN BTM_BleSetVendorEventMask(UINT32 evt_mask, tBTM_SET_VENDOR_EVT_MASK_CBACK *p_callback)
-{
-    if (btsnd_hcic_ble_set_vendor_evt_mask(evt_mask) != TRUE) {
-        BTM_TRACE_ERROR("LE SetVendorEventMask evt_mask=%x: error", evt_mask);
-        return FALSE;
-    }
-
-    btm_cb.ble_ctr_cb.set_vendor_evt_mask_cmpl_cb = p_callback;
-    return TRUE;
-}
-#endif // #if (BLE_VENDOR_HCI_EN == TRUE)
-
 BOOLEAN BTM_BleSetRpaTimeout(uint16_t rpa_timeout,tBTM_SET_RPA_TIMEOUT_CMPL_CBACK *p_set_rpa_timeout_cback)
 {
     if ((btsnd_hcic_ble_set_rand_priv_addr_timeout(rpa_timeout)) != TRUE) {
@@ -4856,6 +4810,28 @@ BOOLEAN BTM_BleSetPrivacyMode(UINT8 addr_type, BD_ADDR bd_addr, UINT8 privacy_mo
     return TRUE;
 }
 
+BOOLEAN BTM_BleSetCsaSupport(UINT8 csa_select, tBTM_SET_CSA_SUPPORT_CMPL_CBACK *p_callback)
+{
+    if (btsnd_hcic_ble_set_csa_support(csa_select) != TRUE) {
+        BTM_TRACE_ERROR("LE SetCsaSupport csa_select=%d: error", csa_select);
+        return FALSE;
+    }
+
+    btm_cb.ble_ctr_cb.set_csa_support_cmpl_cb = p_callback;
+    return TRUE;
+}
+
+BOOLEAN BTM_BleSetVendorEventMask(UINT32 evt_mask, tBTM_SET_VENDOR_EVT_MASK_CBACK *p_callback)
+{
+    if (btsnd_hcic_ble_set_vendor_evt_mask(evt_mask) != TRUE) {
+        BTM_TRACE_ERROR("LE SetVendorEventMask evt_mask=%x: error", evt_mask);
+        return FALSE;
+    }
+
+    btm_cb.ble_ctr_cb.set_vendor_evt_mask_cmpl_cb = p_callback;
+    return TRUE;
+}
+
 #if (BLE_42_SCAN_EN == TRUE)
 bool btm_ble_adv_pkt_ready(void)
 {
@@ -4877,16 +4853,4 @@ bool btm_ble_adv_pkt_post(pkt_linked_item_t *pkt)
 }
 #endif // #if (BLE_42_SCAN_EN == TRUE)
 
-#if (SMP_INCLUDED == TRUE)
-/* Retrieve local IRK safely */
-bool BTM_GetLocalIRK(uint8_t *irk)
-{
-    if (!irk) {
-        return false;
-    }
-
-    memcpy(irk, btm_cb.devcb.id_keys.irk, sizeof(btm_cb.devcb.id_keys.irk));
-    return true;
-}
-#endif // (SMP_INCLUDED == TRUE)
 #endif  /* BLE_INCLUDED */

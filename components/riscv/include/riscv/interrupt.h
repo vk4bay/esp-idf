@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2015-2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2015-2024 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -146,23 +146,11 @@ bool esprv_int_is_vectored(int rv_int_num);
  */
 void esprv_int_set_vectored(int rv_int_num, bool vectored);
 
-/*************************** ESP-TEE specific ***************************/
-
-/** Function prototype executing interrupt configuration APIs as service calls */
-typedef uint32_t (*esprv_int_mgmt_t)(int argc, ...);
 
 /**
- * @brief Setup the callback function which executes the interrupt
- *        configuration APIs as TEE service calls
- *
- * @note This function should be called right after landing in the REE application,
- *       before any system initialization
- *
- * @param fptr Pointer to the function
+ * Include the deprecated functions last since they will alias the functions declared above
  */
-void esprv_int_setup_mgmt_cb(void *fptr);
-
-
+#include "esp_private/interrupt_deprecated.h"
 
 #ifdef __cplusplus
 }

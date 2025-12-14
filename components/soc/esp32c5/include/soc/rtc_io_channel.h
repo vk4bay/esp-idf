@@ -1,7 +1,7 @@
 /*
- * SPDX-FileCopyrightText: 2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2024 Espressif Systems (Shanghai) CO LTD
  *
- * SPDX-License-Identifier: Apache-2.0 OR MIT
+ * SPDX-License-Identifier: Apache-2.0
  */
 
 #pragma once
@@ -26,3 +26,6 @@
 
 #define RTCIO_GPIO6_CHANNEL         6   //RTCIO_CHANNEL_6
 #define RTCIO_CHANNEL_6_GPIO_NUM    6
+
+#define RTCIO_GPIO7_CHANNEL         7   //RTCIO_CHANNEL_7
+#define RTCIO_CHANNEL_7_GPIO_NUM    7

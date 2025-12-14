@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2015-2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2015-2024 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -24,10 +24,13 @@
 
 #pragma once
 
+#include "sdkconfig.h"
 #include "esp_types.h"
 #include "soc/soc_caps.h"
 #include "hal/dma_types.h"
-#include "hal/gdma_types.h"
+#if SOC_GDMA_SUPPORTED
+#include "soc/gdma_channel.h"
+#endif
 #if SOC_GPSPI_SUPPORTED
 #include "hal/spi_ll.h"
 #endif
@@ -191,6 +194,7 @@ void spi_slave_hal_store_result(spi_slave_hal_context_t *hal);
  */
 uint32_t spi_slave_hal_get_rcv_bitlen(spi_slave_hal_context_t *hal);
 
+#if CONFIG_IDF_TARGET_ESP32
 /**
  * Check whether we need to reset the DMA according to the status of last transactions.
  *
@@ -202,6 +206,7 @@ uint32_t spi_slave_hal_get_rcv_bitlen(spi_slave_hal_context_t *hal);
  * @return true if reset is needed, else false.
  */
 bool spi_slave_hal_dma_need_reset(const spi_slave_hal_context_t *hal);
+#endif //#if CONFIG_IDF_TARGET_ESP32
 
 #endif  //#if SOC_GPSPI_SUPPORTED
 

@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2015-2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2015-2024 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -13,12 +13,11 @@
 #include "hal/efuse_ll.h"
 #include "hal/efuse_hal.h"
 
-#if !NON_OS_BUILD
+#ifndef BOOTLOADER_BUILD
 #include "spi_flash_mmap.h"
 #endif
 #include "hal/spi_flash_ll.h"
 #include "rom/spi_flash.h"
-#include "esp_private/cache_utils.h"
 #if !CONFIG_IDF_TARGET_ESP32
 #include "hal/spimem_flash_ll.h"
 #endif
@@ -45,10 +44,10 @@
 #define ESP_BOOTLOADER_SPIFLASH_QE_GD_SR2        BIT1   // QE position when you write 8 bits(for SR2) at one time.
 #define ESP_BOOTLOADER_SPIFLASH_QE_SR1_2BYTE     BIT9   // QE position when you write 16 bits at one time.
 
-#if !NON_OS_BUILD
+#ifndef BOOTLOADER_BUILD
 /* Normal app version maps to spi_flash_mmap.h operations...
  */
-ESP_LOG_ATTR_TAG(TAG, "bootloader_mmap");
+static const char *TAG = "bootloader_mmap";
 
 static spi_flash_mmap_handle_t map;
 
@@ -112,7 +111,7 @@ esp_err_t bootloader_flash_erase_range(uint32_t start_addr, uint32_t size)
     return esp_flash_erase_region(NULL, start_addr, size);
 }
 
-#else // NON_OS_BUILD
+#else //BOOTLOADER_BUILD
 /* Bootloader version, uses ROM functions only */
 #if CONFIG_IDF_TARGET_ESP32
 #include "esp32/rom/cache.h"
@@ -128,53 +127,16 @@ esp_err_t bootloader_flash_erase_range(uint32_t start_addr, uint32_t size)
 #include "esp32s3/rom/opi_flash.h"
 #elif CONFIG_IDF_TARGET_ESP32P4
 #include "esp32p4/rom/opi_flash.h"
-#elif CONFIG_IDF_TARGET_ESP32C5
-#include "esp32c5/rom/opi_flash.h"
 #endif
-#include "spi_flash/spi_flash_defs.h"
-
-#if ESP_TEE_BUILD
-#include "esp_fault.h"
-#include "esp_flash_partitions.h"
-#include "rom/spi_flash.h"
-
-extern bool esp_tee_flash_check_prange_in_active_tee_part(const size_t paddr, const size_t len);
-#endif
-
-ESP_LOG_ATTR_TAG(TAG, "bootloader_flash");
-
-/*
- * NOTE: Memory mapping strategy
- *
- * Bootloader:
- * - Uses the first N-1 MMU entries for general memory mapping.
- * - Reserves the Nth (last) MMU entry for flash read through the cache
- *   (auto-decryption).
- * - This strategy is viable because the bootloader runs exclusively
- *   on the device from the internal SRAM.
- *
- * ESP-TEE (Trusted Execution Environment)
- * - Cannot adopt the strategy used by the bootloader as the TEE app operates
- *   in parallel to the REE.
- * - The few initial MMU entries have already been taken by the TEE and REE
- *   application flash IDROM segments.
- * - The REE could have also mapped some custom flash partitions it requires.
- * - Therefore, the TEE uses MMU entries from the end of the range, with the number
- *   of entries corresponding to the size of its IDROM segment sizes.
- * - The final MMU entry in this range is reserved for flash reads through the
- *   cache (auto-decryption).
- * - The pages used by TEE are protected by PMP (Physical Memory Protection).
- *   While REE attempts to mmap this protected area would trigger a load access
- *   fault, this is unlikely since the MMU can address up to 16MB at once.
- */
+static const char *TAG = "bootloader_flash";
 
 #if CONFIG_IDF_TARGET_ESP32
 /* Use first 50 blocks in MMU for bootloader_mmap,
    50th block for bootloader_flash_read
 */
 #define MMU_BLOCK0_VADDR  SOC_DROM_LOW
-#define MMU_TOTAL_SIZE     (0x320000)
-#define MMU_BLOCK50_VADDR (MMU_BLOCK0_VADDR + MMU_TOTAL_SIZE)
+#define MMAP_MMU_SIZE     (0x320000)
+#define MMU_BLOCK50_VADDR (MMU_BLOCK0_VADDR + MMAP_MMU_SIZE)
 #define FLASH_READ_VADDR  MMU_BLOCK50_VADDR
 
 #else // !CONFIG_IDF_TARGET_ESP32
@@ -188,126 +150,20 @@ ESP_LOG_ATTR_TAG(TAG, "bootloader_flash");
  * On ESP32S2 we use `(SOC_DRAM0_CACHE_ADDRESS_HIGH - SOC_DRAM0_CACHE_ADDRESS_LOW)`.
  * As this code is in bootloader, we keep this on ESP32S2
  */
-#define MMU_TOTAL_SIZE     (SOC_DRAM0_CACHE_ADDRESS_HIGH - SOC_DRAM0_CACHE_ADDRESS_LOW) // This mmu size means that the mmu size to be mapped
+#define MMAP_MMU_SIZE     (SOC_DRAM0_CACHE_ADDRESS_HIGH - SOC_DRAM0_CACHE_ADDRESS_LOW) // This mmu size means that the mmu size to be mapped
 #else
-#define MMU_TOTAL_SIZE     (SOC_DRAM_FLASH_ADDRESS_HIGH - SOC_DRAM_FLASH_ADDRESS_LOW) // This mmu size means that the mmu size to be mapped
+#define MMAP_MMU_SIZE     (SOC_DRAM_FLASH_ADDRESS_HIGH - SOC_DRAM_FLASH_ADDRESS_LOW) // This mmu size means that the mmu size to be mapped
 #endif
-#define MMU_END_VADDR      (MMU_BLOCK0_VADDR + MMU_TOTAL_SIZE)
-#define MMU_BLOCKL_VADDR   (MMU_END_VADDR - 1 * CONFIG_MMU_PAGE_SIZE)
-#define FLASH_READ_VADDR   MMU_BLOCKL_VADDR
+#define MMU_BLOCK63_VADDR (MMU_BLOCK0_VADDR + MMAP_MMU_SIZE - SPI_FLASH_MMU_PAGE_SIZE)
+#define FLASH_READ_VADDR MMU_BLOCK63_VADDR
 #endif
 
-#if !ESP_TEE_BUILD
-#define MMAP_MMU_SIZE     (MMU_TOTAL_SIZE)
-// Represents the MMU pages available for mmapping by the bootloader
 #define MMU_FREE_PAGES    (MMAP_MMU_SIZE / CONFIG_MMU_PAGE_SIZE)
-#define FLASH_MMAP_VADDR  (MMU_BLOCK0_VADDR)
-#else /* ESP_TEE_BUILD */
-#define MMAP_MMU_SIZE     (CONFIG_SECURE_TEE_IROM_SIZE + CONFIG_SECURE_TEE_DROM_SIZE)
-// Represents the MMU pages available for mmapping by the TEE
-#define MMU_FREE_PAGES    (MMAP_MMU_SIZE / CONFIG_MMU_PAGE_SIZE)
-#define FLASH_MMAP_VADDR  (MMU_END_VADDR - (MMU_FREE_PAGES + 1) * CONFIG_MMU_PAGE_SIZE)
-#endif /* !ESP_TEE_BUILD */
 
 static bool mapped;
 
-// Required for bootloader_flash_munmap() for ESP-TEE
-static uint32_t current_mapped_size;
-
 // Current bootloader mapping (ab)used for bootloader_read()
 static uint32_t current_read_mapping = UINT32_MAX;
-
-#if ESP_TEE_BUILD
-/* [ESP-TEE] Workarounds for the ROM SPI flash APIs */
-/*
- * TODO: The esp_rom_spiflash_read API requires two workarounds on ESP32-C6 ECO0 -
- *
- * 1. [IDF-7199] Call esp_rom_spiflash_write API once before reading.
- *    Without this, reads return corrupted data.
- *
- * 2. Configure ROM flash parameters before each read using the function below.
- *    Without this, the first byte read is corrupted.
- *
- * NOTE: These workarounds are not needed for ESP32-C6 ECO1 and later versions.
- */
-static void rom_read_api_workaround(void)
-{
-#if CONFIG_ESP32C6_REV_MIN_0
-    extern void spi_common_set_dummy_output(esp_rom_spiflash_read_mode_t mode);
-    extern void spi_dummy_len_fix(uint8_t spi, uint8_t freqdiv);
-
-    static bool is_first_call = true;
-    if (is_first_call) {
-        uint32_t dummy_val = UINT32_MAX;
-        uint32_t dest_addr = ESP_PARTITION_TABLE_OFFSET + ESP_PARTITION_TABLE_MAX_LEN;
-        esp_rom_spiflash_write(dest_addr, &dummy_val, sizeof(dummy_val));
-        is_first_call = false;
-    }
-
-    uint32_t freqdiv = 0;
-
-#if CONFIG_ESPTOOLPY_FLASHFREQ_80M
-    freqdiv = 1;
-#elif CONFIG_ESPTOOLPY_FLASHFREQ_40M
-    freqdiv = 2;
-#elif CONFIG_ESPTOOLPY_FLASHFREQ_20M
-    freqdiv = 4;
-#endif
-
-    esp_rom_spiflash_read_mode_t read_mode;
-#if CONFIG_ESPTOOLPY_FLASHMODE_QIO
-    read_mode = ESP_ROM_SPIFLASH_QIO_MODE;
-#elif CONFIG_ESPTOOLPY_FLASHMODE_QOUT
-    read_mode = ESP_ROM_SPIFLASH_QOUT_MODE;
-#elif CONFIG_ESPTOOLPY_FLASHMODE_DIO
-    read_mode = ESP_ROM_SPIFLASH_DIO_MODE;
-#elif CONFIG_ESPTOOLPY_FLASHMODE_DOUT
-    read_mode = ESP_ROM_SPIFLASH_DOUT_MODE;
-#endif
-
-    esp_rom_spiflash_config_clk(freqdiv, 1);
-    spi_dummy_len_fix(1, freqdiv);
-    esp_rom_spiflash_config_readmode(read_mode);
-    spi_common_set_dummy_output(read_mode);
-#endif
-}
-
-/*
- * TODO: [IDF-13582]
- *
- * When `esp_flash_read()` is invoked from REE, it enables SPI1 WB (write-back) mode
- * via `spi_flash_ll_wb_mode_enable()`. The ROM flash APIs used by TEE do not support
- * WB mode, causing failures when TEE later accesses flash.
- *
- * Workaround applied in TEE flash layer:
- * 1. Save the current WB mode state.
- * 2. Temporarily disable WB mode before calling ROM flash APIs.
- * 3. Restore WB mode state after the ROM API call completes.
- *
- * NOTE: This workaround will become removed once IDF-13582 is implemented.
- */
-static inline bool spi1_wb_mode_save_and_disable(void)
-{
-#if SOC_SPI_MEM_SUPPORT_WB_MODE_INDEPENDENT_CONTROL
-    if (REG_GET_BIT(SPI_MEM_RD_STATUS_REG(1), SPI_MEM_WB_MODE_EN)) {
-        REG_CLR_BIT(SPI_MEM_RD_STATUS_REG(1), SPI_MEM_WB_MODE_EN);
-        return true;
-    }
-#endif
-    return false;
-}
-
-static inline void spi1_wb_mode_restore(bool saved_state)
-{
-#if SOC_SPI_MEM_SUPPORT_WB_MODE_INDEPENDENT_CONTROL
-    if (saved_state) {
-        REG_SET_BIT(SPI_MEM_RD_STATUS_REG(1), SPI_MEM_WB_MODE_EN);
-    }
-#else
-    (void)saved_state;
-#endif
-}
-#endif
 
 uint32_t bootloader_mmap_get_free_pages(void)
 {
@@ -332,15 +188,13 @@ const void *bootloader_mmap(uint32_t src_paddr, uint32_t size)
     uint32_t src_paddr_aligned = src_paddr & MMU_FLASH_MASK;
     //The addr is aligned, so we add the mask off length to the size, to make sure the corresponding buses are enabled.
     uint32_t size_after_paddr_aligned = (src_paddr - src_paddr_aligned) + size;
-
-    uint32_t actual_mapped_len = 0;
     /**
      * @note 1
      * Will add here a check to make sure the vaddr is on read-only and executable buses, since we use others for psram
      * Now simply check if it's valid vaddr, didn't check if it's readable, writable or executable.
      * TODO: IDF-4710
      */
-    if (mmu_ll_check_valid_ext_vaddr_region(0, FLASH_MMAP_VADDR, size_after_paddr_aligned, MMU_VADDR_DATA | MMU_VADDR_INSTRUCTION) == 0) {
+    if (mmu_ll_check_valid_ext_vaddr_region(0, MMU_BLOCK0_VADDR, size_after_paddr_aligned, MMU_VADDR_DATA | MMU_VADDR_INSTRUCTION) == 0) {
         ESP_EARLY_LOGE(TAG, "vaddr not valid");
         return NULL;
     }
@@ -350,25 +204,15 @@ const void *bootloader_mmap(uint32_t src_paddr, uint32_t size)
     Cache_Read_Disable(0);
     Cache_Flush(0);
 #else
-    /* NOTE: [ESP-TEE] Cache suspension vs disabling
-     *
-     * For ESP-TEE , we use suspend the cache instead of disabling it to avoid flushing the entire cache.
-     * This prevents performance hits when returning to the REE app due to cache misses.
-     * This is not applicable to the bootloader as it runs exclusively on the device from the internal SRAM.
-     */
-#if !ESP_TEE_BUILD
     cache_hal_disable(CACHE_LL_LEVEL_EXT_MEM, CACHE_TYPE_ALL);
-#else
-    cache_hal_suspend(CACHE_LL_LEVEL_EXT_MEM, CACHE_TYPE_ALL);
-#endif
 #endif
 
     //---------------Do mapping------------------------
-    ESP_EARLY_LOGD(TAG, "rodata starts from paddr=0x%08" PRIx32 ", size=0x%" PRIx32 ", will be mapped to vaddr=0x%08" PRIx32, src_paddr, size, (uint32_t)FLASH_MMAP_VADDR);
+    ESP_EARLY_LOGD(TAG, "rodata starts from paddr=0x%08" PRIx32 ", size=0x%" PRIx32 ", will be mapped to vaddr=0x%08" PRIx32, src_paddr, size, (uint32_t)MMU_BLOCK0_VADDR);
 #if CONFIG_IDF_TARGET_ESP32
     uint32_t count = GET_REQUIRED_MMU_PAGES(size, src_paddr);
-    int e = cache_flash_mmu_set(0, 0, FLASH_MMAP_VADDR, src_paddr_aligned, 64, count);
-    ESP_EARLY_LOGV(TAG, "after mapping, starting from paddr=0x%08" PRIx32 " and vaddr=0x%08" PRIx32 ", 0x%" PRIx32 " bytes are mapped", src_paddr_aligned, (uint32_t)FLASH_MMAP_VADDR, count * SPI_FLASH_MMU_PAGE_SIZE);
+    int e = cache_flash_mmu_set(0, 0, MMU_BLOCK0_VADDR, src_paddr_aligned, 64, count);
+    ESP_EARLY_LOGV(TAG, "after mapping, starting from paddr=0x%08" PRIx32 " and vaddr=0x%08" PRIx32 ", 0x%" PRIx32 " bytes are mapped", src_paddr_aligned, (uint32_t)MMU_BLOCK0_VADDR, count * SPI_FLASH_MMU_PAGE_SIZE);
     if (e != 0) {
         ESP_EARLY_LOGE(TAG, "cache_flash_mmu_set failed: %d", e);
         Cache_Read_Enable(0);
@@ -379,8 +223,9 @@ const void *bootloader_mmap(uint32_t src_paddr, uint32_t size)
      * This hal won't return error, it assumes the inputs are valid. The related check should be done in `bootloader_mmap()`.
      * See above comments (note 1) about IDF-4710
      */
-    mmu_hal_map_region(0, MMU_TARGET_FLASH0, FLASH_MMAP_VADDR, src_paddr_aligned, size_after_paddr_aligned, &actual_mapped_len);
-    ESP_EARLY_LOGV(TAG, "after mapping, starting from paddr=0x%08" PRIx32 " and vaddr=0x%08" PRIx32 ", 0x%" PRIx32 " bytes are mapped", src_paddr_aligned, (uint32_t)FLASH_MMAP_VADDR, actual_mapped_len);
+    uint32_t actual_mapped_len = 0;
+    mmu_hal_map_region(0, MMU_TARGET_FLASH0, MMU_BLOCK0_VADDR, src_paddr_aligned, size_after_paddr_aligned, &actual_mapped_len);
+    ESP_EARLY_LOGV(TAG, "after mapping, starting from paddr=0x%08" PRIx32 " and vaddr=0x%08" PRIx32 ", 0x%" PRIx32 " bytes are mapped", src_paddr_aligned, (uint32_t)MMU_BLOCK0_VADDR, actual_mapped_len);
 #endif
 
     /**
@@ -393,19 +238,14 @@ const void *bootloader_mmap(uint32_t src_paddr, uint32_t size)
     Cache_Read_Enable(0);
 #else
 #if SOC_CACHE_INTERNAL_MEM_VIA_L1CACHE
-    cache_ll_invalidate_addr(CACHE_LL_LEVEL_ALL, CACHE_TYPE_ALL, CACHE_LL_ID_ALL, FLASH_MMAP_VADDR, actual_mapped_len);
+    cache_ll_invalidate_addr(CACHE_LL_LEVEL_ALL, CACHE_TYPE_ALL, CACHE_LL_ID_ALL, MMU_BLOCK0_VADDR, actual_mapped_len);
 #endif
-#if !ESP_TEE_BUILD
     cache_hal_enable(CACHE_LL_LEVEL_EXT_MEM, CACHE_TYPE_ALL);
-#else
-    cache_hal_resume(CACHE_LL_LEVEL_EXT_MEM, CACHE_TYPE_ALL);
-#endif
 #endif
 
     mapped = true;
-    current_mapped_size = actual_mapped_len;
 
-    return (void *)(FLASH_MMAP_VADDR + (src_paddr - src_paddr_aligned));
+    return (void *)(MMU_BLOCK0_VADDR + (src_paddr - src_paddr_aligned));
 }
 
 void bootloader_munmap(const void *mapping)
@@ -417,18 +257,11 @@ void bootloader_munmap(const void *mapping)
         Cache_Flush(0);
         mmu_init(0);
 #else
-#if !ESP_TEE_BUILD
         cache_hal_disable(CACHE_LL_LEVEL_EXT_MEM, CACHE_TYPE_ALL);
         mmu_hal_unmap_all();
-#else
-        cache_hal_suspend(CACHE_LL_LEVEL_EXT_MEM, CACHE_TYPE_ALL);
-        mmu_hal_unmap_region(0, FLASH_MMAP_VADDR, current_mapped_size);
-        cache_hal_invalidate_addr(FLASH_MMAP_VADDR, current_mapped_size);
-        cache_hal_resume(CACHE_LL_LEVEL_EXT_MEM, CACHE_TYPE_ALL);
-#endif
 #endif
         mapped = false;
-        current_mapped_size = 0;
+        current_read_mapping = UINT32_MAX;
     }
 }
 
@@ -452,12 +285,7 @@ static esp_err_t bootloader_flash_read_no_decrypt(size_t src_addr, void *dest, s
     Cache_Read_Disable(0);
     Cache_Flush(0);
 #else
-#if !ESP_TEE_BUILD
     cache_hal_disable(CACHE_LL_LEVEL_EXT_MEM, CACHE_TYPE_ALL);
-#else
-    rom_read_api_workaround();
-    bool is_wb_saved = spi1_wb_mode_save_and_disable();
-#endif
 #endif
 
     esp_rom_spiflash_result_t r = esp_rom_spiflash_read(src_addr, dest, size);
@@ -465,11 +293,7 @@ static esp_err_t bootloader_flash_read_no_decrypt(size_t src_addr, void *dest, s
 #if CONFIG_IDF_TARGET_ESP32
     Cache_Read_Enable(0);
 #else
-#if !ESP_TEE_BUILD
     cache_hal_enable(CACHE_LL_LEVEL_EXT_MEM, CACHE_TYPE_ALL);
-#else
-    spi1_wb_mode_restore(is_wb_saved);
-#endif
 #endif
 
     return spi_to_esp_err(r);
@@ -492,13 +316,7 @@ static esp_err_t bootloader_flash_read_allow_decrypt(size_t src_addr, void *dest
             Cache_Read_Disable(0);
             Cache_Flush(0);
 #else
-#if !ESP_TEE_BUILD
             cache_hal_disable(CACHE_LL_LEVEL_EXT_MEM, CACHE_TYPE_ALL);
-#else
-            cache_hal_suspend(CACHE_LL_LEVEL_EXT_MEM, CACHE_TYPE_ALL);
-            //---------------Invalidating entries at to-be-mapped v_addr------------------------
-            cache_hal_invalidate_addr(FLASH_READ_VADDR, SPI_FLASH_MMU_PAGE_SIZE);
-#endif
 #endif
 
             //---------------Do mapping------------------------
@@ -519,18 +337,13 @@ static esp_err_t bootloader_flash_read_allow_decrypt(size_t src_addr, void *dest
             Cache_Read_Enable(0);
 #else
 #if SOC_CACHE_INTERNAL_MEM_VIA_L1CACHE
-            cache_ll_invalidate_addr(CACHE_LL_LEVEL_ALL, CACHE_TYPE_ALL, CACHE_LL_ID_ALL, FLASH_MMAP_VADDR, actual_mapped_len);
+            cache_ll_invalidate_addr(CACHE_LL_LEVEL_ALL, CACHE_TYPE_ALL, CACHE_LL_ID_ALL, MMU_BLOCK0_VADDR, actual_mapped_len);
 #endif
-#if !ESP_TEE_BUILD
             cache_hal_enable(CACHE_LL_LEVEL_EXT_MEM, CACHE_TYPE_ALL);
-#else
-            cache_hal_resume(CACHE_LL_LEVEL_EXT_MEM, CACHE_TYPE_ALL);
-#endif
 #endif
         }
         map_ptr = (uint32_t *)(FLASH_READ_VADDR + (word_src - map_at));
         dest_words[word] = *map_ptr;
-        current_read_mapping = UINT32_MAX;
     }
     return ESP_OK;
 }
@@ -559,19 +372,7 @@ esp_err_t bootloader_flash_read(size_t src_addr, void *dest, size_t size, bool a
 
 esp_err_t bootloader_flash_write(size_t dest_addr, void *src, size_t size, bool write_encrypted)
 {
-    /* NOTE: [ESP-TEE] Flash operation address validation with anti-FI check
-     *
-     * Ensure that flash operations cannot be executed within forbidden memory ranges
-     * by validating the address before proceeding.
-     */
-#if ESP_TEE_BUILD
-    bool addr_chk = esp_tee_flash_check_prange_in_active_tee_part(dest_addr, size);
-    if (addr_chk) {
-        ESP_EARLY_LOGE(TAG, "bootloader_flash_write invalid dest_addr");
-        return ESP_FAIL;
-    }
-    ESP_FAULT_ASSERT(!addr_chk);
-#endif
+    esp_err_t err;
     size_t alignment = write_encrypted ? 32 : 4;
     if ((dest_addr % alignment) != 0) {
         ESP_EARLY_LOGE(TAG, "bootloader_flash_write dest_addr 0x%x not %d-byte aligned", dest_addr, alignment);
@@ -586,34 +387,16 @@ esp_err_t bootloader_flash_write(size_t dest_addr, void *src, size_t size, bool 
         return ESP_FAIL;
     }
 
-    esp_err_t err = bootloader_flash_unlock();
+    err = bootloader_flash_unlock();
     if (err != ESP_OK) {
         return err;
     }
 
-#if ESP_TEE_BUILD
-    bool is_wb_saved = spi1_wb_mode_save_and_disable();
-#endif
-
-    esp_rom_spiflash_result_t rc = ESP_ROM_SPIFLASH_RESULT_OK;
-
     if (write_encrypted && !ENCRYPTION_IS_VIRTUAL) {
-        rc = esp_rom_spiflash_write_encrypted(dest_addr, src, size);
+        return spi_to_esp_err(esp_rom_spiflash_write_encrypted(dest_addr, src, size));
     } else {
-        rc = esp_rom_spiflash_write(dest_addr, src, size);
+        return spi_to_esp_err(esp_rom_spiflash_write(dest_addr, src, size));
     }
-    /* NOTE: [ESP-TEE] Cache flushing after flash writes/erases
-     *
-     * After writing or erasing the flash, we need to flush the cache at locations
-     * corresponding to the destination write/erase address. This prevents stale data
-     * from being read from already memory-mapped addresses that were modified.
-     */
-#if ESP_TEE_BUILD
-    spi1_wb_mode_restore(is_wb_saved);
-    spi_flash_check_and_flush_cache(dest_addr, size);
-#endif
-
-    return spi_to_esp_err(rc);
 }
 
 esp_err_t bootloader_flash_erase_sector(size_t sector)
@@ -623,13 +406,6 @@ esp_err_t bootloader_flash_erase_sector(size_t sector)
 
 esp_err_t bootloader_flash_erase_range(uint32_t start_addr, uint32_t size)
 {
-#if ESP_TEE_BUILD
-    bool addr_chk = esp_tee_flash_check_prange_in_active_tee_part(start_addr, size);
-    if (addr_chk) {
-        return ESP_ERR_INVALID_ARG;
-    }
-    ESP_FAULT_ASSERT(!addr_chk);
-#endif
     if (start_addr % FLASH_SECTOR_SIZE != 0) {
         return ESP_ERR_INVALID_ARG;
     }
@@ -650,10 +426,6 @@ esp_err_t bootloader_flash_erase_range(uint32_t start_addr, uint32_t size)
             ++sector;
         }
     }
-#if ESP_TEE_BUILD
-    spi_flash_check_and_flush_cache(start_addr, size);
-#endif
-
     return spi_to_esp_err(rc);
 }
 
@@ -664,37 +436,37 @@ void bootloader_flash_32bits_address_map_enable(esp_rom_spiflash_read_mode_t fla
     switch (flash_mode) {
     case ESP_ROM_SPIFLASH_DOUT_MODE:
         cache_rd.addr_bit_len = 32;
-        cache_rd.dummy_bit_len = SPI_FLASH_DOUT_DUMMY_BITLEN;
+        cache_rd.dummy_bit_len = 8;
         cache_rd.cmd = CMD_FASTRD_DUAL_4B;
         cache_rd.cmd_bit_len = 8;
         break;
     case ESP_ROM_SPIFLASH_DIO_MODE:
         cache_rd.addr_bit_len = 32;
-        cache_rd.dummy_bit_len = SPI_FLASH_DIO_DUMMY_BITLEN;
+        cache_rd.dummy_bit_len = 4;
         cache_rd.cmd = CMD_FASTRD_DIO_4B;
         cache_rd.cmd_bit_len = 8;
         break;
     case ESP_ROM_SPIFLASH_QOUT_MODE:
         cache_rd.addr_bit_len = 32;
-        cache_rd.dummy_bit_len = SPI_FLASH_QOUT_DUMMY_BITLEN;
+        cache_rd.dummy_bit_len = 8;
         cache_rd.cmd = CMD_FASTRD_QUAD_4B;
         cache_rd.cmd_bit_len = 8;
         break;
     case ESP_ROM_SPIFLASH_QIO_MODE:
         cache_rd.addr_bit_len = 32;
-        cache_rd.dummy_bit_len = SPI_FLASH_QIO_DUMMY_BITLEN;
+        cache_rd.dummy_bit_len = 6;
         cache_rd.cmd = CMD_FASTRD_QIO_4B;
         cache_rd.cmd_bit_len = 8;
         break;
     case ESP_ROM_SPIFLASH_FASTRD_MODE:
         cache_rd.addr_bit_len = 32;
-        cache_rd.dummy_bit_len = SPI_FLASH_FASTRD_DUMMY_BITLEN;
+        cache_rd.dummy_bit_len = 8;
         cache_rd.cmd = CMD_FASTRD_4B;
         cache_rd.cmd_bit_len = 8;
         break;
      case ESP_ROM_SPIFLASH_SLOWRD_MODE:
         cache_rd.addr_bit_len = 32;
-        cache_rd.dummy_bit_len = SPI_FLASH_SLOWRD_DUMMY_BITLEN;
+        cache_rd.dummy_bit_len = 0;
         cache_rd.cmd = CMD_SLOWRD_4B;
         cache_rd.cmd_bit_len = 8;
         break;
@@ -708,7 +480,7 @@ void bootloader_flash_32bits_address_map_enable(esp_rom_spiflash_read_mode_t fla
 }
 #endif
 
-#endif // NON_OS_BUILD
+#endif // BOOTLOADER_BUILD
 
 
 FORCE_INLINE_ATTR bool is_issi_chip(const esp_rom_spiflash_chip_t* chip)
@@ -727,7 +499,7 @@ FORCE_INLINE_ATTR bool is_mxic_chip(const esp_rom_spiflash_chip_t* chip)
     return BYTESHIFT(chip->device_id, 2) == MXIC_ID;
 }
 
-esp_err_t IRAM_ATTR bootloader_flash_unlock_default(void)
+esp_err_t IRAM_ATTR __attribute__((weak)) bootloader_flash_unlock(void)
 {
     // At the beginning status == new_status == status_sr2 == new_status_sr2 == 0.
     // If the register doesn't need to be updated, keep them the same (0), so that no command will be actually sent.
@@ -796,17 +568,6 @@ esp_err_t IRAM_ATTR bootloader_flash_unlock_default(void)
     return err;
 }
 
-esp_err_t __attribute__((weak, alias("bootloader_flash_unlock_default"))) bootloader_flash_unlock(void);
-
-
-#if CONFIG_SECURE_TEE_EXT_FLASH_MEMPROT_SPI1 && !NON_OS_BUILD
-extern uint32_t bootloader_flash_execute_command_common(
-    uint8_t command,
-    uint32_t addr_len, uint32_t address,
-    uint8_t dummy_len,
-    uint8_t mosi_len, uint32_t mosi_data,
-    uint8_t miso_len);
-#else
 IRAM_ATTR uint32_t bootloader_flash_execute_command_common(
     uint8_t command,
     uint32_t addr_len, uint32_t address,
@@ -859,7 +620,6 @@ IRAM_ATTR uint32_t bootloader_flash_execute_command_common(
     }
     return ret;
 }
-#endif
 
 uint32_t IRAM_ATTR bootloader_execute_flash_command(uint8_t command, uint32_t mosi_data, uint8_t mosi_len, uint8_t miso_len)
 {
@@ -911,7 +671,7 @@ void bootloader_spi_flash_reset(void)
 #define XMC_SUPPORT CONFIG_BOOTLOADER_FLASH_XMC_SUPPORT
 #define XMC_VENDOR_ID_1 0x20
 
-#if NON_OS_BUILD
+#if BOOTLOADER_BUILD
 #define BOOTLOADER_FLASH_LOG(level, ...)    ESP_EARLY_LOG##level(TAG, ##__VA_ARGS__)
 #else
 static DRAM_ATTR char bootloader_flash_tag[] = "bootloader_flash";
@@ -1027,7 +787,7 @@ esp_err_t IRAM_ATTR bootloader_flash_reset_chip(void)
 
 bool IRAM_ATTR bootloader_flash_is_octal_mode_enabled(void)
 {
-#if SOC_SPI_MEM_SUPPORT_FLASH_OPI_MODE
+#if SOC_SPI_MEM_SUPPORT_OPI_MODE
     return efuse_ll_get_flash_type();
 #else
     return false;

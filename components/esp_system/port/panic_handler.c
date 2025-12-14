@@ -24,6 +24,14 @@
 #include "sdkconfig.h"
 #include "esp_rom_sys.h"
 
+#if CONFIG_ESP_SYSTEM_MEMPROT_FEATURE
+#ifdef CONFIG_IDF_TARGET_ESP32S2
+#include "esp32s2/memprot.h"
+#else
+#include "esp_memprot.h"
+#endif
+#endif
+
 #include "esp_private/panic_internal.h"
 #include "esp_private/panic_reason.h"
 
@@ -33,6 +41,8 @@
 #if CONFIG_ESP_SYSTEM_HW_STACK_GUARD
 #include "esp_private/hw_stack_guard.h"
 #endif
+
+extern int _invalid_pc_placeholder;
 
 extern void esp_panic_handler(panic_info_t *);
 
@@ -245,7 +255,6 @@ static void panic_handler(void *frame, bool pseudo_excause)
              * In case the PC is invalid, GDB will fail to translate addresses to function names
              * Hence replacing the PC to a placeholder address in case of invalid PC
              */
-            extern int _invalid_pc_placeholder;
             panic_set_address(frame, (uint32_t)&_invalid_pc_placeholder);
         }
 #endif
@@ -270,16 +279,9 @@ static void IRAM_ATTR panic_enable_cache(void)
         esp_ipc_isr_stall_abort();
         spi_flash_enable_cache(core_id);
     }
-
-#if SOC_CACHE_ACS_INVALID_STATE_ON_PANIC
-    // Some errors need to be cleared here to allow cache to operate normally again
-    // for certain circumstances.
-    esp_cache_err_acs_save_and_clr();
-#endif //SOC_CACHE_ACS_INVALID_STATE_ON_PANIC
 }
 #endif
 
-// This function must always be in IRAM as it is required to re-enable the flash cache.
 void IRAM_ATTR panicHandler(void *frame)
 {
 #if !CONFIG_APP_BUILD_TYPE_PURE_RAM_APP
@@ -292,7 +294,6 @@ void IRAM_ATTR panicHandler(void *frame)
     panic_handler(frame, true);
 }
 
-// This function must always be in IRAM as it is required to re-enable the flash cache.
 void IRAM_ATTR xt_unhandled_exception(void *frame)
 {
 #if !CONFIG_APP_BUILD_TYPE_PURE_RAM_APP

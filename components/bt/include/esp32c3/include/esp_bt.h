@@ -30,7 +30,7 @@ extern "C" {
 *
 * @note Please do not modify this value
 */
-#define ESP_BT_CTRL_CONFIG_VERSION      0x02509280
+#define ESP_BT_CTRL_CONFIG_VERSION      0x02505080
 
 /**
 * @brief Internal use only
@@ -376,6 +376,8 @@ typedef void (* esp_bt_hci_tl_callback_t) (void *arg, uint8_t status);
     .connect_en = BT_CTRL_BLE_MASTER,                                      \
     .scan_en = BT_CTRL_BLE_SCAN,                                           \
     .ble_aa_check = BLE_CTRL_CHECK_CONNECT_IND_ACCESS_ADDRESS_ENABLED,     \
+    .ble_log_mode_en = BLE_LOG_MODE_EN,                                    \
+    .ble_log_level = BLE_LOG_LEVEL,                                        \
     .adv_en = BT_CTRL_BLE_ADV,                                             \
 }
 
@@ -466,13 +468,11 @@ typedef struct {
                                                 - 0 - Disable (default)
                                                 - 1 - Enable */
     uint32_t hw_target_code;                /*!< Hardware target. Internal use only. Please do not modify this value. */
-    uint8_t slave_ce_len_min;               /*!< Slave minimum connection event length: 5 slots. Please do not modify this value. */
+    uint8_t slave_ce_len_min;               /*!< Slave minimum connection event length: 5. Please do not modify this value. */
     uint8_t hw_recorrect_en;                /*!< Enable / disable uncoded phy / coded phy hardware re-correction. Configurable in menuconfig. */
-    uint8_t cca_thresh;                     /*!< Absolute value of hardware-triggered CCA threshold. The CCA threshold is always negative.
-                                                 If the channel assessment result exceeds the CCA threshold (e.g. -75 dBm), indicating the channel is busy,
-                                                 the hardware will not transmit packets on that channel. Configurable in menuconfig.
-                                                - Range: 20 dBm - 100 dBm
-                                                - Default: 75 dBm */
+    uint8_t cca_thresh;                     /*!< Hardware-triggered CCA threshold. Configurable in menuconfig.
+                                                - Range: 20 - 100
+                                                - Default: 20 */
     uint16_t scan_backoff_upperlimitmax;    /*!< Enable / disable active scan backoff. Configurable in menuconfig.
                                                 - 0 - Disable (default)
                                                 - 1 - Enable */
@@ -502,6 +502,8 @@ typedef struct {
     bool connect_en;                        /*!< True if the connection feature is enabled (default); false otherwise. Configurable in menuconfig.*/
     bool scan_en;                           /*!< True if the scan feature is enabled (default); false otherwise. Configurable in menuconfig.*/
     bool ble_aa_check;                      /*!< True if adds a verification step for the Access Address within the CONNECT_IND PDU; false otherwise. Configurable in menuconfig */
+    uint32_t ble_log_mode_en;               /*!< BLE log mode enable */
+    uint8_t ble_log_level;                  /*!< BLE log level */
     bool adv_en;                            /*!< True if the ADV feature is enabled (default); false otherwise. Configurable in menuconfig.*/
 } esp_bt_controller_config_t;
 
@@ -610,7 +612,7 @@ esp_err_t esp_bt_controller_init(esp_bt_controller_config_t *cfg);
  * @brief  De-initialize Bluetooth Controller to free resources and delete tasks
  *
  * @note
- *      1. You should make sure that the Controller is in idle state before de-initializing it.
+ *      1. You should stop advertising and scanning, and disconnect all existing connections before de-initializing Bluetooth Controller.
  *      2. This function should be called only once, after any other Bluetooth functions.
  *
  * @return
@@ -874,31 +876,31 @@ int esp_bt_h4tl_eif_io_event_notify(int event);
  * @brief Virtual HCI (VHCI) callback functions to notify the Host on the next operation
  */
 typedef struct esp_vhci_host_callback {
-    void (*notify_host_send_available)(void);               /*!< callback used to notify that the Host can send the HCI data to Controller */
-    int (*notify_host_recv)(uint8_t *data, uint16_t len);   /*!< callback used to notify that the Controller has the HCI data to send to the Host */
+    void (*notify_host_send_available)(void);               /*!< callback used to notify that the Host can send packet to Controller */
+    int (*notify_host_recv)(uint8_t *data, uint16_t len);   /*!< callback used to notify that the Controller has a packet to send to the Host */
 } esp_vhci_host_callback_t;
 
 /**
- * @brief Check whether the Controller is ready to receive the HCI data
+ * @brief Check whether the Controller is ready to receive the packet
  *
- * If the return value is True, the Host can send the HCI data to the Controller.
+ * If the return value is True, the Host can send the packet to the Controller.
  *
  * @note This function should be called before each `esp_vhci_host_send_packet()`.
  *
  * @return
- *       True if the Controller is ready to receive the HCI data; false otherwise.
+ *       True if the Controller is ready to receive packets; false otherwise.
  */
 bool esp_vhci_host_check_send_available(void);
 
 /**
- * @brief Send the HCI data to the Controller
+ * @brief Send the packet to the Controller
  *
  * @note
  *      1. This function shall not be called within a critical section or when the scheduler is suspended.
  *      2. This function should be called only if `esp_vhci_host_check_send_available` returns True.
  *
- * @param[in] data Pointer to the HCI data
- * @param[in] len The HCI data length
+ * @param[in] data Pointer to the packet data
+ * @param[in] len The packet length
  */
 void esp_vhci_host_send_packet(uint8_t *data, uint16_t len);
 

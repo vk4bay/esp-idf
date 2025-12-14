@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2021-2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2021-2024 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Unlicense OR CC0-1.0
  */
@@ -109,14 +109,12 @@ static void usb_host_lib_task(void *arg)
     ESP_LOGI(TAG, "Installing USB Host Library");
     usb_host_config_t host_config = {
         .skip_phy_setup = false,
-        .intr_flags = ESP_INTR_FLAG_LOWMED,
+        .intr_flags = ESP_INTR_FLAG_LEVEL1,
 # ifdef ENABLE_ENUM_FILTER_CALLBACK
         .enum_filter_cb = set_config_cb,
 # endif // ENABLE_ENUM_FILTER_CALLBACK
-        .peripheral_map = BIT0,
     };
     ESP_ERROR_CHECK(usb_host_install(&host_config));
-    ESP_LOGI(TAG, "USB Host installed with peripheral map 0x%x", host_config.peripheral_map);
 
     //Signalize the app_main, the USB host library has been installed
     xTaskNotifyGive(arg);
@@ -161,7 +159,7 @@ void app_main(void)
         .intr_type = GPIO_INTR_NEGEDGE,
     };
     ESP_ERROR_CHECK(gpio_config(&input_pin));
-    ESP_ERROR_CHECK(gpio_install_isr_service(ESP_INTR_FLAG_LOWMED));
+    ESP_ERROR_CHECK(gpio_install_isr_service(ESP_INTR_FLAG_LEVEL1));
     ESP_ERROR_CHECK(gpio_isr_handler_add(APP_QUIT_PIN, gpio_cb, NULL));
 
     app_event_queue = xQueueCreate(10, sizeof(app_event_queue_t));
@@ -180,7 +178,7 @@ void app_main(void)
                                            0);
     assert(task_created == pdTRUE);
 
-    // Wait until the USB host library is installed
+    // Wait unit the USB host library is installed
     ulTaskNotifyTake(false, 1000);
 
     // Create class driver task

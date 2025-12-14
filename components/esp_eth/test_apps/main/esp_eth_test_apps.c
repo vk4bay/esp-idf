@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2022-2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2022-2024 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Unlicense OR CC0-1.0
  */
@@ -94,82 +94,6 @@ TEST_CASE("ethernet io test", "[ethernet]")
     extra_cleanup();
 }
 
-#ifdef CONFIG_TARGET_ETH_PHY_DEVICE_LAN8720
-esp_err_t set_phy_reg_bits(esp_eth_handle_t eth_handle, uint32_t reg_addr, uint32_t bitmask, uint32_t max_attempts)
-{
-    esp_eth_phy_reg_rw_data_t reg = {
-        .reg_addr = reg_addr,
-        .reg_value_p = NULL
-    };
-    uint32_t reg_value, reg_value_rb;
-
-    for (uint32_t i = 0; i < max_attempts; i++) {
-        reg.reg_value_p = &reg_value;
-        esp_err_t ret = esp_eth_ioctl(eth_handle, ETH_CMD_READ_PHY_REG, &reg);
-        if (ret != ESP_OK) {
-            return ret;
-        }
-        reg_value |= bitmask;
-        ret = esp_eth_ioctl(eth_handle, ETH_CMD_WRITE_PHY_REG, &reg);
-        if (ret != ESP_OK) {
-            return ret;
-        }
-        reg.reg_value_p = &reg_value_rb;
-        ret = esp_eth_ioctl(eth_handle, ETH_CMD_READ_PHY_REG, &reg);
-        if (ret != ESP_OK) {
-            return ret;
-        }
-        // Check if the write was successful
-        if ((reg_value_rb & bitmask) == bitmask) {
-            return ESP_OK;
-        }
-        // Add delay only if not the last attempt
-        if (i < max_attempts - 1) {
-            ESP_LOGW(TAG, "Setting PHY register %04X failed, retrying... (attempt %d of %d)", reg_addr, i + 1, max_attempts);
-            vTaskDelay(pdMS_TO_TICKS(10));
-        }
-    }
-    return ESP_ERR_TIMEOUT;
-}
-
-esp_err_t clear_phy_reg_bits(esp_eth_handle_t eth_handle, uint32_t reg_addr, uint32_t bitmask, uint32_t max_attempts)
-{
-    esp_eth_phy_reg_rw_data_t reg = {
-        .reg_addr = reg_addr,
-        .reg_value_p = NULL
-    };
-    uint32_t reg_value, reg_value_rb;
-
-    for (uint32_t i = 0; i < max_attempts; i++) {
-        reg.reg_value_p = &reg_value;
-        esp_err_t ret = esp_eth_ioctl(eth_handle, ETH_CMD_READ_PHY_REG, &reg);
-        if (ret != ESP_OK) {
-            return ret;
-        }
-        reg_value &= ~bitmask;
-        ret = esp_eth_ioctl(eth_handle, ETH_CMD_WRITE_PHY_REG, &reg);
-        if (ret != ESP_OK) {
-            return ret;
-        }
-        reg.reg_value_p = &reg_value_rb;
-        ret = esp_eth_ioctl(eth_handle, ETH_CMD_READ_PHY_REG, &reg);
-        if (ret != ESP_OK) {
-            return ret;
-        }
-        // Check if the write was successful
-        if ((reg_value_rb & bitmask) == 0) {
-            return ESP_OK;
-        }
-        // Add delay only if not the last attempt
-        if (i < max_attempts - 1) {
-            ESP_LOGW(TAG, "Clearing PHY register %04X failed, retrying... (attempt %d of %d)", reg_addr, i + 1, max_attempts);
-            vTaskDelay(pdMS_TO_TICKS(10));
-        }
-    }
-    return ESP_ERR_TIMEOUT;
-}
-#endif // CONFIG_TARGET_ETH_PHY_DEVICE_LAN8720
-
 // This test expects autonegotiation to be enabled on the other node.
 TEST_CASE("ethernet io speed/duplex/autonegotiation", "[ethernet]")
 {
@@ -244,7 +168,17 @@ TEST_CASE("ethernet io speed/duplex/autonegotiation", "[ethernet]")
 // Rationale: When the device is in manual 100BASE-TX or 10BASE-T modes with Auto-MDIX enabled, the PHY does not link to a
 //            link partner that is configured for auto-negotiation. See LAN8720 errata for more details.
 #ifdef CONFIG_TARGET_ETH_PHY_DEVICE_LAN8720
-    TEST_ESP_OK(set_phy_reg_bits(eth_handle, 27, 0x8000, 3));
+    esp_eth_phy_reg_rw_data_t reg;
+    uint32_t reg_val;
+    reg.reg_addr = 27;
+    reg.reg_value_p = &reg_val;
+    TEST_ESP_OK(esp_eth_ioctl(eth_handle, ETH_CMD_READ_PHY_REG, &reg));
+    reg_val |= 0x8000;
+    TEST_ESP_OK(esp_eth_ioctl(eth_handle, ETH_CMD_WRITE_PHY_REG, &reg));
+    uint32_t reg_val_act;
+    reg.reg_value_p = &reg_val_act;
+    TEST_ESP_OK(esp_eth_ioctl(eth_handle, ETH_CMD_READ_PHY_REG, &reg));
+    TEST_ASSERT_EQUAL(reg_val, reg_val_act);
 #endif
 
     // start the driver and wait for connection establish
@@ -329,7 +263,13 @@ TEST_CASE("ethernet io speed/duplex/autonegotiation", "[ethernet]")
 // *** LAN8720 deviation ***
 // Rationale: See above
 #ifdef CONFIG_TARGET_ETH_PHY_DEVICE_LAN8720
-    TEST_ESP_OK(clear_phy_reg_bits(eth_handle, 27, 0x8000, 3));
+    reg.reg_value_p = &reg_val;
+    TEST_ESP_OK(esp_eth_ioctl(eth_handle, ETH_CMD_READ_PHY_REG, &reg));
+    reg_val &= ~0x8000;
+    TEST_ESP_OK(esp_eth_ioctl(eth_handle, ETH_CMD_WRITE_PHY_REG, &reg));
+    reg.reg_value_p = &reg_val_act;
+    TEST_ESP_OK(esp_eth_ioctl(eth_handle, ETH_CMD_READ_PHY_REG, &reg));
+    TEST_ASSERT_EQUAL(reg_val, reg_val_act);
 #endif
 
     esp_eth_start(eth_handle);
@@ -563,7 +503,7 @@ TEST_CASE("ethernet dhcp test", "[ethernet]")
     // combine driver with netif
     esp_eth_netif_glue_handle_t glue = esp_eth_new_netif_glue(eth_handle);
     TEST_ESP_OK(esp_netif_attach(eth_netif, glue));
-    // register user defined event handlers
+    // register user defined event handers
     TEST_ESP_OK(esp_event_handler_register(ETH_EVENT, ESP_EVENT_ANY_ID, &eth_event_handler, eth_event_group));
     TEST_ESP_OK(esp_event_handler_register(IP_EVENT, IP_EVENT_ETH_GOT_IP, &got_ip_event_handler, eth_event_group));
     // start Ethernet driver
@@ -611,7 +551,7 @@ TEST_CASE("ethernet start/stop stress test with IP stack", "[ethernet]")
     // combine driver with netif
     esp_eth_netif_glue_handle_t glue = esp_eth_new_netif_glue(eth_handle);
     TEST_ESP_OK(esp_netif_attach(eth_netif, glue));
-    // register user defined event handlers
+    // register user defined event handers
     TEST_ESP_OK(esp_event_handler_register(ETH_EVENT, ESP_EVENT_ANY_ID, &eth_event_handler, eth_event_group));
     TEST_ESP_OK(esp_event_handler_register(IP_EVENT, IP_EVENT_ETH_GOT_IP, &got_ip_event_handler, eth_event_group));
 
@@ -628,7 +568,17 @@ TEST_CASE("ethernet start/stop stress test with IP stack", "[ethernet]")
 // Rationale: When the device is in manual 100BASE-TX or 10BASE-T modes with Auto-MDIX enabled, the PHY does not link to a
 //            link partner that is configured for auto-negotiation. See LAN8720 errata for more details.
 #ifdef CONFIG_TARGET_ETH_PHY_DEVICE_LAN8720
-            TEST_ESP_OK(set_phy_reg_bits(eth_handle, 27, 0x8000, 3));
+            esp_eth_phy_reg_rw_data_t reg;
+            uint32_t reg_val;
+            reg.reg_addr = 27;
+            reg.reg_value_p = &reg_val;
+            TEST_ESP_OK(esp_eth_ioctl(eth_handle, ETH_CMD_READ_PHY_REG, &reg));
+            reg_val |= 0x8000;
+            TEST_ESP_OK(esp_eth_ioctl(eth_handle, ETH_CMD_WRITE_PHY_REG, &reg));
+            uint32_t reg_val_act;
+            reg.reg_value_p = &reg_val_act;
+            TEST_ESP_OK(esp_eth_ioctl(eth_handle, ETH_CMD_READ_PHY_REG, &reg));
+            TEST_ASSERT_EQUAL(reg_val, reg_val_act);
 #endif
         }
         for (int i = 0; i < 10; i++) {
@@ -673,9 +623,6 @@ esp_err_t http_event_handle(esp_http_client_event_t *evt)
     case HTTP_EVENT_ON_HEADER:
         ESP_LOGI(TAG, "HTTP_EVENT_ON_HEADER");
         break;
-    case HTTP_EVENT_ON_HEADERS_COMPLETE:
-        ESP_LOGI(TAG, "HTTP_EVENT_ON_HEADERS_COMPLETE");
-        break;
     case HTTP_EVENT_ON_DATA:
         esp_rom_md5_update(&md5_context, evt->data, evt->data_len);
         break;
@@ -687,8 +634,6 @@ esp_err_t http_event_handle(esp_http_client_event_t *evt)
         break;
     case HTTP_EVENT_REDIRECT:
         ESP_LOGI(TAG, "HTTP_EVENT_REDIRECT");
-        break;
-    default:
         break;
     }
     return ESP_OK;
@@ -732,7 +677,7 @@ TEST_CASE("ethernet download test", "[ethernet]")
     // combine driver with netif
     esp_eth_netif_glue_handle_t glue = esp_eth_new_netif_glue(eth_handle);
     TEST_ESP_OK(esp_netif_attach(eth_netif, glue));
-    // register user defined event handlers
+    // register user defined event handers
     TEST_ESP_OK(esp_event_handler_register(ETH_EVENT, ESP_EVENT_ANY_ID, &eth_event_handler, eth_event_group));
     TEST_ESP_OK(esp_event_handler_register(IP_EVENT, IP_EVENT_ETH_GOT_IP, &got_ip_event_handler, eth_event_group));
     // start Ethernet driver

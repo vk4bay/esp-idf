@@ -12,22 +12,22 @@
 #include "esp_attr.h"
 #include "esp_log.h"
 #include "riscv/rv_utils.h"
-#include "esp_rom_serial_output.h"
+#include "esp_rom_uart.h"
 #include "soc/gpio_reg.h"
 #include "soc/timer_group_reg.h"
 #include "esp_cpu.h"
 #include "soc/rtc.h"
 #include "esp_private/rtc_clk.h"
+#include "soc/rtc_periph.h"
 #include "soc/syscon_reg.h"
 #include "soc/system_reg.h"
 #include "hal/wdt_hal.h"
-#include "hal/uart_ll.h"
 #include "esp_private/cache_err_int.h"
 
 #include "esp32c2/rom/cache.h"
 #include "esp32c2/rom/rtc.h"
 
-void esp_system_reset_modules_on_exit(void)
+void IRAM_ATTR esp_system_reset_modules_on_exit(void)
 {
     // Flush any data left in UART FIFOs before reset the UART peripheral
     for (int i = 0; i < SOC_UART_HP_NUM; ++i) {
@@ -55,7 +55,7 @@ void esp_system_reset_modules_on_exit(void)
  * core are already stopped. Stalls other core, resets hardware,
  * triggers restart.
 */
-void esp_restart_noos(void)
+void IRAM_ATTR esp_restart_noos(void)
 {
     // Disable interrupts
     rv_utils_intr_global_disable();

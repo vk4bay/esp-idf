@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2022-2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2022-2024 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -9,6 +9,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <sys/time.h>
+#include "esp_dma_utils.h"
 #include "esp_heap_caps.h"
 #include "esp_timer.h"
 #include "test_utils.h"
@@ -18,7 +19,6 @@
 #include "sd_protocol_defs.h"
 #include "sdmmc_cmd.h"
 #include "sdmmc_test_rw_common.h"
-#include "freertos/FreeRTOS.h"
 
 static void do_single_rw_perf_test(sdmmc_card_t* card, size_t start_block,
                                    size_t block_count, size_t alignment, FILE* performance_log,
@@ -54,9 +54,13 @@ static void do_single_rw_perf_test(sdmmc_card_t* card, size_t start_block,
     const char* alloc_str = (extra_alloc_caps & MALLOC_CAP_SPIRAM) ? "spiram" : " sram ";
     printf(" %8d |  %3d  |   %d   | %s |    %4.1f  ", start_block, block_count, alignment, alloc_str, total_size / 1024.0f);
 
+    size_t actual_size = 0;
     uint32_t *buffer = NULL;
-    buffer = heap_caps_malloc(total_size + 4, MALLOC_CAP_DMA);
-    TEST_ASSERT(buffer);
+    esp_dma_mem_info_t dma_mem_info = {
+        .extra_heap_caps = extra_alloc_caps,
+        .dma_alignment_bytes = 64,
+    };
+    TEST_ESP_OK(esp_dma_capable_malloc(total_size + 4, &dma_mem_info, (void**) &buffer, &actual_size));
 
     size_t offset = alignment % 4;
     uint8_t* c_buffer = (uint8_t*) buffer + offset;
@@ -104,10 +108,12 @@ void sdmmc_test_rw_unaligned_buffer(sdmmc_card_t* card)
     const size_t block_count = buffer_size / 512;
     const size_t extra = 4;
     const size_t total_size = buffer_size + extra;
+    size_t actual_size = 0;
     uint8_t *buffer = NULL;
-
-    buffer = heap_caps_malloc(total_size + 4, MALLOC_CAP_DMA);
-    TEST_ASSERT(buffer);
+    esp_dma_mem_info_t dma_mem_info = {
+        .dma_alignment_bytes = 64,
+    };
+    TEST_ESP_OK(esp_dma_capable_malloc(total_size + 4, &dma_mem_info, (void**) &buffer, &actual_size));
 
     // Check read behavior: do aligned write, then unaligned read
     const uint32_t seed = 0x89abcdef;
@@ -159,7 +165,7 @@ void sdmmc_test_rw_performance(sdmmc_card_t *card, FILE *perf_log)
 void sdmmc_test_rw_with_offset(sdmmc_card_t* card)
 {
     sdmmc_card_print_info(stdout, card);
-    printf("  sector  | count | align | alloc | size(kB)  | wr_time(ms) | wr_speed(MB/s)  |  rd_time(ms)  | rd_speed(MB/s)\n");
+    printf("  sector  | count | align | size(kB)  | wr_time(ms) | wr_speed(MB/s)  |  rd_time(ms)  | rd_speed(MB/s)\n");
     /* aligned */
     do_single_rw_perf_test(card, 1, 16, 4, NULL, 0);
     do_single_rw_perf_test(card, 16, 32, 4, NULL, 0);
@@ -209,7 +215,7 @@ void sdmmc_test_rw_highprio_task(sdmmc_card_t* card)
         .busy_time_us = 250000,
     };
 
-    TEST_ASSERT(xTaskCreatePinnedToCore(highprio_busy_task, "highprio_busy_task", 4096, &args, 20, NULL, 0));
+    TEST_ASSERT(xTaskCreate(highprio_busy_task, "highprio_busy_task", 4096, &args, 20, NULL));
 
     for (int i = 0; i < 4; ++i) {
         do_single_rw_perf_test(card, 0, 64, 0, NULL, 0);
@@ -217,7 +223,6 @@ void sdmmc_test_rw_highprio_task(sdmmc_card_t* card)
 
     xSemaphoreGive(args.stop);
     xSemaphoreTake(args.done, portMAX_DELAY);
-    vTaskDelay(1);
     vSemaphoreDelete(args.stop);
     vSemaphoreDelete(args.done);
 }

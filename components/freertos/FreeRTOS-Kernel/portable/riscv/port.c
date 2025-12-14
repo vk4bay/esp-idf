@@ -56,8 +56,8 @@
 #include "portmacro.h"
 #include "port_systick.h"
 #include "esp_memory_utils.h"
-#if CONFIG_FREERTOS_RUN_TIME_STATS_USING_ESP_TIMER
-#include "esp_timer.h"
+#if CONFIG_IDF_TARGET_ESP32P4
+#include "soc/hp_system_reg.h"
 #endif
 
 #if SOC_CPU_HAS_HWLOOP
@@ -139,11 +139,7 @@ BaseType_t xPortStartScheduler(void)
 #if SOC_CPU_HAS_PIE
     /* Similarly, disable PIE */
     rv_utils_disable_pie();
-#endif /* SOC_CPU_HAS_PIE */
-
-#if SOC_CPU_HAS_DSP
-    rv_utils_disable_dsp();
-#endif /* SOC_CPU_HAS_DSP */
+#endif /* SOC_CPU_HAS_FPU */
 
 #if SOC_CPU_HAS_HWLOOP
     /* Initialize the Hardware loop feature */
@@ -476,7 +472,7 @@ void vPortAssertIfInISR(void)
     configASSERT(xPortInIsrContext() == 0);
 }
 
-BaseType_t xPortInterruptedFromISRContext(void)
+BaseType_t IRAM_ATTR xPortInterruptedFromISRContext(void)
 {
     /* Return the interrupt nesting counter for this core */
     return port_uxInterruptNesting[xPortGetCoreID()];
@@ -721,7 +717,7 @@ static void vPortTLSPointersDelCb( void *pxTCB )
         if ( pvThreadLocalStoragePointersDelCallback[ x ] != NULL ) {  //If del cb is set
             /* In case the TLSP deletion callback has been overwritten by a TLS pointer, gracefully abort. */
             if ( !esp_ptr_executable( pvThreadLocalStoragePointersDelCallback[ x ] ) ) {
-                ESP_EARLY_LOGE("FreeRTOS", "Fatal error: TLSP deletion callback at index %d overwritten with non-excutable pointer %p", x, pvThreadLocalStoragePointersDelCallback[ x ]);
+                ESP_LOGE("FreeRTOS", "Fatal error: TLSP deletion callback at index %d overwritten with non-excutable pointer %p", x, pvThreadLocalStoragePointersDelCallback[ x ]);
                 abort();
             }
 
@@ -738,6 +734,16 @@ void vPortTCBPreDeleteHook( void *pxTCB )
         extern void vTaskPreDeletionHook( void * pxTCB );
         vTaskPreDeletionHook( pxTCB );
     #endif /* CONFIG_FREERTOS_TASK_PRE_DELETION_HOOK */
+
+    #if ( CONFIG_FREERTOS_ENABLE_STATIC_TASK_CLEAN_UP )
+        /*
+         * If the user is using the legacy task pre-deletion hook, call it.
+         * Todo: Will be removed in IDF-8097
+         */
+        #warning "CONFIG_FREERTOS_ENABLE_STATIC_TASK_CLEAN_UP is deprecated. Use CONFIG_FREERTOS_TASK_PRE_DELETION_HOOK instead."
+        extern void vPortCleanUpTCB( void * pxTCB );
+        vPortCleanUpTCB( pxTCB );
+    #endif /* CONFIG_FREERTOS_ENABLE_STATIC_TASK_CLEAN_UP */
 
     #if ( CONFIG_FREERTOS_TLSP_DELETION_CALLBACKS )
         /* Call TLS pointers deletion callbacks */
@@ -876,21 +882,6 @@ void vPortCoprocUsedInISR(void* frame)
 }
 
 #endif /* SOC_CPU_COPROC_NUM > 0 */
-
-/* ------------------------------------------------ Run Time Stats ------------------------------------------------- */
-
-#if ( CONFIG_FREERTOS_GENERATE_RUN_TIME_STATS )
-
-configRUN_TIME_COUNTER_TYPE xPortGetRunTimeCounterValue( void )
-{
-#ifdef CONFIG_FREERTOS_RUN_TIME_STATS_USING_ESP_TIMER
-    return (configRUN_TIME_COUNTER_TYPE) esp_timer_get_time();
-#else
-    return 0;
-#endif // CONFIG_FREERTOS_RUN_TIME_STATS_USING_ESP_TIMER
-}
-
-#endif /* CONFIG_FREERTOS_GENERATE_RUN_TIME_STATS */
 
 /* ---------------------------------------------- Misc Implementations -------------------------------------------------
  *

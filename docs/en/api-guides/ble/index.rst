@@ -13,7 +13,6 @@ Overview
    overview
    ble-feature-support-status
    ble-qualification
-   Low Power Mode Introduction <../low-power-mode/low-power-mode-ble>
 
 ***************
 Get Started
@@ -26,15 +25,6 @@ Get Started
    get-started/ble-device-discovery
    get-started/ble-connection
    get-started/ble-data-exchange
-
-***************
-Security
-***************
-
-.. toctree::
-   :maxdepth: 2
-
-   smp
 
 **********
 Profile

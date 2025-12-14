@@ -21,7 +21,7 @@ subgraph cluster_g1 {
     freertos;
     log;
     heap;
-    esp_libc;
+    newlib;
     esp_system;
     esp_hw_support;
 }

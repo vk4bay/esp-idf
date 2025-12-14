@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2015-2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2015-2024 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -21,7 +21,11 @@
 #include <sys/time.h>
 #include <sys/termios.h>
 #include <sys/poll.h>
+#ifdef __clang__ // TODO LLVM-330
+#include <sys/dirent.h>
+#else
 #include <dirent.h>
+#endif
 #include <string.h>
 #include "sdkconfig.h"
 
@@ -31,10 +35,8 @@
 extern "C" {
 #endif
 
-#ifndef CONFIG_IDF_TARGET_LINUX
 #ifndef _SYS_TYPES_FD_SET
 #error "VFS should be used with FD_SETSIZE and FD_SET from sys/types.h"
-#endif
 #endif
 
 /**
@@ -350,7 +352,7 @@ esp_err_t esp_vfs_register_fd(esp_vfs_id_t vfs_id, int *fd);
  *
  * @param vfs_id VFS identificator returned by esp_vfs_register_with_id.
  * @param local_fd The fd in the local vfs. Passing -1 will set the local fd as the (*fd) value.
- * @param permanent Whether the fd should be treated as permanent (not removed after close())
+ * @param permanent Whether the fd should be treated as permannet (not removed after close())
  * @param fd The registered file descriptor will be written to this address.
  *
  * @return  ESP_OK if the registration is successful,
@@ -372,8 +374,8 @@ esp_err_t esp_vfs_register_fd_with_local_fd(esp_vfs_id_t vfs_id, int local_fd, b
 esp_err_t esp_vfs_unregister_fd(esp_vfs_id_t vfs_id, int fd);
 
 /**
- * These functions are to be used in esp_libc syscall table. They will be called by
- * esp_libc when it needs to use any of the syscalls.
+ * These functions are to be used in newlib syscall table. They will be called by
+ * newlib when it needs to use any of the syscalls.
  */
 /**@{*/
 ssize_t esp_vfs_write(struct _reent *r, int fd, const void * data, size_t size);
@@ -387,25 +389,6 @@ int esp_vfs_link(struct _reent *r, const char* n1, const char* n2);
 int esp_vfs_unlink(struct _reent *r, const char *path);
 int esp_vfs_rename(struct _reent *r, const char *src, const char *dst);
 int esp_vfs_utime(const char *path, const struct utimbuf *times);
-int esp_vfs_fsync(int fd);
-int esp_vfs_fcntl_r(struct _reent *r, int fd, int cmd, int arg);
-int esp_vfs_ioctl(int fd, int cmd, ...);
-
-/* Directory related functions */
-int esp_vfs_stat(struct _reent *r, const char *path, struct stat *st);
-int esp_vfs_truncate(const char *path, off_t length);
-int esp_vfs_ftruncate(int fd, off_t length);
-int esp_vfs_access(const char *path, int amode);
-int esp_vfs_utime(const char *path, const struct utimbuf *times);
-int esp_vfs_rmdir(const char* name);
-int esp_vfs_mkdir(const char* name, mode_t mode);
-DIR* esp_vfs_opendir(const char* name);
-int esp_vfs_closedir(DIR* pdir);
-int esp_vfs_readdir_r(DIR* pdir, struct dirent* entry, struct dirent** out_dirent);
-struct dirent* esp_vfs_readdir(DIR* pdir);
-long esp_vfs_telldir(DIR* pdir);
-void esp_vfs_seekdir(DIR* pdir, long loc);
-void esp_vfs_rewinddir(DIR* pdir);
 /**@}*/
 
 /**

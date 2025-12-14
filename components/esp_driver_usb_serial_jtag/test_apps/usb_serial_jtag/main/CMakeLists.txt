@@ -2,6 +2,6 @@
 # the component can be registered as WHOLE_ARCHIVE
 idf_component_register(
     SRCS "test_app_main.c" "test_usb_serial_jtag.c"
-    REQUIRES unity vfs esp_timer esp_driver_usb_serial_jtag
+    REQUIRES driver unity vfs esp_timer
     WHOLE_ARCHIVE
 )

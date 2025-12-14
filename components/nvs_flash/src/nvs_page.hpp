@@ -1,15 +1,23 @@
 /*
- * SPDX-FileCopyrightText: 2015-2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2015-2024 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-#pragma once
+#ifndef nvs_page_hpp
+#define nvs_page_hpp
 
 #include "nvs.h"
 #include "nvs_types.hpp"
+#include <cstdint>
+#include <type_traits>
+#include <cstring>
+#include <algorithm>
+#include "compressed_enum_table.hpp"
 #include "intrusive_list.h"
 #include "nvs_item_hash_list.hpp"
+#include "nvs_memory_management.hpp"
 #include "partition.hpp"
+#include "nvs_constants.h"
 
 namespace nvs
 {
@@ -26,7 +34,7 @@ public:
     static const uint32_t ESB_WRITTEN = NVS_CONST_ESB_WRITTEN;
     static const uint32_t ESB_ERASED = NVS_CONST_ESB_ERASED;
 
-    static const uint32_t SEC_SIZE = NVS_CONST_PAGE_SIZE;
+    static const uint32_t SEC_SIZE;
 
     static const size_t ENTRY_SIZE  = NVS_CONST_ENTRY_SIZE;
     static const size_t ENTRY_COUNT = NVS_CONST_ENTRY_COUNT;
@@ -79,8 +87,6 @@ public:
     esp_err_t setVersion(uint8_t version);
 
     esp_err_t writeItem(uint8_t nsIndex, ItemType datatype, const char* key, const void* data, size_t dataSize, uint8_t chunkIdx = CHUNK_ANY);
-
-    esp_err_t readVariableLengthItemData(const Item& item, const size_t index, void* data);
 
     esp_err_t readItem(uint8_t nsIndex, ItemType datatype, const char* key, void* data, size_t dataSize, uint8_t chunkIdx = CHUNK_ANY, VerOffset chunkStart = VerOffset::VER_ANY);
 
@@ -231,3 +237,6 @@ protected:
 }; // class Page
 
 } // namespace nvs
+
+
+#endif /* nvs_page_hpp */

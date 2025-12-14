@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2015-2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2015-2024 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -19,6 +19,17 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+#define GPIO_PIN_COUNT                      (SOC_GPIO_PIN_COUNT)
+/// Check whether it is a valid GPIO number
+#define GPIO_IS_VALID_GPIO(gpio_num)        ((gpio_num >= 0) && \
+                                              (((1ULL << (gpio_num)) & SOC_GPIO_VALID_GPIO_MASK) != 0))
+/// Check whether it can be a valid GPIO number of output mode
+#define GPIO_IS_VALID_OUTPUT_GPIO(gpio_num) ((gpio_num >= 0) && \
+                                              (((1ULL << (gpio_num)) & SOC_GPIO_VALID_OUTPUT_GPIO_MASK) != 0))
+/// Check whether it can be a valid digital I/O pad
+#define GPIO_IS_VALID_DIGITAL_IO_PAD(gpio_num) ((gpio_num >= 0) && \
+                                                 (((1ULL << (gpio_num)) & SOC_GPIO_VALID_DIGITAL_IO_PAD_MASK) != 0))
 
 typedef intr_handle_t gpio_isr_handle_t;
 
@@ -60,13 +71,15 @@ typedef struct {
 esp_err_t gpio_config(const gpio_config_t *pGPIOConfig);
 
 /**
- * @brief Reset a GPIO to a certain state (select gpio function, enable pullup and disable input and output).
+ * @brief Reset an gpio to default state (select gpio function, enable pullup and disable input and output).
  *
  * @param gpio_num GPIO number.
  *
- * @return
- *     - ESP_OK  Success
- *     - ESP_ERR_INVALID_ARG Parameter error
+ * @note This function also configures the IOMUX for this pin to the GPIO
+ *       function, and disconnects any other peripheral output configured via GPIO
+ *       Matrix.
+ *
+ * @return Always return ESP_OK.
  */
 esp_err_t gpio_reset_pin(gpio_num_t gpio_num);
 
@@ -88,7 +101,7 @@ esp_err_t gpio_set_intr_type(gpio_num_t gpio_num, gpio_int_type_t intr_type);
  *
  * @note ESP32: Please do not use the interrupt of GPIO36 and GPIO39 when using ADC or Wi-Fi and Bluetooth with sleep mode enabled.
  *       Please refer to the comments of `adc1_get_raw`.
- *       Please refer to GPIO-3.11 of <a href="https://espressif.com/sites/default/files/documentation/eco_and_workarounds_for_bugs_in_esp32_en.pdf">ESP32 ECO and Workarounds for Bugs</a> for the description of this issue.
+ *       Please refer to Section 3.11 of <a href="https://espressif.com/sites/default/files/documentation/eco_and_workarounds_for_bugs_in_esp32_en.pdf">ESP32 ECO and Workarounds for Bugs</a> for the description of this issue.
 
  *
  * @param  gpio_num GPIO number. If you want to enable an interrupt on e.g. GPIO16, gpio_num should be GPIO_NUM_16 (16);
@@ -282,50 +295,6 @@ esp_err_t gpio_pulldown_en(gpio_num_t gpio_num);
 esp_err_t gpio_pulldown_dis(gpio_num_t gpio_num);
 
 /**
- * @brief Enable output for an IO (as a simple GPIO output)
- *
- * @param gpio_num GPIO number
- *
- * @return
- *      - ESP_OK Success
- *      - ESP_ERR_INVALID_ARG GPIO number error
- */
-esp_err_t gpio_output_enable(gpio_num_t gpio_num);
-
-/**
- * @brief Disable output for an IO
- *
- * @param gpio_num GPIO number
- *
- * @return
- *      - ESP_OK Success
- *      - ESP_ERR_INVALID_ARG GPIO number error
- */
-esp_err_t gpio_output_disable(gpio_num_t gpio_num);
-
-/**
- * @brief Enable open-drain for an IO
- *
- * @param gpio_num GPIO number
- *
- * @return
- *      - ESP_OK Success
- *      - ESP_ERR_INVALID_ARG GPIO number error
- */
-esp_err_t gpio_od_enable(gpio_num_t gpio_num);
-
-/**
- * @brief Disable open-drain for an IO
- *
- * @param gpio_num GPIO number
- *
- * @return
- *      - ESP_OK Success
- *      - ESP_ERR_INVALID_ARG GPIO number error
- */
-esp_err_t gpio_od_disable(gpio_num_t gpio_num);
-
-/**
   * @brief Install the GPIO driver's ETS_GPIO_INTR_SOURCE ISR handler service, which allows per-pin GPIO interrupt handlers.
   *
   * This function is incompatible with gpio_isr_register() - if that function is used, a single global ISR is registered for all GPIO interrupts. If this function is used, the ISR service provides a global GPIO ISR and individual pin handlers are registered via the gpio_isr_handler_add() function.
@@ -344,11 +313,8 @@ esp_err_t gpio_install_isr_service(int intr_alloc_flags);
 
 /**
   * @brief Uninstall the driver's GPIO ISR service, freeing related resources.
-  *
-  * @return
-  *     - ESP_OK Success
   */
-esp_err_t gpio_uninstall_isr_service(void);
+void gpio_uninstall_isr_service(void);
 
 /**
   * @brief Add ISR handler for the corresponding GPIO pin.
@@ -419,24 +385,22 @@ esp_err_t gpio_get_drive_capability(gpio_num_t gpio_num, gpio_drive_cap_t *stren
   * signal or the IO MUX/GPIO configuration is modified (including input enable, output enable, output value,
   * function, and drive strength values). This function can be used to retain the state of GPIOs when the power
   * domain of where GPIO/IOMUX belongs to becomes off. For example, chip or system is reset (e.g. watchdog
-  * time-out, Deep-sleep events are triggered), or peripheral power-down in Light-sleep.
+  * time-out, deep-sleep events are triggered), or peripheral power-down in light-sleep.
   *
   * This function works in both input and output modes, and only applicable to output-capable GPIOs.
   * If this function is enabled:
   *   in output mode: the output level of the GPIO will be locked and can not be changed.
   *   in input mode: the input read value can still reflect the changes of the input signal.
   *
-  * Power down or call `gpio_hold_dis` will disable this function.
-  *
   * Please be aware that,
   *
-  * 1. USB pads cannot hold at low level after waking up from Deep-sleep. The USB related registers are reset, so the USB pull-up is back.
+  * On ESP32P4, the states of IOs can not be hold after waking up from Deep-sleep.
   *
-  * 2. For ESP32-P4 rev < 3.0, the states of IOs can not be hold after waking up from Deep-sleep.
-  *
-  * 3. For ESP32/S2/C3/S3/C2, this function cannot be used to hold the state of a digital GPIO during Deep-sleep.
+  * Additionally, on ESP32/S2/C3/S3/C2, this function cannot be used to hold the state of a digital GPIO during Deep-sleep.
   * Even if this function is enabled, the digital GPIO will be reset to its default state when the chip wakes up from
   * Deep-sleep. If you want to hold the state of a digital GPIO during Deep-sleep, please call `gpio_deep_sleep_hold_en`.
+  *
+  * Power down or call `gpio_hold_dis` will disable this function.
   *
   * @param gpio_num GPIO number, only support output-capable GPIOs
   *
@@ -465,7 +429,7 @@ esp_err_t gpio_hold_en(gpio_num_t gpio_num);
   */
 esp_err_t gpio_hold_dis(gpio_num_t gpio_num);
 
-#if !SOC_GPIO_SUPPORT_HOLD_SINGLE_IO_IN_DSLP
+#if SOC_GPIO_SUPPORT_HOLD_IO_IN_DSLP && !SOC_GPIO_SUPPORT_HOLD_SINGLE_IO_IN_DSLP
 /**
   * @brief Enable all digital gpio pads hold function during Deep-sleep.
   *
@@ -489,7 +453,23 @@ void gpio_deep_sleep_hold_en(void);
   * @brief Disable all digital gpio pads hold function during Deep-sleep.
   */
 void gpio_deep_sleep_hold_dis(void);
-#endif //!SOC_GPIO_SUPPORT_HOLD_SINGLE_IO_IN_DSLP
+#endif //SOC_GPIO_SUPPORT_HOLD_IO_IN_DSLP && !SOC_GPIO_SUPPORT_HOLD_SINGLE_IO_IN_DSLP
+
+/**
+  * @brief Set pad input to a peripheral signal through the IOMUX.
+  * @param gpio_num GPIO number of the pad.
+  * @param signal_idx Peripheral signal id to input. One of the ``*_IN_IDX`` signals in ``soc/gpio_sig_map.h``.
+  */
+void gpio_iomux_in(uint32_t gpio_num, uint32_t signal_idx);
+
+/**
+  * @brief Set peripheral output to an GPIO pad through the IOMUX.
+  * @param gpio_num gpio_num GPIO number of the pad.
+  * @param func The function number of the peripheral pin to output pin.
+  *        One of the ``FUNC_X_*`` of specified pin (X) in ``soc/io_mux_reg.h``.
+  * @param out_en_inv True if the output enable needs to be inverted, otherwise False.
+  */
+void gpio_iomux_out(uint8_t gpio_num, int func, bool out_en_inv);
 
 #if SOC_GPIO_SUPPORT_FORCE_HOLD
 /**
@@ -609,18 +589,6 @@ esp_err_t gpio_deep_sleep_wakeup_disable(gpio_num_t gpio_num);
  *    - ESP_ERR_INVALID_ARG Parameter error
  */
 esp_err_t gpio_dump_io_configuration(FILE *out_stream, uint64_t io_bit_mask);
-
-/**
- * @brief Get the configuration for an IO
- *
- * @param gpio_num GPIO number
- * @param[out] out_io_config Pointer to the structure that saves the specific IO configuration
- *
- * @return
- *    - ESP_OK Success
- *    - ESP_ERR_INVALID_ARG Parameter error
- */
-esp_err_t gpio_get_io_config(gpio_num_t gpio_num, gpio_io_config_t *out_io_config);
 
 #ifdef __cplusplus
 }

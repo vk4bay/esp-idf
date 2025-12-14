@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2024-2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2024 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -11,7 +11,6 @@
 #include "hal/aes_types.h"
 #include "soc/hp_sys_clkrst_struct.h"
 #include "soc/hwcrypto_reg.h"
-#include "hal/config.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -39,10 +38,7 @@ static inline void _aes_ll_enable_bus_clock(bool enable)
 
 /// use a macro to wrap the function, force the caller to use it in a critical section
 /// the critical section needs to declare the __DECLARE_RCC_ATOMIC_ENV variable in advance
-#define aes_ll_enable_bus_clock(...) do { \
-        (void)__DECLARE_RCC_ATOMIC_ENV; \
-        _aes_ll_enable_bus_clock(__VA_ARGS__); \
-    } while(0)
+#define aes_ll_enable_bus_clock(...) (void)__DECLARE_RCC_ATOMIC_ENV; _aes_ll_enable_bus_clock(__VA_ARGS__)
 
 /**
  * @brief Reset the AES peripheral module
@@ -59,10 +55,7 @@ static inline void aes_ll_reset_register(void)
 
 /// use a macro to wrap the function, force the caller to use it in a critical section
 /// the critical section needs to declare the __DECLARE_RCC_ATOMIC_ENV variable in advance
-#define aes_ll_reset_register(...) do { \
-        (void)__DECLARE_RCC_ATOMIC_ENV; \
-        aes_ll_reset_register(__VA_ARGS__); \
-    } while(0)
+#define aes_ll_reset_register(...) (void)__DECLARE_RCC_ATOMIC_ENV; aes_ll_reset_register(__VA_ARGS__)
 
 /**
  * @brief Write the encryption/decryption key to hardware
@@ -159,7 +152,7 @@ static inline esp_aes_state_t aes_ll_get_state(void)
  *
  * @note Only used for DMA transforms
  *
- * @param mode Mode of operation to set (e.g., ECB, CBC, CTR, etc.)
+ * @param mode
  */
 static inline void aes_ll_set_block_mode(esp_aes_mode_t mode)
 {
@@ -258,31 +251,6 @@ static inline void aes_ll_interrupt_clear(void)
 }
 
 /**
- * @brief Enable the pseudo-round function during AES operations
- *
- * @param enable true to enable, false to disable
- * @param base basic number of pseudo rounds, zero if disable
- * @param increment increment number of pseudo rounds, zero if disable
- * @param key_rng_cnt update frequency of the pseudo-key, zero if disable
- */
-static inline void aes_ll_enable_pseudo_rounds(bool enable, uint8_t base, uint8_t increment, uint8_t key_rng_cnt)
-{
-#if HAL_CONFIG(CHIP_SUPPORT_MIN_REV) >= 300
-    REG_SET_FIELD(AES_PSEUDO_REG, AES_PSEUDO_EN, enable);
-
-    if (enable) {
-        REG_SET_FIELD(AES_PSEUDO_REG, AES_PSEUDO_BASE, base);
-        REG_SET_FIELD(AES_PSEUDO_REG, AES_PSEUDO_INC, increment);
-        REG_SET_FIELD(AES_PSEUDO_REG, AES_PSEUDO_RNG_CNT, key_rng_cnt);
-    } else {
-        REG_SET_FIELD(AES_PSEUDO_REG, AES_PSEUDO_BASE, 0);
-        REG_SET_FIELD(AES_PSEUDO_REG, AES_PSEUDO_INC, 0);
-        REG_SET_FIELD(AES_PSEUDO_REG, AES_PSEUDO_RNG_CNT, 0);
-    }
-#endif
-}
-
-/**
  * @brief Continue a previous started transform
  *
  * @note Only used when doing GCM
@@ -367,18 +335,6 @@ static inline void aes_ll_gcm_read_tag(uint8_t *tag)
         /* Memcpy to avoid potential unaligned access */
         memcpy(tag + i * 4, &tag_word, sizeof(tag_word));
     }
-}
-
-/**
- * @brief Check if the pseudo round function is supported
- */
-static inline bool aes_ll_is_pseudo_rounds_function_supported(void)
-{
-#if HAL_CONFIG(CHIP_SUPPORT_MIN_REV) >= 300
-    return true;
-#else
-    return false;
-#endif
 }
 
 #ifdef __cplusplus

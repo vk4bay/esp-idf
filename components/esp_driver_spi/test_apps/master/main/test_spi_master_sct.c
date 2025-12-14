@@ -292,7 +292,6 @@ TEST_CASE("spi_master: test_sct_dma_desc_oob_on_tail", "[spi]")
     TEST_ESP_OK(spi_bus_free(SPI2_HOST));
 }
 
-#if SOC_LIGHT_SLEEP_SUPPORTED
 /*-----------------------------------------------------------
  * Sleep Retention Test
  *-----------------------------------------------------------*/
@@ -305,7 +304,7 @@ static void sleep_master(void)
 {
     // Prepare a TOP PD sleep
     TEST_ESP_OK(esp_sleep_enable_timer_wakeup(1 * 1000 * 1000));
-#if CONFIG_PM_ESP_SLEEP_POWER_DOWN_CPU
+#if ESP_SLEEP_POWER_DOWN_CPU
     sleep_cpu_configure(true);
 #endif
     esp_sleep_context_t sleep_ctx;
@@ -378,7 +377,7 @@ static void sleep_master(void)
     TEST_ESP_OK(spi_bus_remove_device(handle));
     TEST_ESP_OK(spi_bus_free(SPI2_HOST));
     esp_sleep_set_sleep_context(NULL);
-#if CONFIG_PM_ESP_SLEEP_POWER_DOWN_CPU
+#if ESP_SLEEP_POWER_DOWN_CPU
     TEST_ESP_OK(sleep_cpu_configure(false));
 #endif
 }
@@ -417,4 +416,3 @@ static void sleep_slave(void)
     TEST_ESP_OK(spi_slave_hd_deinit(SPI2_HOST));
 }
 TEST_CASE_MULTIPLE_DEVICES("test_spi_master_sct_sleep_retention", "[spi_ms]", sleep_master, sleep_slave);
-#endif  //SOC_LIGHT_SLEEP_SUPPORTED

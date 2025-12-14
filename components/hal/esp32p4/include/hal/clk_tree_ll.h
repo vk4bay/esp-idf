@@ -37,7 +37,6 @@ extern "C" {
 #define CLK_LL_PLL_8M_FREQ_MHZ     (8)
 
 #define CLK_LL_PLL_80M_FREQ_MHZ    (80)
-#define CLK_LL_PLL_120M_FREQ_MHZ   (120)
 #define CLK_LL_PLL_160M_FREQ_MHZ   (160)
 #define CLK_LL_PLL_240M_FREQ_MHZ   (240)
 #define CLK_LL_PLL_SDIO_FREQ_MHZ   (200)
@@ -181,7 +180,6 @@ static inline __attribute__((always_inline)) void clk_ll_xtal32k_enable(clk_ll_x
     LP_AON_CLKRST.xtal32k.dbuf_xtal32k = cfg.dbuf;
     // Enable xtal32k xpd
     SET_PERI_REG_MASK(PMU_HP_SLEEP_LP_CK_POWER_REG, PMU_HP_SLEEP_XPD_XTAL32K);
-    REG_SET_BIT(LP_CLKRST_HP_CLK_CTRL_REG, LP_CLKRST_HP_XTAL_32K_CLK_EN);
 }
 
 /**
@@ -189,7 +187,6 @@ static inline __attribute__((always_inline)) void clk_ll_xtal32k_enable(clk_ll_x
  */
 static inline __attribute__((always_inline)) void clk_ll_xtal32k_disable(void)
 {
-    REG_CLR_BIT(LP_CLKRST_HP_CLK_CTRL_REG, LP_CLKRST_HP_XTAL_32K_CLK_EN);
     // Disable xtal32k xpd
     CLEAR_PERI_REG_MASK(PMU_HP_SLEEP_LP_CK_POWER_REG, PMU_HP_SLEEP_XPD_XTAL32K);
 }
@@ -209,7 +206,6 @@ static inline __attribute__((always_inline)) bool clk_ll_xtal32k_is_enabled(void
  */
 static inline __attribute__((always_inline)) void clk_ll_rc32k_enable(void)
 {
-    REG_SET_BIT(LP_CLKRST_HP_CLK_CTRL_REG, LP_CLKRST_HP_RC_32K_CLK_EN);
     // Enable rc32k xpd status
     SET_PERI_REG_MASK(PMU_HP_SLEEP_LP_CK_POWER_REG, PMU_HP_SLEEP_XPD_RC32K);
 }
@@ -221,7 +217,6 @@ static inline __attribute__((always_inline)) void clk_ll_rc32k_disable(void)
 {
     // Disable rc32k xpd status
     CLEAR_PERI_REG_MASK(PMU_HP_SLEEP_LP_CK_POWER_REG, PMU_HP_SLEEP_XPD_RC32K);
-    REG_CLR_BIT(LP_CLKRST_HP_CLK_CTRL_REG, LP_CLKRST_HP_RC_32K_CLK_EN);
 }
 
 /**
@@ -352,7 +347,7 @@ static inline __attribute__((always_inline)) uint32_t clk_ll_cpll_get_freq_mhz(u
     unsigned chip_version = efuse_hal_chip_revision();
     if (!ESP_CHIP_REV_ABOVE(chip_version, 1)) {
         return xtal_freq_mhz * (div + 4) / (ref_div + 1);
-    }
+    } else
     return xtal_freq_mhz * div / (ref_div + 1);
 }
 
@@ -451,8 +446,6 @@ static inline __attribute__((always_inline)) void clk_ll_mpll_set_config(uint32_
 {
     HAL_ASSERT(xtal_freq_mhz == SOC_XTAL_FREQ_40M);
 
-    // There are sequential regi2c operations in `clk_ll_mpll_set_config`, use the raw regi2c API with one lock wrapper to save time.
-    REGI2C_ENTER_CRITICAL();
     uint8_t mpll_dhref_val = esp_rom_regi2c_read(I2C_MPLL, I2C_MPLL_HOSTID, I2C_MPLL_DHREF);
     esp_rom_regi2c_write(I2C_MPLL, I2C_MPLL_HOSTID, I2C_MPLL_DHREF,  mpll_dhref_val | (3 << I2C_MPLL_DHREF_LSB));
     uint8_t mpll_rstb_val = esp_rom_regi2c_read(I2C_MPLL, I2C_MPLL_HOSTID, I2C_MPLL_IR_CAL_RSTB);
@@ -464,7 +457,6 @@ static inline __attribute__((always_inline)) void clk_ll_mpll_set_config(uint32_
     uint8_t div = mpll_freq_mhz / 20 - 1;
     uint8_t val = ((div << 3) | ref_div);
     esp_rom_regi2c_write(I2C_MPLL, I2C_MPLL_HOSTID, I2C_MPLL_DIV_REG_ADDR, val);
-    REGI2C_EXIT_CRITICAL();
 }
 
 /**
@@ -727,76 +719,6 @@ static inline __attribute__((always_inline)) void clk_ll_pll_f20m_set_divider(ui
 static inline __attribute__((always_inline)) uint32_t clk_ll_pll_f20m_get_divider(void)
 {
     return HAL_FORCE_READ_U32_REG_FIELD(HP_SYS_CLKRST.ref_clk_ctrl1, reg_ref_20m_clk_div_num) + 1;
-}
-
-/**
- * @brief Select the frequency calculation clock source for timergroup0
- *
- * @param clk_sel One of the clock sources in soc_clk_freq_calculation_src_t
- */
-static inline __attribute__((always_inline)) void clk_ll_freq_calulation_set_target(soc_clk_freq_calculation_src_t clk_sel)
-{
-    int timg_cali_clk_sel = -1;
-
-    switch (clk_sel) {
-    case CLK_CAL_MPLL:
-        timg_cali_clk_sel = 0;
-        break;
-    case CLK_CAL_SPLL:
-        timg_cali_clk_sel = 1;
-        break;
-    case CLK_CAL_CPLL:
-        timg_cali_clk_sel = 2;
-        break;
-    case CLK_CAL_APLL:
-        timg_cali_clk_sel = 3;
-        break;
-    case CLK_CAL_SDIO_PLL0:
-        timg_cali_clk_sel = 4;
-        break;
-    case CLK_CAL_SDIO_PLL1:
-        timg_cali_clk_sel = 5;
-        break;
-    case CLK_CAL_SDIO_PLL2:
-        timg_cali_clk_sel = 6;
-        break;
-    case CLK_CAL_RC_FAST:
-        timg_cali_clk_sel = 7;
-        break;
-    case CLK_CAL_RC_SLOW:
-        timg_cali_clk_sel = 8;
-        break;
-    case CLK_CAL_RC32K:
-        timg_cali_clk_sel = 9;
-        break;
-    case CLK_CAL_32K_XTAL:
-        timg_cali_clk_sel = 10;
-        break;
-    case CLK_CAL_LP_PLL:
-        timg_cali_clk_sel = 11;
-        break;
-    case CLK_CAL_DSI_DPHY:
-        timg_cali_clk_sel = 12;
-        break;
-    default:
-        // Unsupported CLK_CAL mux input
-        abort();
-    }
-
-    if (timg_cali_clk_sel >= 0) {
-        HP_SYS_CLKRST.peri_clk_ctrl21.reg_timergrp0_tgrt_clk_src_sel = timg_cali_clk_sel;
-    }
-}
-
-/**
- * @brief Set a divider for the clock to be frequency calculated by timergroup0
- *
- * @param divider Divider. PRE_DIV_CNT = divider - 1.
- */
-static inline __attribute__((always_inline)) void clk_ll_freq_calculation_set_divider(uint32_t divider)
-{
-    HAL_ASSERT(divider >= 1);
-    HAL_FORCE_MODIFY_U32_REG_FIELD(HP_SYS_CLKRST.peri_clk_ctrl21, reg_timergrp0_tgrt_clk_div_num, divider - 1);
 }
 
 /**

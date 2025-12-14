@@ -1,12 +1,13 @@
 /*
- * SPDX-FileCopyrightText: 2017-2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2017-2022 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
 
 #pragma once
 
-#include "sd_protocol_types.h"
+#include "sdmmc_cmd.h"
+#include "sd_protocol_defs.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -29,9 +30,9 @@ void ff_sdmmc_set_disk_status_check(BYTE pdrv, bool enable);
 void ff_diskio_register_sdmmc(unsigned char pdrv, sdmmc_card_t* card);
 
 /**
- * @brief Get the first registered drive number corresponding to a card
+ * @brief Get the driver number corresponding to a card
  *
- * @param card The card to get its drive number
+ * @param card The card to get its driver
  * @return Driver number to the card
  */
 BYTE ff_diskio_get_pdrv_card(const sdmmc_card_t* card);

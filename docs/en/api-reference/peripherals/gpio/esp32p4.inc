@@ -268,32 +268,32 @@ The table below provides more information on pin usage, and please note the comm
       -
 
     * - GPIO49
-      - ADC2_CH0
+      - ADC1_CH8
       -
       -
 
     * - GPIO50
-      - ADC2_CH1
+      - ADC1_CH9
       -
       -
 
     * - GPIO51
-      - ADC2_CH2, ANA_CMPR_CH0 reference voltage
+      - ADC1_CH10, ANA_CMPR_CH0 reference voltage
       -
       -
 
     * - GPIO52
-      - ADC2_CH3, ANA_CMPR_CH0 input (non-inverting)
+      - ADC1_CH11, ANA_CMPR_CH0 input (non-inverting)
       -
       -
 
     * - GPIO53
-      - ADC2_CH4, ANA_CMPR_CH1 reference voltage
+      - ADC1_CH12, ANA_CMPR_CH1 reference voltage
       -
       -
 
     * - GPIO54
-      - ADC2_CH5, ANA_CMPR_CH1 input (non-inverting)
+      - ADC1_CH13, ANA_CMPR_CH1 input (non-inverting)
       -
       -
 

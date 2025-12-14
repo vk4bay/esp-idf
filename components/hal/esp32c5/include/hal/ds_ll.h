@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2023-2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2023-2024 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -79,14 +79,6 @@ static inline ds_key_check_t ds_ll_key_error_source(void)
 }
 
 /**
- * @brief Set the DS key source.
- */
-static inline void ds_ll_set_key_source(ds_key_source_t key_source)
-{
-    REG_WRITE(DS_KEY_SOURCE_REG, key_source);
-}
-
-/**
  * @brief Write the initialization vector to the corresponding register field.
  */
 static inline void ds_ll_configure_iv(const uint32_t *iv)
@@ -105,7 +97,6 @@ static inline void ds_ll_configure_iv(const uint32_t *iv)
 static inline void ds_ll_write_message(const uint8_t *msg, size_t size)
 {
     memcpy((uint8_t*) DS_X_MEM, msg, size);
-    // Fence ensures all memory operations are completed before proceeding further
     asm volatile ("fence");
 }
 
@@ -132,7 +123,6 @@ static inline void ds_ll_write_private_key_params(const uint8_t *encrypted_key_p
 
     for (int i = 0; i < NUM_FRAGS; i++) {
         memcpy((uint8_t *)frags[i].addr, from, frags[i].len);
-        // Fence ensures all memory operations are completed before proceeding further
         asm volatile ("fence");
         from += frags[i].len;
     }
@@ -180,7 +170,6 @@ static inline ds_signature_check_t ds_ll_check_signature(void)
 static inline void ds_ll_read_result(uint8_t *result, size_t size)
 {
     memcpy(result, (uint8_t*) DS_Z_MEM, size);
-    // Fence ensures all memory operations are completed before proceeding further
     asm volatile ("fence");
 }
 

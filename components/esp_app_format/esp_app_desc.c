@@ -13,10 +13,10 @@
 #include "esp_log.h"
 
 // startup_internal.h is necessary for startup function definition, which does not exist on Linux (TODO: IDF-9950)
-#if !CONFIG_IDF_TARGET_LINUX && !ESP_TEE_BUILD
+#if !CONFIG_IDF_TARGET_LINUX
 #include "esp_private/startup_internal.h"
 
-ESP_LOG_ATTR_TAG(TAG, "app_init");
+static const char *TAG = "app_init";
 #endif
 
 // Application version info
@@ -118,7 +118,7 @@ int esp_app_get_elf_sha256(char* dst, size_t size)
 
 // startup function definition and execution does not exist on the Linux target
 // (TODO: IDF-9950)
-#if !CONFIG_IDF_TARGET_LINUX && !ESP_TEE_BUILD
+#if !CONFIG_IDF_TARGET_LINUX
 ESP_SYSTEM_INIT_FN(init_show_app_info, CORE, BIT(0), 20)
 {
     // Load the current ELF SHA256

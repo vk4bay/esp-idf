@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2023 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2023-2025 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Unlicense OR CC0-1.0
  */
@@ -31,9 +31,6 @@
 #else
 #define EXAMPLE_NAN_SVC_MSG             "Hello"
 #endif
-#ifndef ETH_ALEN
-#define ETH_ALEN 6
-#endif
 
 static const char *TAG = "subscriber";
 
@@ -52,6 +49,9 @@ static void nan_receive_event_handler(void *arg, esp_event_base_t event_base,
     if (evt->ssi_len) {
         ESP_LOGI(TAG, "Received payload from Peer "MACSTR" [Peer Service id - %d] - ", MAC2STR(evt->peer_if_mac), evt->peer_inst_id);
         ESP_LOG_BUFFER_HEXDUMP(TAG, evt->ssi, evt->ssi_len, ESP_LOG_INFO);
+    } else {
+        ESP_LOGI(TAG, "Received message '%s' from Peer "MACSTR" [Peer Service id - %d]",
+                 evt->peer_svc_info, MAC2STR(evt->peer_if_mac), evt->peer_inst_id);
     }
 }
 
@@ -177,10 +177,10 @@ void wifi_nan_subscribe(void)
 #endif
 
     /* Start NAN Discovery */
-    wifi_nan_sync_config_t nan_cfg = WIFI_NAN_SYNC_CONFIG_DEFAULT();
+    wifi_nan_config_t nan_cfg = WIFI_NAN_CONFIG_DEFAULT();
     esp_netif_t *nan_netif = esp_netif_create_default_wifi_nan();
     (void) nan_netif;
-    esp_wifi_nan_sync_start(&nan_cfg);
+    esp_wifi_nan_start(&nan_cfg);
 
     /* Subscribe a service */
     uint8_t sub_id;

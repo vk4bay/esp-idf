@@ -1,7 +1,7 @@
 /*
- * SPDX-FileCopyrightText: 2022-2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2022-2024 Espressif Systems (Shanghai) CO LTD
  *
- * SPDX-License-Identifier: Apache-2.0 OR MIT
+ * SPDX-License-Identifier: Apache-2.0
  */
 
 #pragma once
@@ -34,7 +34,6 @@ extern "C" {
 #define REGDMA_MODEMSYSCON_LINK(_pri)       ((0x02 << 8) | _pri)
 #define REGDMA_MODEMLPCON_LINK(_pri)        ((0x03 << 8) | _pri)
 #define REGDMA_PAU_LINK(_pri)               ((0x04 << 8) | _pri)
-#define REGDMA_PVT_LINK(_pri)               ((0x05 << 8) | _pri)
 
 #define REGDMA_CACHE_LINK(_pri)             ((0x0c << 8) | _pri)
 #define REGDMA_INTMTX_LINK(_pri)            ((0x0d << 8) | _pri)
@@ -49,7 +48,6 @@ extern "C" {
 #define REGDMA_MODEM_BT_BB_LINK(_pri)       ((0x15 << 8) | _pri)
 #define REGDMA_MODEM_IEEE802154_LINK(_pri)  ((0x16 << 8) | _pri)
 #define REGDMA_GDMA_LINK(_pri)              ((0x17 << 8) | _pri)
-#define REGDMA_AHB_DMA_LINK(_pri)           ((0x17 << 8) | _pri)
 #define REGDMA_I2C_LINK(_pri)               ((0x18 << 8) | _pri)
 #define REGDMA_RMT_LINK(_pri)               ((0x19 << 8) | _pri)
 #define REGDMA_TG0_WDT_LINK(_pri)           ((0x1A << 8) | _pri)
@@ -63,10 +61,8 @@ extern "C" {
 #define REGDMA_PARLIO_LINK(_pri)            ((0x22 << 8) | _pri)
 #define REGDMA_GPSPI_LINK(_pri)             ((0x23 << 8) | _pri)
 #define REGDMA_LEDC_LINK(_pri)              ((0x24 << 8) | _pri)
-#define REGDMA_MCPWM_LINK(_pri)             ((0x25 << 8) | _pri)
-#define REGDMA_SDM_LINK(_pri)               ((0x26 << 8) | _pri)
-#define REGDMA_EMAC_LINK(_pri)              ((0x27 << 8) | _pri)
-
+#define REGDMA_PCNT_LINK(_pri)              ((0x25 << 8) | _pri)
+#define REGDMA_MCPWM_LINK(_pri)             ((0x26 << 8) | _pri)
 #define REGDMA_MODEM_FE_LINK(_pri)          ((0xFF << 8) | _pri)
 
 #define REGDMA_LINK_PRI_SYS_CLK                 REGDMA_LINK_PRI_0
@@ -86,14 +82,13 @@ extern "C" {
 #define REGDMA_LINK_PRI_I2C                     REGDMA_LINK_PRI_GENERAL_PERIPH
 #define REGDMA_LINK_PRI_I2S                     REGDMA_LINK_PRI_GENERAL_PERIPH
 #define REGDMA_LINK_PRI_PARLIO                  REGDMA_LINK_PRI_GENERAL_PERIPH
+#define REGDMA_LINK_PRI_PCNT                    REGDMA_LINK_PRI_GENERAL_PERIPH
 #define REGDMA_LINK_PRI_UART                    REGDMA_LINK_PRI_GENERAL_PERIPH
 #define REGDMA_LINK_PRI_TEMPERATURE_SENSOR      REGDMA_LINK_PRI_GENERAL_PERIPH
 #define REGDMA_LINK_PRI_TWAI                    REGDMA_LINK_PRI_GENERAL_PERIPH
 #define REGDMA_LINK_PRI_GPSPI                   REGDMA_LINK_PRI_GENERAL_PERIPH
 #define REGDMA_LINK_PRI_LEDC                    REGDMA_LINK_PRI_GENERAL_PERIPH
 #define REGDMA_LINK_PRI_MCPWM                   REGDMA_LINK_PRI_GENERAL_PERIPH
-#define REGDMA_LINK_PRI_SDM                     REGDMA_LINK_PRI_GENERAL_PERIPH
-#define REGDMA_LINK_PRI_EMAC                    REGDMA_LINK_PRI_GENERAL_PERIPH
 
 typedef enum {
     REGDMA_LINK_PRI_0 = 0,
@@ -106,6 +101,7 @@ typedef enum {
     REGDMA_LINK_PRI_7,
 } regdma_link_priority_t;
 
+
 typedef void * regdma_entry_buf_t[REGDMA_LINK_ENTRY_NUM];
 
 typedef enum regdma_link_mode {
@@ -114,6 +110,7 @@ typedef enum regdma_link_mode {
     REGDMA_LINK_MODE_WRITE,          /*!< Link used to direct write to registers*/
     REGDMA_LINK_MODE_WAIT            /*!< Link used to wait for register value to meet condition*/
 } regdma_link_mode_t;
+
 
 typedef struct regdma_link_head {
     volatile uint32_t length: 10, /* total count of registers that need to be backup or restore, unit: 1 word = 4 bytes */
@@ -180,7 +177,7 @@ ESP_STATIC_ASSERT(REGDMA_LINK_ENTRY_NUM <= 16, "regdma link entry number should 
 typedef struct regdma_link_stats {
     volatile uint32_t   ref: REGDMA_LINK_ENTRY_NUM, /* a bitmap, identifies which entry has referenced the current link */
 #if REGDMA_LINK_ENTRY_NUM < 16
-             reserve: 16 - REGDMA_LINK_ENTRY_NUM,
+             reserve: 16-REGDMA_LINK_ENTRY_NUM,
 #endif
              id: 16; /* REGDMA linked list node unique identifier */
     volatile int    module; /* a number used to identify the module to which the current node belongs */

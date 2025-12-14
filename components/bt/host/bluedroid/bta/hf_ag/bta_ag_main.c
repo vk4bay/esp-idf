@@ -89,8 +89,6 @@ enum
     BTA_AG_SETCODEC,
     BTA_AG_SEND_RING,
     BTA_AG_CI_SCO_DATA,
-    BTA_AG_SCO_DATA_SEND,
-    BTA_AG_SCO_DATA_FREE,
     BTA_AG_CI_RX_DATA,
     BTA_AG_RCVD_SLC_READY,
     BTA_AG_PKT_STAT_NUMS,
@@ -135,8 +133,6 @@ const tBTA_AG_ACTION bta_ag_action[] =
     bta_ag_setcodec,
     bta_ag_send_ring,
     bta_ag_ci_sco_data,
-    bta_ag_sco_data_send,
-    bta_ag_sco_data_free,
     bta_ag_ci_rx_data,
     bta_ag_rcvd_slc_ready,
     bta_ag_pkt_stat_nums
@@ -159,7 +155,6 @@ const UINT8 bta_ag_st_init[][BTA_AG_NUM_COLS] =
 /* API_AUDIO_CLOSE_EVT */   {BTA_AG_IGNORE,         BTA_AG_IGNORE,          BTA_AG_INIT_ST},
 /* API_RESULT_EVT */        {BTA_AG_IGNORE,         BTA_AG_IGNORE,          BTA_AG_INIT_ST},
 /* API_SETCODEC_EVT */      {BTA_AG_IGNORE,         BTA_AG_IGNORE,          BTA_AG_INIT_ST},
-/* API_SCO_DATA_SEND_EVT */ {BTA_AG_SCO_DATA_FREE,  BTA_AG_IGNORE,          BTA_AG_INIT_ST},
 /* RFC_OPEN_EVT */          {BTA_AG_RFC_ACP_OPEN,   BTA_AG_SCO_LISTEN,      BTA_AG_OPEN_ST},
 /* RFC_CLOSE_EVT */         {BTA_AG_IGNORE,         BTA_AG_IGNORE,          BTA_AG_INIT_ST},
 /* RFC_SRV_CLOSE_EVT */     {BTA_AG_IGNORE,         BTA_AG_IGNORE,          BTA_AG_INIT_ST},
@@ -190,7 +185,6 @@ const UINT8 bta_ag_st_opening[][BTA_AG_NUM_COLS] =
 /* API_AUDIO_CLOSE_EVT */   {BTA_AG_IGNORE,         BTA_AG_IGNORE,          BTA_AG_OPENING_ST},
 /* API_RESULT_EVT */        {BTA_AG_IGNORE,         BTA_AG_IGNORE,          BTA_AG_OPENING_ST},
 /* API_SETCODEC_EVT */      {BTA_AG_IGNORE,         BTA_AG_IGNORE,          BTA_AG_OPENING_ST},
-/* API_SCO_DATA_SEND_EVT */ {BTA_AG_SCO_DATA_FREE,  BTA_AG_IGNORE,          BTA_AG_OPENING_ST},
 /* RFC_OPEN_EVT */          {BTA_AG_RFC_OPEN,       BTA_AG_SCO_LISTEN,      BTA_AG_OPEN_ST},
 /* RFC_CLOSE_EVT */         {BTA_AG_RFC_FAIL,       BTA_AG_IGNORE,          BTA_AG_INIT_ST},
 /* RFC_SRV_CLOSE_EVT */     {BTA_AG_IGNORE,         BTA_AG_IGNORE,          BTA_AG_OPENING_ST},
@@ -221,7 +215,6 @@ const UINT8 bta_ag_st_open[][BTA_AG_NUM_COLS] =
 /* API_AUDIO_CLOSE_EVT */   {BTA_AG_SCO_CLOSE,      BTA_AG_IGNORE,          BTA_AG_OPEN_ST},
 /* API_RESULT_EVT */        {BTA_AG_RESULT,         BTA_AG_IGNORE,          BTA_AG_OPEN_ST},
 /* API_SETCODEC_EVT */      {BTA_AG_SETCODEC,       BTA_AG_IGNORE,          BTA_AG_OPEN_ST},
-/* API_SCO_DATA_SEND_EVT */ {BTA_AG_SCO_DATA_SEND,  BTA_AG_IGNORE,          BTA_AG_OPEN_ST},
 /* RFC_OPEN_EVT */          {BTA_AG_IGNORE,         BTA_AG_IGNORE,          BTA_AG_OPEN_ST},
 /* RFC_CLOSE_EVT */         {BTA_AG_RFC_CLOSE,      BTA_AG_IGNORE,          BTA_AG_INIT_ST},
 /* RFC_SRV_CLOSE_EVT */     {BTA_AG_IGNORE,         BTA_AG_IGNORE,          BTA_AG_OPEN_ST},
@@ -252,7 +245,6 @@ const UINT8 bta_ag_st_closing[][BTA_AG_NUM_COLS] =
 /* API_AUDIO_CLOSE_EVT */   {BTA_AG_IGNORE,         BTA_AG_IGNORE,          BTA_AG_CLOSING_ST},
 /* API_RESULT_EVT */        {BTA_AG_IGNORE,         BTA_AG_IGNORE,          BTA_AG_CLOSING_ST},
 /* API_SETCODEC_EVT */      {BTA_AG_IGNORE,         BTA_AG_IGNORE,          BTA_AG_CLOSING_ST},
-/* API_SCO_DATA_SEND_EVT */ {BTA_AG_SCO_DATA_FREE,  BTA_AG_IGNORE,          BTA_AG_CLOSING_ST},
 /* RFC_OPEN_EVT */          {BTA_AG_IGNORE,         BTA_AG_IGNORE,          BTA_AG_CLOSING_ST},
 /* RFC_CLOSE_EVT */         {BTA_AG_RFC_CLOSE,      BTA_AG_IGNORE,          BTA_AG_INIT_ST},
 /* RFC_SRV_CLOSE_EVT */     {BTA_AG_IGNORE,         BTA_AG_IGNORE,          BTA_AG_CLOSING_ST},
@@ -368,9 +360,9 @@ static char *bta_ag_evt_str(UINT16 event, tBTA_AG_RES result)
     case BTA_AG_API_DISABLE_EVT:
         return "Disable AG";
     case BTA_AG_CI_SCO_DATA_EVT:
-        return "SCO data Call In";
+        return "SCO data Callin";
     case BTA_AG_CI_SLC_READY_EVT:
-        return "SLC Ready Call In";
+        return "SLC Ready Callin";
     case BTA_AG_PKT_STAT_NUMS_GET_EVT:
         return "Get Packet Nums";
     default:
@@ -441,7 +433,6 @@ static tBTA_AG_SCB *bta_ag_scb_alloc(void)
 #if (BTM_WBS_INCLUDED == TRUE)
             p_scb->codec_updated = FALSE;
 #endif
-            p_scb->p_sco_data = NULL;
             /* set up timers */
             p_scb->act_timer.param = (UINT32) p_scb;
             p_scb->act_timer.p_cback = bta_ag_timer_cback;
@@ -482,10 +473,6 @@ void bta_ag_scb_dealloc(tBTA_AG_SCB *p_scb)
 #if (BTM_WBS_INCLUDED == TRUE)
     bta_sys_free_timer(&p_scb->cn_timer);
 #endif
-    if (p_scb->p_sco_data != NULL) {
-        osi_free(p_scb->p_sco_data);
-        p_scb->p_sco_data = NULL;
-    }
     bta_sys_free_timer(&p_scb->colli_timer);
 
     /* initialize control block */
@@ -787,7 +774,7 @@ static void bta_ag_api_enable(tBTA_AG_DATA *p_data)
         bta_ag_cb.scb->negotiated_codec = BTM_SCO_CODEC_CVSD;
     }
 
-    /* set default setting for eSCO/SCO */
+    /* set deault setting for eSCO/SCO */
     BTM_WriteVoiceSettings(AG_VOICE_SETTINGS);
     bta_sys_collision_register (BTA_ID_AG, bta_ag_collision_cback);
     /* call callback with enable event */
@@ -956,7 +943,6 @@ void bta_ag_sm_execute(tBTA_AG_SCB *p_scb, UINT16 event, tBTA_AG_DATA *p_data)
 BOOLEAN bta_ag_hdl_event(BT_HDR *p_msg)
 {
     tBTA_AG_SCB *p_scb;
-    BOOLEAN free_msg = TRUE;
     APPL_TRACE_DEBUG("bta_ag_hdl_event: Event 0x%04x ", p_msg->event);
 
     switch (p_msg->event) {
@@ -980,22 +966,15 @@ BOOLEAN bta_ag_hdl_event(BT_HDR *p_msg)
             bta_ag_api_result((tBTA_AG_DATA *) p_msg);
             break;
 
-        case BTA_AG_API_SCO_DATA_SEND_EVT:
-            free_msg = FALSE;
-            /* fall through */
+        /* all others reference scb by handle */
         default:
-            /* all others reference scb by handle */
             if ((p_scb = bta_ag_scb_by_idx(p_msg->layer_specific)) != NULL) {
                 APPL_TRACE_DEBUG("bta_ag_hdl_event: p_scb 0x%08x ", (unsigned int)p_scb);
                 bta_ag_sm_execute(p_scb, p_msg->event, (tBTA_AG_DATA *) p_msg);
             }
-            else {
-                /* free message if p_scb not found */
-                free_msg = TRUE;
-            }
             break;
     }
-    return free_msg;
+    return TRUE;
 }
 
 #endif /* #if (BTA_AG_INCLUDED == TRUE) */

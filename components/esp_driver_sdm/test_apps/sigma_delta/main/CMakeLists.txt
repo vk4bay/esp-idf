@@ -1,7 +1,7 @@
-set(srcs "test_app_main.c" "test_sdm.cpp")
+set(srcs "test_app_main.c")
 
-if(CONFIG_SOC_LIGHT_SLEEP_SUPPORTED AND CONFIG_PM_ENABLE)
-    list(APPEND srcs "test_sdm_sleep.cpp")
+if(CONFIG_SOC_SDM_SUPPORTED)
+    list(APPEND srcs "test_sdm.c")
 endif()
 
 # In order for the cases defined by `TEST_CASE` to be linked into the final elf,

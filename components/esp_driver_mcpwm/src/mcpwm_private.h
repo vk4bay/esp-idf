@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2022-2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2022-2024 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -7,25 +7,13 @@
 #pragma once
 
 #include <stdint.h>
-#include <stdlib.h>
-#include <sys/cdefs.h>
-#include <sys/lock.h>
 #include "sdkconfig.h"
-#if CONFIG_MCPWM_ENABLE_DEBUG_LOG
-// The local log level must be defined before including esp_log.h
-// Set the maximum log level for this source file
-#define LOG_LOCAL_LEVEL ESP_LOG_DEBUG
-#endif
-#include "soc/soc_caps.h"
 #include "freertos/FreeRTOS.h"
 #include "esp_err.h"
-#include "esp_log.h"
-#include "esp_check.h"
 #include "esp_intr_alloc.h"
 #include "esp_heap_caps.h"
 #include "esp_pm.h"
-#include "hal/mcpwm_periph.h"
-#include "hal/mcpwm_ll.h"
+#include "soc/soc_caps.h"
 #include "hal/mcpwm_hal.h"
 #include "hal/mcpwm_types.h"
 #include "driver/mcpwm_types.h"
@@ -35,13 +23,13 @@
 extern "C" {
 #endif
 
-#if CONFIG_MCPWM_OBJ_CACHE_SAFE
+#if CONFIG_MCPWM_ISR_IRAM_SAFE || CONFIG_MCPWM_CTRL_FUNC_IN_IRAM
 #define MCPWM_MEM_ALLOC_CAPS      (MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT)
 #else
 #define MCPWM_MEM_ALLOC_CAPS      MALLOC_CAP_DEFAULT
 #endif
 
-#if CONFIG_MCPWM_ISR_CACHE_SAFE
+#if CONFIG_MCPWM_ISR_IRAM_SAFE
 #define MCPWM_INTR_ALLOC_FLAG     (ESP_INTR_FLAG_SHARED | ESP_INTR_FLAG_INTRDISABLED | ESP_INTR_FLAG_IRAM)
 #else
 #define MCPWM_INTR_ALLOC_FLAG     (ESP_INTR_FLAG_SHARED | ESP_INTR_FLAG_INTRDISABLED)
@@ -52,10 +40,8 @@ extern "C" {
 
 #define MCPWM_ALLOW_INTR_PRIORITY_MASK ESP_INTR_FLAG_LOWMED
 
-#define MCPWM_GROUP_CLOCK_DEFAULT_PRESCALE 1
-
-///!< Logging settings
-#define TAG "mcpwm"
+#define MCPWM_GROUP_CLOCK_DEFAULT_PRESCALE 2
+#define MCPWM_PM_LOCK_NAME_LEN_MAX 16
 
 typedef struct mcpwm_group_t mcpwm_group_t;
 typedef struct mcpwm_timer_t mcpwm_timer_t;
@@ -81,15 +67,16 @@ struct mcpwm_group_t {
     portMUX_TYPE spinlock;   // group level spinlock
     uint32_t prescale;       // group prescale
     uint32_t resolution_hz;  // MCPWM group clock resolution: clock_src_hz / clock_prescale = resolution_hz
-#if CONFIG_PM_ENABLE
     esp_pm_lock_handle_t pm_lock; // power management lock
-#endif
     soc_module_clk_t clk_src; // peripheral source clock
     mcpwm_cap_timer_t *cap_timer; // mcpwm capture timers
-    mcpwm_timer_t *timers[MCPWM_LL_GET(TIMERS_PER_GROUP)]; // mcpwm timer array
-    mcpwm_oper_t *operators[MCPWM_LL_GET(OPERATORS_PER_GROUP)]; // mcpwm operator array
-    mcpwm_gpio_fault_t *gpio_faults[MCPWM_LL_GET(GPIO_FAULTS_PER_GROUP)]; // mcpwm fault detectors array
-    mcpwm_gpio_sync_src_t *gpio_sync_srcs[MCPWM_LL_GET(GPIO_SYNCHROS_PER_GROUP)];  // mcpwm gpio sync array
+    mcpwm_timer_t *timers[SOC_MCPWM_TIMERS_PER_GROUP]; // mcpwm timer array
+    mcpwm_oper_t *operators[SOC_MCPWM_OPERATORS_PER_GROUP]; // mcpwm operator array
+    mcpwm_gpio_fault_t *gpio_faults[SOC_MCPWM_GPIO_FAULTS_PER_GROUP]; // mcpwm fault detectors array
+    mcpwm_gpio_sync_src_t *gpio_sync_srcs[SOC_MCPWM_GPIO_SYNCHROS_PER_GROUP];  // mcpwm gpio sync array
+#if CONFIG_PM_ENABLE
+    char pm_lock_name[MCPWM_PM_LOCK_NAME_LEN_MAX]; // pm lock name
+#endif
 };
 
 typedef enum {
@@ -125,15 +112,15 @@ struct mcpwm_oper_t {
     mcpwm_timer_t *timer;  // which timer is connected to this operator
     portMUX_TYPE spinlock; // spin lock
     intr_handle_t intr;    // interrupt handle
-    mcpwm_gen_t *generators[MCPWM_LL_GET(GENERATORS_PER_OPERATOR)];    // mcpwm generator array
-    mcpwm_oper_cmpr_t *comparators[MCPWM_LL_GET(COMPARATORS_PER_OPERATOR)]; // mcpwm operator comparator array
+    mcpwm_gen_t *generators[SOC_MCPWM_GENERATORS_PER_OPERATOR];    // mcpwm generator array
+    mcpwm_oper_cmpr_t *comparators[SOC_MCPWM_COMPARATORS_PER_OPERATOR]; // mcpwm operator comparator array
 #if SOC_MCPWM_SUPPORT_EVENT_COMPARATOR
-    mcpwm_evt_cmpr_t *event_comparators[MCPWM_LL_GET(EVENT_COMPARATORS_PER_OPERATOR)]; // mcpwm event comparator array
+    mcpwm_evt_cmpr_t *event_comparators[SOC_MCPWM_EVENT_COMPARATORS_PER_OPERATOR]; // mcpwm event comparator array
 #endif
-    mcpwm_trigger_source_t triggers[MCPWM_LL_GET(TRIGGERS_PER_OPERATOR)];                 // mcpwm trigger array, can be either a fault or a sync
+    mcpwm_trigger_source_t triggers[SOC_MCPWM_TRIGGERS_PER_OPERATOR];                 // mcpwm trigger array, can be either a fault or a sync
     mcpwm_soft_fault_t *soft_fault;                                // mcpwm software fault
     mcpwm_operator_brake_mode_t brake_mode_on_soft_fault;          // brake mode on software triggered fault
-    mcpwm_operator_brake_mode_t brake_mode_on_gpio_fault[MCPWM_LL_GET(GPIO_FAULTS_PER_GROUP)]; // brake mode on GPIO triggered faults
+    mcpwm_operator_brake_mode_t brake_mode_on_gpio_fault[SOC_MCPWM_GPIO_FAULTS_PER_GROUP]; // brake mode on GPIO triggered faults
     uint32_t deadtime_resolution_hz;     // resolution of deadtime submodule
     mcpwm_gen_t *posedge_delay_owner;    // which generator owns the positive edge delay
     mcpwm_gen_t *negedge_delay_owner;    // which generator owns the negative edge delay
@@ -254,10 +241,8 @@ struct mcpwm_cap_timer_t {
     portMUX_TYPE spinlock;  // spin lock, to prevent concurrently accessing capture timer level resources, including registers
     uint32_t resolution_hz; // resolution of capture timer
     mcpwm_cap_timer_fsm_t fsm;    // driver FSM
-#if CONFIG_PM_ENABLE
     esp_pm_lock_handle_t pm_lock; // power management lock
-#endif
-    mcpwm_cap_channel_t *cap_channels[MCPWM_LL_GET(CAPTURE_CHANNELS_PER_TIMER)]; // capture channel array
+    mcpwm_cap_channel_t *cap_channels[SOC_MCPWM_CAPTURE_CHANNELS_PER_TIMER]; // capture channel array
 };
 
 struct mcpwm_cap_channel_t {

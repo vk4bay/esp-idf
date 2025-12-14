@@ -21,7 +21,7 @@ if(CONFIG_SOC_ECDSA_SUPPORTED)
    list(APPEND srcs "ecdsa/test_ecdsa.c")
 endif()
 
-if(CONFIG_CRYPTO_IS_KEY_MANAGER_SUPPORTED)
+if(CONFIG_SOC_KEY_MANAGER_SUPPORTED)
    list(APPEND srcs "key_manager/test_key_manager.c"
                     "$ENV{IDF_PATH}/components/esp_security/src/esp_key_mgr.c")
    list(APPEND priv_include_dirs "$ENV{IDF_PATH}/components/esp_security/include")
@@ -30,13 +30,14 @@ endif()
 if(CONFIG_SOC_AES_SUPPORTED)
    list(APPEND srcs "aes/test_aes.c"
                      "$ENV{IDF_PATH}/components/mbedtls/port/aes/esp_aes_common.c"
-                     "$ENV{IDF_PATH}/components/mbedtls/port/aes/esp_aes.c")
-
+                     "aes/aes_block.c")
    list(APPEND priv_include_dirs "$ENV{IDF_PATH}/components/mbedtls/port/include"
                                  "$ENV{IDF_PATH}/components/mbedtls/port/aes/include")
 
    if(CONFIG_SOC_AES_SUPPORT_DMA)
       list(APPEND priv_include_dirs "$ENV{IDF_PATH}/components/mbedtls/port/aes/dma/include")
+      list(APPEND srcs "$ENV{IDF_PATH}/components/mbedtls/port/aes/dma/esp_aes.c")
+
       if(NOT CONFIG_SOC_AES_GDMA)
          list(APPEND srcs "$ENV{IDF_PATH}/components/mbedtls/port/aes/dma/esp_aes_crypto_dma_impl.c")
       else()
@@ -59,21 +60,17 @@ if(CONFIG_SOC_SHA_SUPPORTED)
 
       if(CONFIG_SOC_SHA_SUPPORT_DMA)
          list(APPEND srcs "sha/sha_dma.c"
-                           "$ENV{IDF_PATH}/components/mbedtls/port/sha/core/sha.c")
-         list(APPEND priv_include_dirs "$ENV{IDF_PATH}/components/mbedtls/port/sha/core/include")
+                           "$ENV{IDF_PATH}/components/mbedtls/port/sha/dma/sha.c")
+         list(APPEND priv_include_dirs "$ENV{IDF_PATH}/components/mbedtls/port/sha/dma/include")
 
          if(NOT CONFIG_SOC_SHA_GDMA)
-            list(APPEND srcs "$ENV{IDF_PATH}/components/mbedtls/port/sha/core/esp_sha_crypto_dma_impl.c")
+            list(APPEND srcs "$ENV{IDF_PATH}/components/mbedtls/port/sha/dma/esp_sha_crypto_dma_impl.c")
          else()
-            list(APPEND srcs "$ENV{IDF_PATH}/components/mbedtls/port/sha/core/esp_sha_gdma_impl.c"
+            list(APPEND srcs "$ENV{IDF_PATH}/components/mbedtls/port/sha/dma/esp_sha_gdma_impl.c"
                               "$ENV{IDF_PATH}/components/mbedtls/port/crypto_shared_gdma/esp_crypto_shared_gdma.c")
          endif()
       endif()
    endif()
-endif()
-
-if(CONFIG_SOC_FLASH_ENCRYPTION_XTS_AES)
-   list(APPEND srcs "xts_aes/test_xts_aes.c")
 endif()
 
 idf_component_register(SRCS ${srcs}

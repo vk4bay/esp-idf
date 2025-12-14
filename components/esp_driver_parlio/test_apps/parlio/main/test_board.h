@@ -11,7 +11,7 @@
 extern "C" {
 #endif
 
-#if CONFIG_PARLIO_TX_ISR_CACHE_SAFE || CONFIG_PARLIO_RX_ISR_CACHE_SAFE
+#if CONFIG_PARLIO_ISR_IRAM_SAFE
 #define TEST_PARLIO_CALLBACK_ATTR   IRAM_ATTR
 #define TEST_PARLIO_MEM_ALLOC_CAPS  (MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT)
 #else
@@ -68,14 +68,6 @@ extern "C" {
 #define TEST_DATA5_GPIO     29
 #define TEST_DATA6_GPIO     30
 #define TEST_DATA7_GPIO     31
-#define TEST_DATA8_GPIO     35
-#define TEST_DATA9_GPIO     36
-#define TEST_DATA10_GPIO    39
-#define TEST_DATA11_GPIO    40
-#define TEST_DATA12_GPIO    41
-#define TEST_DATA13_GPIO    42
-#define TEST_DATA14_GPIO    43
-#define TEST_DATA15_GPIO    44
 #else
 #error "Unsupported target"
 #endif

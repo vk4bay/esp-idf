@@ -22,8 +22,7 @@ set(includes "include"
 # inside the heap component and are therefore added
 # to the list of the private includes from the heap
 # component perspective
-set(priv_includes "private_include"
-                  "tlsf/include")
+set(priv_includes "tlsf/include")
 
 if(NOT CONFIG_HEAP_TLSF_USE_ROM_IMPL)
     list(APPEND srcs "tlsf/tlsf.c")
@@ -51,6 +50,7 @@ if(NOT BOOTLOADER_BUILD)
     list(APPEND srcs "port/${target}/memory_layout.c")
 endif()
 
+
 idf_component_register(SRCS "${srcs}"
                     INCLUDE_DIRS ${includes}
                     PRIV_INCLUDE_DIRS ${priv_includes}
@@ -69,13 +69,9 @@ if(CONFIG_HEAP_TRACING)
     endforeach()
 endif()
 
-if(IDF_BUILD_V2)
-    target_compile_options(${COMPONENT_TARGET} PRIVATE "$<$<TARGET_EXISTS:idf::freertos>:-DMULTI_HEAP_FREERTOS>")
-else()
-    if(NOT CMAKE_BUILD_EARLY_EXPANSION)
-        idf_build_get_property(build_components BUILD_COMPONENTS)
-        if(freertos IN_LIST build_components)
-            target_compile_options(${COMPONENT_TARGET} PRIVATE "-DMULTI_HEAP_FREERTOS")
-        endif()
+if(NOT CMAKE_BUILD_EARLY_EXPANSION)
+    idf_build_get_property(build_components BUILD_COMPONENTS)
+    if(freertos IN_LIST build_components)
+        target_compile_options(${COMPONENT_TARGET} PRIVATE "-DMULTI_HEAP_FREERTOS")
     endif()
 endif()

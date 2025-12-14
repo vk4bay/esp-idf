@@ -1,12 +1,31 @@
 /*
- * SPDX-FileCopyrightText: 2022-2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2022-2023 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include "mcpwm_private.h"
+#include <stdlib.h>
+#include <stdarg.h>
+#include <sys/cdefs.h>
+#include "sdkconfig.h"
+#if CONFIG_MCPWM_ENABLE_DEBUG_LOG
+// The local log level must be defined before including esp_log.h
+// Set the maximum log level for this source file
+#define LOG_LOCAL_LEVEL ESP_LOG_DEBUG
+#endif
+#include "freertos/FreeRTOS.h"
+#include "esp_attr.h"
+#include "esp_check.h"
+#include "esp_err.h"
+#include "esp_log.h"
 #include "esp_memory_utils.h"
+#include "soc/soc_caps.h"
+#include "soc/mcpwm_periph.h"
+#include "hal/mcpwm_ll.h"
 #include "driver/mcpwm_cmpr.h"
+#include "mcpwm_private.h"
+
+static const char *TAG = "mcpwm";
 
 static void mcpwm_comparator_default_isr(void *args);
 
@@ -17,7 +36,7 @@ static esp_err_t mcpwm_comparator_register_to_operator(mcpwm_cmpr_t *cmpr, mcpwm
     switch (cmpr->type) {
     case MCPWM_OPERATOR_COMPARATOR: {
         mcpwm_oper_cmpr_t *oper_cmpr = __containerof(cmpr, mcpwm_oper_cmpr_t, base);
-        for (int i = 0; i < MCPWM_LL_GET(COMPARATORS_PER_OPERATOR); i++) {
+        for (int i = 0; i < SOC_MCPWM_COMPARATORS_PER_OPERATOR; i++) {
             if (!oper->comparators[i]) {
                 oper->comparators[i] = oper_cmpr;
                 cmpr_id = i;
@@ -29,7 +48,7 @@ static esp_err_t mcpwm_comparator_register_to_operator(mcpwm_cmpr_t *cmpr, mcpwm
 #if SOC_MCPWM_SUPPORT_EVENT_COMPARATOR
     case MCPWM_EVENT_COMPARATOR: {
         mcpwm_evt_cmpr_t *evt_cmpr = __containerof(cmpr, mcpwm_evt_cmpr_t, base);
-        for (int i = 0; i < MCPWM_LL_GET(EVENT_COMPARATORS_PER_OPERATOR); i++) {
+        for (int i = 0; i < SOC_MCPWM_EVENT_COMPARATORS_PER_OPERATOR; i++) {
             if (!oper->event_comparators[i]) {
                 oper->event_comparators[i] = evt_cmpr;
                 cmpr_id = i;
@@ -220,7 +239,7 @@ esp_err_t mcpwm_comparator_register_event_callbacks(mcpwm_cmpr_handle_t cmpr, co
     int oper_id = oper->oper_id;
     int cmpr_id = cmpr->cmpr_id;
 
-#if CONFIG_MCPWM_ISR_CACHE_SAFE
+#if CONFIG_MCPWM_ISR_IRAM_SAFE
     if (cbs->on_reach) {
         ESP_RETURN_ON_FALSE(esp_ptr_in_iram(cbs->on_reach), ESP_ERR_INVALID_ARG, TAG, "on_reach callback not in IRAM");
     }
@@ -235,7 +254,7 @@ esp_err_t mcpwm_comparator_register_event_callbacks(mcpwm_cmpr_handle_t cmpr, co
         // we want the interrupt service to be enabled after allocation successfully
         int isr_flags = MCPWM_INTR_ALLOC_FLAG & ~ ESP_INTR_FLAG_INTRDISABLED;
         isr_flags |= mcpwm_get_intr_priority_flag(group);
-        ESP_RETURN_ON_ERROR(esp_intr_alloc_intrstatus(soc_mcpwm_signals[group_id].irq_id, isr_flags,
+        ESP_RETURN_ON_ERROR(esp_intr_alloc_intrstatus(mcpwm_periph_signals.groups[group_id].irq_id, isr_flags,
                                                       (uint32_t)mcpwm_ll_intr_get_status_reg(hal->dev), MCPWM_LL_EVENT_CMP_EQUAL(oper_id, cmpr_id),
                                                       mcpwm_comparator_default_isr, oper_cmpr, &oper_cmpr->intr), TAG, "install interrupt service for comparator failed");
     }
@@ -250,7 +269,7 @@ esp_err_t mcpwm_comparator_register_event_callbacks(mcpwm_cmpr_handle_t cmpr, co
     return ESP_OK;
 }
 
-static void mcpwm_comparator_default_isr(void *args)
+static void IRAM_ATTR mcpwm_comparator_default_isr(void *args)
 {
     mcpwm_oper_cmpr_t *cmpr = (mcpwm_oper_cmpr_t *)args;
     mcpwm_oper_t *oper = cmpr->base.oper;

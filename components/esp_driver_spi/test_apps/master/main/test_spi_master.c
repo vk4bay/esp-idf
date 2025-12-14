@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2021-2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2021-2024 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -13,6 +13,7 @@
 #include "sys/param.h"
 #include "driver/gpio.h"
 #include "hal/spi_ll.h"     // for SPI_LL_SUPPORT_CLK_SRC_PRE_DIV
+#include "soc/gpio_periph.h"
 #include "soc/spi_periph.h"
 #include "soc/soc_memory_layout.h"
 #include "esp_private/cache_utils.h"
@@ -25,7 +26,6 @@
 #include "esp_clk_tree.h"
 #include "esp_timer.h"
 #include "esp_log.h"
-#include "esp_cache.h"
 #include "test_utils.h"
 #include "test_spi_utils.h"
 #include "spi_performance.h"
@@ -82,13 +82,12 @@ static void check_spi_pre_n_for(int clk, int pre, int n)
  */
 #define TEST_CLK_TIMES     8
 uint32_t clk_param_80m[TEST_CLK_TIMES][3] = {{1, SOC_SPI_MAX_PRE_DIVIDER, 64}, {100000, 16, 50}, {333333, 4, 60}, {800000, 2, 50}, {900000, 2, 44}, {8000000, 1, 10}, {20000000, 1, 4}, {26000000, 1, 3} };
+uint32_t clk_param_48m[TEST_CLK_TIMES][3] = {{1, SOC_SPI_MAX_PRE_DIVIDER, 64}, {100000, 8, 60}, {333333, 3, 48}, {800000, 1, 60}, {5000000, 1, 10}, {12000000, 1, 4}, {18000000, 1, 3}, {26000000, 1, 2} };
 uint32_t clk_param_160m[TEST_CLK_TIMES][3] = {{1, SOC_SPI_MAX_PRE_DIVIDER, 64}, {100000, 16, 50}, {333333, 4, 60}, {800000, 2, 50}, {900000, 2, 44}, {8000000, 1, 10}, {20000000, 1, 4}, {26000000, 1, 3} };
 #if SPI_LL_SUPPORT_CLK_SRC_PRE_DIV
 uint32_t clk_param_40m[TEST_CLK_TIMES][3] = {{1, SOC_SPI_MAX_PRE_DIVIDER, 64}, {100000, 4, 50}, {333333, 1, 60}, {800000, 1, 25}, {2000000, 1, 10}, {5000000, 1,  4}, {12000000, 1, 2}, {18000000, 1, 1} };
-uint32_t clk_param_48m[TEST_CLK_TIMES][3] = {{1, SOC_SPI_MAX_PRE_DIVIDER, 64}, {100000, 4, 60}, {333333, 2, 36}, {800000, 1, 30}, {5000000, 1, 5}, {12000000, 1, 2}, {18000000, 1, 2}, {24000000, 1, 1} };
 #else
 uint32_t clk_param_40m[TEST_CLK_TIMES][3] = {{1, SOC_SPI_MAX_PRE_DIVIDER, 64}, {100000, 8, 50}, {333333, 2, 60}, {800000, 1, 50}, {2000000, 1, 20}, {5000000, 1,  8}, {12000000, 1, 3}, {18000000, 1, 2} };
-uint32_t clk_param_48m[TEST_CLK_TIMES][3] = {{1, SOC_SPI_MAX_PRE_DIVIDER, 64}, {100000, 8, 60}, {333333, 3, 48}, {800000, 1, 60}, {5000000, 1, 10}, {12000000, 1, 4}, {18000000, 1, 3}, {26000000, 1, 2} };
 #endif
 
 TEST_CASE("SPI Master clockdiv calculation routines", "[spi]")
@@ -115,8 +114,6 @@ TEST_CASE("SPI Master clockdiv calculation routines", "[spi]")
         for (int i = 0; i < TEST_CLK_TIMES; i++) {
             check_spi_pre_n_for(clk_param_40m[i][0], clk_param_40m[i][1], clk_param_40m[i][2]);
         }
-    } else {
-        ESP_LOGW(TAG, "Don't find any routing param!!");
     }
 
     TEST_ESP_OK(spi_bus_free(TEST_SPI_HOST));
@@ -124,7 +121,7 @@ TEST_CASE("SPI Master clockdiv calculation routines", "[spi]")
 
 // Test All clock source
 #define TEST_CLK_BYTE_LEN           10000
-#define TEST_TRANS_TIME_BIAS_RATIO  (float)5.0/100   // think 5% transfer time bias as acceptable
+#define TEST_TRANS_TIME_BIAS_RATIO  (float)2.0/100   // think 2% transfer time bias as acceptable
 TEST_CASE("SPI Master clk_source and divider accuracy", "[spi]")
 {
     int64_t start = 0, end = 0;
@@ -150,10 +147,8 @@ TEST_CASE("SPI Master clk_source and divider accuracy", "[spi]")
             spi_device_handle_t handle;
             spi_device_interface_config_t devcfg = SPI_DEVICE_TEST_DEFAULT_CONFIG();
             devcfg.clock_source = spi_clk_sour[sour_idx];
-            devcfg.clock_speed_hz = MIN(IDF_TARGET_MAX_SPI_CLK_FREQ, clock_source_hz) >> test_time;
-#if CONFIG_IDF_TARGET_ESP32
+            devcfg.clock_speed_hz = MIN(IDF_PERFORMANCE_MAX_SPI_CLK_FREQ, clock_source_hz) >> test_time;
             devcfg.flags |= SPI_DEVICE_HALFDUPLEX;  //esp32 half duplex to work on high freq
-#endif
 #if SOC_SPI_SUPPORT_CLK_RC_FAST
             if (devcfg.clock_source == SPI_CLK_SRC_RC_FAST) {
                 devcfg.clock_speed_hz /= 2; //rc_fast have bad accuracy, test at low speed
@@ -162,13 +157,6 @@ TEST_CASE("SPI Master clk_source and divider accuracy", "[spi]")
             TEST_ESP_OK(spi_bus_add_device(TEST_SPI_HOST, &devcfg, &handle));
             // one trans first to trigger lazy load
             TEST_ESP_OK(spi_device_polling_transmit(handle, &trans));
-
-            // test single tx/rx under full duplex mode, refer to `TEST_CASE_MULTIPLE_DEVICES("SPI Master: FD, DMA, Master Single Direction Test"...`
-            if (!(devcfg.flags && SPI_DEVICE_HALFDUPLEX)) {
-                trans.tx_buffer = NULL;
-                trans.rxlength = trans.length;
-                trans.rx_buffer = sendbuf;
-            }
 
             // calculate theoretical transaction time by actual freq and trans length
             int real_freq_khz;
@@ -182,10 +170,7 @@ TEST_CASE("SPI Master clk_source and divider accuracy", "[spi]")
             end = esp_timer_get_time();
             int trans_cost = end - start;
             int time_tolerance = trans_cost_us_predict * TEST_TRANS_TIME_BIAS_RATIO;
-#if !SOC_CLK_TREE_SUPPORTED
-            time_tolerance *= 2;    //cpu is executing too slow before clock supported
-#endif
-            printf("exp_freq %dk real_freq %dk predict_cost %d real_cost_us %d diff %d tolerance %d us\n", devcfg.clock_speed_hz / 1000, real_freq_khz, trans_cost_us_predict, trans_cost, (trans_cost - trans_cost_us_predict), time_tolerance);
+            printf("real_freq %dk predict_cost %d real_cost_us %d diff %d tolerance %d us\n", real_freq_khz, trans_cost_us_predict, trans_cost, (trans_cost - trans_cost_us_predict), time_tolerance);
 
             TEST_ASSERT_LESS_THAN_UINT32(time_tolerance, abs(trans_cost - trans_cost_us_predict));
             TEST_ESP_OK(spi_bus_remove_device(handle));
@@ -193,44 +178,6 @@ TEST_CASE("SPI Master clk_source and divider accuracy", "[spi]")
     }
 
     free(sendbuf);
-    TEST_ESP_OK(spi_bus_free(TEST_SPI_HOST));
-}
-
-TEST_CASE("test_device_dynamic_freq_update", "[spi]")
-{
-    spi_device_handle_t dev0;
-    int master_send;
-
-    spi_bus_config_t buscfg = SPI_BUS_TEST_DEFAULT_CONFIG();
-    spi_device_interface_config_t devcfg = SPI_DEVICE_TEST_DEFAULT_CONFIG();
-    devcfg.flags |= SPI_DEVICE_HALFDUPLEX;
-    TEST_ESP_OK(spi_bus_initialize(TEST_SPI_HOST, &buscfg, SPI_DMA_CH_AUTO));
-    TEST_ESP_OK(spi_bus_add_device(TEST_SPI_HOST, &devcfg, &dev0));
-
-    spi_transaction_t trans_cfg = {
-        .tx_buffer = &master_send,
-        .length = sizeof(master_send) * 8,
-    };
-
-    trans_cfg.override_freq_hz = IDF_TARGET_MAX_SPI_CLK_FREQ;
-    for (int i = 1; i < 15; i++) {
-        TEST_ESP_OK(spi_device_transmit(dev0, &trans_cfg));
-        spi_device_get_actual_freq(dev0, &master_send);
-        printf("override %5ld k real freq %5d k\n", trans_cfg.override_freq_hz / 1000, master_send);
-        if (trans_cfg.override_freq_hz) {
-            TEST_ASSERT_EQUAL_UINT32(trans_cfg.override_freq_hz / 1000, master_send);
-        }
-        if (i > 10) {
-            //test without override freq
-            trans_cfg.override_freq_hz = 0;
-            continue;
-        }
-        if (!(i % 2)) {
-            //test override freq every 2 trans
-            trans_cfg.override_freq_hz /= 2;
-        }
-    }
-    TEST_ESP_OK(spi_bus_remove_device(dev0));
     TEST_ESP_OK(spi_bus_free(TEST_SPI_HOST));
 }
 
@@ -356,8 +303,8 @@ TEST_CASE("SPI Master test", "[spi]")
     master_free_device_bus(handle);
     TEST_ASSERT(success);
 
-    printf("Testing bus at %dMHz\n", IDF_TARGET_MAX_SPI_CLK_FREQ / 1000000);
-    handle = setup_spi_bus_loopback(IDF_TARGET_MAX_SPI_CLK_FREQ, true);
+    printf("Testing bus at 20MHz\n");
+    handle = setup_spi_bus_loopback(20000000, true);
     success &= spi_test(handle, 128); //DMA, aligned
     success &= spi_test(handle, 4096 * 3); //DMA, multiple descs
     master_free_device_bus(handle);
@@ -491,9 +438,9 @@ TEST_CASE("spi bus setting with different pin configs", "[spi]")
         .mosi_io_num = spi_periph_signal[TEST_SPI_HOST].spid_iomux_pin, .miso_io_num = spi_periph_signal[TEST_SPI_HOST].spiq_iomux_pin, .sclk_io_num = spi_periph_signal[TEST_SPI_HOST].spiclk_iomux_pin, .quadhd_io_num = spi_periph_signal[TEST_SPI_HOST].spihd_iomux_pin, .quadwp_io_num = spi_periph_signal[TEST_SPI_HOST].spiwp_iomux_pin,
         .max_transfer_sz = 8, .flags = flags_expected
     };
-    TEST_ESP_OK(spicommon_bus_initialize_io(TEST_SPI_HOST, &cfg, flags_expected | SPICOMMON_BUSFLAG_MASTER, &flags_o, NULL));
+    TEST_ESP_OK(spicommon_bus_initialize_io(TEST_SPI_HOST, &cfg, flags_expected | SPICOMMON_BUSFLAG_MASTER, &flags_o));
     TEST_ASSERT_EQUAL_HEX32(flags_expected, flags_o);
-    TEST_ESP_OK(spicommon_bus_initialize_io(TEST_SPI_HOST, &cfg, flags_expected | SPICOMMON_BUSFLAG_SLAVE, &flags_o, NULL));
+    TEST_ESP_OK(spicommon_bus_initialize_io(TEST_SPI_HOST, &cfg, flags_expected | SPICOMMON_BUSFLAG_SLAVE, &flags_o));
     TEST_ASSERT_EQUAL_HEX32(flags_expected, flags_o);
 
     ESP_LOGI(TAG, "test 4 iomux output pins...");
@@ -502,9 +449,9 @@ TEST_CASE("spi bus setting with different pin configs", "[spi]")
         .mosi_io_num = spi_periph_signal[TEST_SPI_HOST].spid_iomux_pin, .miso_io_num = spi_periph_signal[TEST_SPI_HOST].spiq_iomux_pin, .sclk_io_num = spi_periph_signal[TEST_SPI_HOST].spiclk_iomux_pin, .quadhd_io_num = -1, .quadwp_io_num = -1,
         .max_transfer_sz = 8, .flags = flags_expected
     };
-    TEST_ESP_OK(spicommon_bus_initialize_io(TEST_SPI_HOST, &cfg, flags_expected | SPICOMMON_BUSFLAG_MASTER, &flags_o, NULL));
+    TEST_ESP_OK(spicommon_bus_initialize_io(TEST_SPI_HOST, &cfg, flags_expected | SPICOMMON_BUSFLAG_MASTER, &flags_o));
     TEST_ASSERT_EQUAL_HEX32(flags_expected, flags_o);
-    TEST_ESP_OK(spicommon_bus_initialize_io(TEST_SPI_HOST, &cfg, flags_expected | SPICOMMON_BUSFLAG_SLAVE, &flags_o, NULL));
+    TEST_ESP_OK(spicommon_bus_initialize_io(TEST_SPI_HOST, &cfg, flags_expected | SPICOMMON_BUSFLAG_SLAVE, &flags_o));
     TEST_ASSERT_EQUAL_HEX32(flags_expected, flags_o);
 
     ESP_LOGI(TAG, "test 6 output pins...");
@@ -514,9 +461,9 @@ TEST_CASE("spi bus setting with different pin configs", "[spi]")
         .mosi_io_num = spi_periph_signal[TEST_SPI_HOST].spiq_iomux_pin, .miso_io_num = spi_periph_signal[TEST_SPI_HOST].spid_iomux_pin, .sclk_io_num = spi_periph_signal[TEST_SPI_HOST].spiclk_iomux_pin, .quadhd_io_num = spi_periph_signal[TEST_SPI_HOST].spihd_iomux_pin, .quadwp_io_num = spi_periph_signal[TEST_SPI_HOST].spiwp_iomux_pin,
         .max_transfer_sz = 8, .flags = flags_expected
     };
-    TEST_ESP_OK(spicommon_bus_initialize_io(TEST_SPI_HOST, &cfg, flags_expected | SPICOMMON_BUSFLAG_MASTER, &flags_o, NULL));
+    TEST_ESP_OK(spicommon_bus_initialize_io(TEST_SPI_HOST, &cfg, flags_expected | SPICOMMON_BUSFLAG_MASTER, &flags_o));
     TEST_ASSERT_EQUAL_HEX32(flags_expected, flags_o);
-    TEST_ESP_OK(spicommon_bus_initialize_io(TEST_SPI_HOST, &cfg, flags_expected | SPICOMMON_BUSFLAG_SLAVE, &flags_o, NULL));
+    TEST_ESP_OK(spicommon_bus_initialize_io(TEST_SPI_HOST, &cfg, flags_expected | SPICOMMON_BUSFLAG_SLAVE, &flags_o));
     TEST_ASSERT_EQUAL_HEX32(flags_expected, flags_o);
 
     ESP_LOGI(TAG, "test 4 output pins...");
@@ -526,9 +473,9 @@ TEST_CASE("spi bus setting with different pin configs", "[spi]")
         .mosi_io_num = spi_periph_signal[TEST_SPI_HOST].spiq_iomux_pin, .miso_io_num = spi_periph_signal[TEST_SPI_HOST].spid_iomux_pin, .sclk_io_num = spi_periph_signal[TEST_SPI_HOST].spiclk_iomux_pin, .quadhd_io_num = -1, .quadwp_io_num = -1,
         .max_transfer_sz = 8, .flags = flags_expected
     };
-    TEST_ESP_OK(spicommon_bus_initialize_io(TEST_SPI_HOST, &cfg, flags_expected | SPICOMMON_BUSFLAG_MASTER, &flags_o, NULL));
+    TEST_ESP_OK(spicommon_bus_initialize_io(TEST_SPI_HOST, &cfg, flags_expected | SPICOMMON_BUSFLAG_MASTER, &flags_o));
     TEST_ASSERT_EQUAL_HEX32(flags_expected, flags_o);
-    TEST_ESP_OK(spicommon_bus_initialize_io(TEST_SPI_HOST, &cfg, flags_expected | SPICOMMON_BUSFLAG_SLAVE, &flags_o, NULL));
+    TEST_ESP_OK(spicommon_bus_initialize_io(TEST_SPI_HOST, &cfg, flags_expected | SPICOMMON_BUSFLAG_SLAVE, &flags_o));
     TEST_ASSERT_EQUAL_HEX32(flags_expected, flags_o);
 
 #if TEST_SOC_HAS_INPUT_ONLY_PINS  //There is no input-only pin on esp32c3 and esp32s3, so this test could be ignored.
@@ -538,7 +485,7 @@ TEST_CASE("spi bus setting with different pin configs", "[spi]")
         .mosi_io_num = spi_periph_signal[TEST_SPI_HOST].spid_iomux_pin, .miso_io_num = INPUT_ONLY_PIN, .sclk_io_num = spi_periph_signal[TEST_SPI_HOST].spiclk_iomux_pin, .quadhd_io_num = spi_periph_signal[TEST_SPI_HOST].spihd_iomux_pin, .quadwp_io_num = spi_periph_signal[TEST_SPI_HOST].spiwp_iomux_pin,
         .max_transfer_sz = 8, .flags = flags_expected
     };
-    TEST_ESP_OK(spicommon_bus_initialize_io(TEST_SPI_HOST, &cfg, flags_expected | SPICOMMON_BUSFLAG_MASTER, &flags_o, NULL));
+    TEST_ESP_OK(spicommon_bus_initialize_io(TEST_SPI_HOST, &cfg, flags_expected | SPICOMMON_BUSFLAG_MASTER, &flags_o));
     TEST_ASSERT_EQUAL_HEX32(flags_expected, flags_o);
 
     ESP_LOGI(TAG, "test slave 5 output pins and MISO on input-only pin...");
@@ -547,7 +494,7 @@ TEST_CASE("spi bus setting with different pin configs", "[spi]")
         .mosi_io_num = INPUT_ONLY_PIN, .miso_io_num = spi_periph_signal[TEST_SPI_HOST].spiq_iomux_pin, .sclk_io_num = spi_periph_signal[TEST_SPI_HOST].spiclk_iomux_pin, .quadhd_io_num = spi_periph_signal[TEST_SPI_HOST].spihd_iomux_pin, .quadwp_io_num = spi_periph_signal[TEST_SPI_HOST].spiwp_iomux_pin,
         .max_transfer_sz = 8, .flags = flags_expected
     };
-    TEST_ESP_OK(spicommon_bus_initialize_io(TEST_SPI_HOST, &cfg, flags_expected | SPICOMMON_BUSFLAG_SLAVE, &flags_o, NULL));
+    TEST_ESP_OK(spicommon_bus_initialize_io(TEST_SPI_HOST, &cfg, flags_expected | SPICOMMON_BUSFLAG_SLAVE, &flags_o));
     TEST_ASSERT_EQUAL_HEX32(flags_expected, flags_o);
 
     ESP_LOGI(TAG, "test master 3 output pins and MOSI on input-only pin...");
@@ -557,7 +504,7 @@ TEST_CASE("spi bus setting with different pin configs", "[spi]")
         .mosi_io_num = spi_periph_signal[TEST_SPI_HOST].spid_iomux_pin, .miso_io_num = INPUT_ONLY_PIN, .sclk_io_num = spi_periph_signal[TEST_SPI_HOST].spiclk_iomux_pin, .quadhd_io_num = -1, .quadwp_io_num = -1,
         .max_transfer_sz = 8, .flags = flags_expected
     };
-    TEST_ESP_OK(spicommon_bus_initialize_io(TEST_SPI_HOST, &cfg, flags_expected | SPICOMMON_BUSFLAG_MASTER, &flags_o, NULL));
+    TEST_ESP_OK(spicommon_bus_initialize_io(TEST_SPI_HOST, &cfg, flags_expected | SPICOMMON_BUSFLAG_MASTER, &flags_o));
     TEST_ASSERT_EQUAL_HEX32(flags_expected, flags_o);
 
     ESP_LOGI(TAG, "test slave 3 output pins and MISO on input-only pin...");
@@ -566,7 +513,7 @@ TEST_CASE("spi bus setting with different pin configs", "[spi]")
         .mosi_io_num = INPUT_ONLY_PIN, .miso_io_num = spi_periph_signal[TEST_SPI_HOST].spiq_iomux_pin, .sclk_io_num = spi_periph_signal[TEST_SPI_HOST].spiclk_iomux_pin, .quadhd_io_num = -1, .quadwp_io_num = -1,
         .max_transfer_sz = 8, .flags = flags_expected
     };
-    TEST_ESP_OK(spicommon_bus_initialize_io(TEST_SPI_HOST, &cfg, flags_expected | SPICOMMON_BUSFLAG_SLAVE, &flags_o, NULL));
+    TEST_ESP_OK(spicommon_bus_initialize_io(TEST_SPI_HOST, &cfg, flags_expected | SPICOMMON_BUSFLAG_SLAVE, &flags_o));
     TEST_ASSERT_EQUAL_HEX32(flags_expected, flags_o);
 //There is no input-only pin on esp32c3 and esp32s3, so this test could be ignored.
 #endif //#if TEST_SOC_HAS_INPUT_ONLY_PINS
@@ -578,8 +525,8 @@ TEST_CASE("spi bus setting with different pin configs", "[spi]")
         .mosi_io_num = spi_periph_signal[TEST_SPI_HOST].spiq_iomux_pin, .miso_io_num = spi_periph_signal[TEST_SPI_HOST].spid_iomux_pin, .sclk_io_num = spi_periph_signal[TEST_SPI_HOST].spiclk_iomux_pin, .quadhd_io_num = spi_periph_signal[TEST_SPI_HOST].spihd_iomux_pin, .quadwp_io_num = spi_periph_signal[TEST_SPI_HOST].spiwp_iomux_pin,
         .max_transfer_sz = 8, .flags = flags_expected
     };
-    TEST_ASSERT_EQUAL(ESP_ERR_INVALID_ARG, spicommon_bus_initialize_io(TEST_SPI_HOST, &cfg, flags_expected | SPICOMMON_BUSFLAG_MASTER, &flags_o, NULL));
-    TEST_ASSERT_EQUAL(ESP_ERR_INVALID_ARG, spicommon_bus_initialize_io(TEST_SPI_HOST, &cfg, flags_expected | SPICOMMON_BUSFLAG_SLAVE, &flags_o, NULL));
+    TEST_ASSERT_EQUAL(ESP_ERR_INVALID_ARG, spicommon_bus_initialize_io(TEST_SPI_HOST, &cfg, flags_expected | SPICOMMON_BUSFLAG_MASTER, &flags_o));
+    TEST_ASSERT_EQUAL(ESP_ERR_INVALID_ARG, spicommon_bus_initialize_io(TEST_SPI_HOST, &cfg, flags_expected | SPICOMMON_BUSFLAG_SLAVE, &flags_o));
 
     ESP_LOGI(TAG, "check native flag for 4 output pins...");
     flags_expected = SPICOMMON_BUSFLAG_IOMUX_PINS;
@@ -588,8 +535,8 @@ TEST_CASE("spi bus setting with different pin configs", "[spi]")
         .mosi_io_num = spi_periph_signal[TEST_SPI_HOST].spiq_iomux_pin, .miso_io_num = spi_periph_signal[TEST_SPI_HOST].spid_iomux_pin, .sclk_io_num = spi_periph_signal[TEST_SPI_HOST].spiclk_iomux_pin, .quadhd_io_num = -1, .quadwp_io_num = -1,
         .max_transfer_sz = 8, .flags = flags_expected
     };
-    TEST_ASSERT_EQUAL(ESP_ERR_INVALID_ARG, spicommon_bus_initialize_io(TEST_SPI_HOST, &cfg, flags_expected | SPICOMMON_BUSFLAG_MASTER, &flags_o, NULL));
-    TEST_ASSERT_EQUAL(ESP_ERR_INVALID_ARG, spicommon_bus_initialize_io(TEST_SPI_HOST, &cfg, flags_expected | SPICOMMON_BUSFLAG_SLAVE, &flags_o, NULL));
+    TEST_ASSERT_EQUAL(ESP_ERR_INVALID_ARG, spicommon_bus_initialize_io(TEST_SPI_HOST, &cfg, flags_expected | SPICOMMON_BUSFLAG_MASTER, &flags_o));
+    TEST_ASSERT_EQUAL(ESP_ERR_INVALID_ARG, spicommon_bus_initialize_io(TEST_SPI_HOST, &cfg, flags_expected | SPICOMMON_BUSFLAG_SLAVE, &flags_o));
 
 #if TEST_SOC_HAS_INPUT_ONLY_PINS  //There is no input-only pin on esp32c3 and esp32s3, so this test could be ignored.
     ESP_LOGI(TAG, "check dual flag for master 5 output pins and MISO/MOSI on input-only pin...");
@@ -598,14 +545,14 @@ TEST_CASE("spi bus setting with different pin configs", "[spi]")
         .mosi_io_num = spi_periph_signal[TEST_SPI_HOST].spid_iomux_pin, .miso_io_num = INPUT_ONLY_PIN, .sclk_io_num = spi_periph_signal[TEST_SPI_HOST].spiclk_iomux_pin, .quadhd_io_num = spi_periph_signal[TEST_SPI_HOST].spihd_iomux_pin, .quadwp_io_num = spi_periph_signal[TEST_SPI_HOST].spiwp_iomux_pin,
         .max_transfer_sz = 8, .flags = flags_expected
     };
-    TEST_ASSERT_EQUAL(ESP_ERR_INVALID_ARG, spicommon_bus_initialize_io(TEST_SPI_HOST, &cfg, flags_expected | SPICOMMON_BUSFLAG_MASTER, &flags_o, NULL));
-    TEST_ASSERT_EQUAL(ESP_ERR_INVALID_ARG, spicommon_bus_initialize_io(TEST_SPI_HOST, &cfg, flags_expected | SPICOMMON_BUSFLAG_SLAVE, &flags_o, NULL));
+    TEST_ASSERT_EQUAL(ESP_ERR_INVALID_ARG, spicommon_bus_initialize_io(TEST_SPI_HOST, &cfg, flags_expected | SPICOMMON_BUSFLAG_MASTER, &flags_o));
+    TEST_ASSERT_EQUAL(ESP_ERR_INVALID_ARG, spicommon_bus_initialize_io(TEST_SPI_HOST, &cfg, flags_expected | SPICOMMON_BUSFLAG_SLAVE, &flags_o));
     cfg = (spi_bus_config_t) {
         .mosi_io_num = INPUT_ONLY_PIN, .miso_io_num = spi_periph_signal[TEST_SPI_HOST].spiq_iomux_pin, .sclk_io_num = spi_periph_signal[TEST_SPI_HOST].spiclk_iomux_pin, .quadhd_io_num = spi_periph_signal[TEST_SPI_HOST].spihd_iomux_pin, .quadwp_io_num = spi_periph_signal[TEST_SPI_HOST].spiwp_iomux_pin,
         .max_transfer_sz = 8, .flags = flags_expected
     };
-    TEST_ASSERT_EQUAL(ESP_ERR_INVALID_ARG, spicommon_bus_initialize_io(TEST_SPI_HOST, &cfg, flags_expected | SPICOMMON_BUSFLAG_MASTER, &flags_o, NULL));
-    TEST_ASSERT_EQUAL(ESP_ERR_INVALID_ARG, spicommon_bus_initialize_io(TEST_SPI_HOST, &cfg, flags_expected | SPICOMMON_BUSFLAG_SLAVE, &flags_o, NULL));
+    TEST_ASSERT_EQUAL(ESP_ERR_INVALID_ARG, spicommon_bus_initialize_io(TEST_SPI_HOST, &cfg, flags_expected | SPICOMMON_BUSFLAG_MASTER, &flags_o));
+    TEST_ASSERT_EQUAL(ESP_ERR_INVALID_ARG, spicommon_bus_initialize_io(TEST_SPI_HOST, &cfg, flags_expected | SPICOMMON_BUSFLAG_SLAVE, &flags_o));
 
     ESP_LOGI(TAG, "check dual flag for master 3 output pins and MISO/MOSI on input-only pin...");
     flags_expected = SPICOMMON_BUSFLAG_DUAL | SPICOMMON_BUSFLAG_GPIO_PINS;
@@ -613,14 +560,14 @@ TEST_CASE("spi bus setting with different pin configs", "[spi]")
         .mosi_io_num = spi_periph_signal[TEST_SPI_HOST].spid_iomux_pin, .miso_io_num = INPUT_ONLY_PIN, .sclk_io_num = spi_periph_signal[TEST_SPI_HOST].spiclk_iomux_pin, .quadhd_io_num = -1, .quadwp_io_num = -1,
         .max_transfer_sz = 8, .flags = flags_expected
     };
-    TEST_ASSERT_EQUAL(ESP_ERR_INVALID_ARG, spicommon_bus_initialize_io(TEST_SPI_HOST, &cfg, flags_expected | SPICOMMON_BUSFLAG_MASTER, &flags_o, NULL));
-    TEST_ASSERT_EQUAL(ESP_ERR_INVALID_ARG, spicommon_bus_initialize_io(TEST_SPI_HOST, &cfg, flags_expected | SPICOMMON_BUSFLAG_SLAVE, &flags_o, NULL));
+    TEST_ASSERT_EQUAL(ESP_ERR_INVALID_ARG, spicommon_bus_initialize_io(TEST_SPI_HOST, &cfg, flags_expected | SPICOMMON_BUSFLAG_MASTER, &flags_o));
+    TEST_ASSERT_EQUAL(ESP_ERR_INVALID_ARG, spicommon_bus_initialize_io(TEST_SPI_HOST, &cfg, flags_expected | SPICOMMON_BUSFLAG_SLAVE, &flags_o));
     cfg = (spi_bus_config_t) {
         .mosi_io_num = INPUT_ONLY_PIN, .miso_io_num = spi_periph_signal[TEST_SPI_HOST].spiq_iomux_pin, .sclk_io_num = spi_periph_signal[TEST_SPI_HOST].spiclk_iomux_pin, .quadhd_io_num = -1, .quadwp_io_num = -1,
         .max_transfer_sz = 8, .flags = flags_expected
     };
-    TEST_ASSERT_EQUAL(ESP_ERR_INVALID_ARG, spicommon_bus_initialize_io(TEST_SPI_HOST, &cfg, flags_expected | SPICOMMON_BUSFLAG_MASTER, &flags_o, NULL));
-    TEST_ASSERT_EQUAL(ESP_ERR_INVALID_ARG, spicommon_bus_initialize_io(TEST_SPI_HOST, &cfg, flags_expected | SPICOMMON_BUSFLAG_SLAVE, &flags_o, NULL));
+    TEST_ASSERT_EQUAL(ESP_ERR_INVALID_ARG, spicommon_bus_initialize_io(TEST_SPI_HOST, &cfg, flags_expected | SPICOMMON_BUSFLAG_MASTER, &flags_o));
+    TEST_ASSERT_EQUAL(ESP_ERR_INVALID_ARG, spicommon_bus_initialize_io(TEST_SPI_HOST, &cfg, flags_expected | SPICOMMON_BUSFLAG_SLAVE, &flags_o));
 //There is no input-only pin on esp32c3 and esp32s3, so this test could be ignored.
 #endif //#if TEST_SOC_HAS_INPUT_ONLY_PINS
 
@@ -630,8 +577,8 @@ TEST_CASE("spi bus setting with different pin configs", "[spi]")
         .mosi_io_num = spi_periph_signal[TEST_SPI_HOST].spid_iomux_pin, .miso_io_num = spi_periph_signal[TEST_SPI_HOST].spiq_iomux_pin, .sclk_io_num = -1, .quadhd_io_num = spi_periph_signal[TEST_SPI_HOST].spihd_iomux_pin, .quadwp_io_num = spi_periph_signal[TEST_SPI_HOST].spiwp_iomux_pin,
         .max_transfer_sz = 8, .flags = flags_expected
     };
-    TEST_ASSERT_EQUAL(ESP_ERR_INVALID_ARG, spicommon_bus_initialize_io(TEST_SPI_HOST, &cfg, flags_expected | SPICOMMON_BUSFLAG_MASTER, &flags_o, NULL));
-    TEST_ASSERT_EQUAL(ESP_ERR_INVALID_ARG, spicommon_bus_initialize_io(TEST_SPI_HOST, &cfg, flags_expected | SPICOMMON_BUSFLAG_SLAVE, &flags_o, NULL));
+    TEST_ASSERT_EQUAL(ESP_ERR_INVALID_ARG, spicommon_bus_initialize_io(TEST_SPI_HOST, &cfg, flags_expected | SPICOMMON_BUSFLAG_MASTER, &flags_o));
+    TEST_ASSERT_EQUAL(ESP_ERR_INVALID_ARG, spicommon_bus_initialize_io(TEST_SPI_HOST, &cfg, flags_expected | SPICOMMON_BUSFLAG_SLAVE, &flags_o));
 
     ESP_LOGI(TAG, "check mosi flag...");
     flags_expected = SPICOMMON_BUSFLAG_MOSI;
@@ -639,8 +586,8 @@ TEST_CASE("spi bus setting with different pin configs", "[spi]")
         .mosi_io_num = -1, .miso_io_num = spi_periph_signal[TEST_SPI_HOST].spiq_iomux_pin, .sclk_io_num = spi_periph_signal[TEST_SPI_HOST].spiclk_iomux_pin, .quadhd_io_num = spi_periph_signal[TEST_SPI_HOST].spihd_iomux_pin, .quadwp_io_num = spi_periph_signal[TEST_SPI_HOST].spiwp_iomux_pin,
         .max_transfer_sz = 8, .flags = flags_expected
     };
-    TEST_ASSERT_EQUAL(ESP_ERR_INVALID_ARG, spicommon_bus_initialize_io(TEST_SPI_HOST, &cfg, flags_expected | SPICOMMON_BUSFLAG_MASTER, &flags_o, NULL));
-    TEST_ASSERT_EQUAL(ESP_ERR_INVALID_ARG, spicommon_bus_initialize_io(TEST_SPI_HOST, &cfg, flags_expected | SPICOMMON_BUSFLAG_SLAVE, &flags_o, NULL));
+    TEST_ASSERT_EQUAL(ESP_ERR_INVALID_ARG, spicommon_bus_initialize_io(TEST_SPI_HOST, &cfg, flags_expected | SPICOMMON_BUSFLAG_MASTER, &flags_o));
+    TEST_ASSERT_EQUAL(ESP_ERR_INVALID_ARG, spicommon_bus_initialize_io(TEST_SPI_HOST, &cfg, flags_expected | SPICOMMON_BUSFLAG_SLAVE, &flags_o));
 
     ESP_LOGI(TAG, "check miso flag...");
     flags_expected = SPICOMMON_BUSFLAG_MISO;
@@ -648,8 +595,8 @@ TEST_CASE("spi bus setting with different pin configs", "[spi]")
         .mosi_io_num = spi_periph_signal[TEST_SPI_HOST].spid_iomux_pin, .miso_io_num = -1, .sclk_io_num = spi_periph_signal[TEST_SPI_HOST].spiclk_iomux_pin, .quadhd_io_num = spi_periph_signal[TEST_SPI_HOST].spihd_iomux_pin, .quadwp_io_num = spi_periph_signal[TEST_SPI_HOST].spiwp_iomux_pin,
         .max_transfer_sz = 8, .flags = flags_expected
     };
-    TEST_ASSERT_EQUAL(ESP_ERR_INVALID_ARG, spicommon_bus_initialize_io(TEST_SPI_HOST, &cfg, flags_expected | SPICOMMON_BUSFLAG_MASTER, &flags_o, NULL));
-    TEST_ASSERT_EQUAL(ESP_ERR_INVALID_ARG, spicommon_bus_initialize_io(TEST_SPI_HOST, &cfg, flags_expected | SPICOMMON_BUSFLAG_SLAVE, &flags_o, NULL));
+    TEST_ASSERT_EQUAL(ESP_ERR_INVALID_ARG, spicommon_bus_initialize_io(TEST_SPI_HOST, &cfg, flags_expected | SPICOMMON_BUSFLAG_MASTER, &flags_o));
+    TEST_ASSERT_EQUAL(ESP_ERR_INVALID_ARG, spicommon_bus_initialize_io(TEST_SPI_HOST, &cfg, flags_expected | SPICOMMON_BUSFLAG_SLAVE, &flags_o));
 
     ESP_LOGI(TAG, "check quad flag...");
     flags_expected = SPICOMMON_BUSFLAG_QUAD;
@@ -657,14 +604,14 @@ TEST_CASE("spi bus setting with different pin configs", "[spi]")
         .mosi_io_num = spi_periph_signal[TEST_SPI_HOST].spid_iomux_pin, .miso_io_num = spi_periph_signal[TEST_SPI_HOST].spiq_iomux_pin, .sclk_io_num = spi_periph_signal[TEST_SPI_HOST].spiclk_iomux_pin, .quadhd_io_num = -1, .quadwp_io_num = spi_periph_signal[TEST_SPI_HOST].spiwp_iomux_pin,
         .max_transfer_sz = 8, .flags = flags_expected
     };
-    TEST_ASSERT_EQUAL(ESP_ERR_INVALID_ARG, spicommon_bus_initialize_io(TEST_SPI_HOST, &cfg, flags_expected | SPICOMMON_BUSFLAG_MASTER, &flags_o, NULL));
-    TEST_ASSERT_EQUAL(ESP_ERR_INVALID_ARG, spicommon_bus_initialize_io(TEST_SPI_HOST, &cfg, flags_expected | SPICOMMON_BUSFLAG_SLAVE, &flags_o, NULL));
+    TEST_ASSERT_EQUAL(ESP_ERR_INVALID_ARG, spicommon_bus_initialize_io(TEST_SPI_HOST, &cfg, flags_expected | SPICOMMON_BUSFLAG_MASTER, &flags_o));
+    TEST_ASSERT_EQUAL(ESP_ERR_INVALID_ARG, spicommon_bus_initialize_io(TEST_SPI_HOST, &cfg, flags_expected | SPICOMMON_BUSFLAG_SLAVE, &flags_o));
     cfg = (spi_bus_config_t) {
         .mosi_io_num = spi_periph_signal[TEST_SPI_HOST].spid_iomux_pin, .miso_io_num = spi_periph_signal[TEST_SPI_HOST].spiq_iomux_pin, .sclk_io_num = spi_periph_signal[TEST_SPI_HOST].spiclk_iomux_pin, .quadhd_io_num = spi_periph_signal[TEST_SPI_HOST].spihd_iomux_pin, .quadwp_io_num = -1,
         .max_transfer_sz = 8, .flags = flags_expected
     };
-    TEST_ASSERT_EQUAL(ESP_ERR_INVALID_ARG, spicommon_bus_initialize_io(TEST_SPI_HOST, &cfg, flags_expected | SPICOMMON_BUSFLAG_MASTER, &flags_o, NULL));
-    TEST_ASSERT_EQUAL(ESP_ERR_INVALID_ARG, spicommon_bus_initialize_io(TEST_SPI_HOST, &cfg, flags_expected | SPICOMMON_BUSFLAG_SLAVE, &flags_o, NULL));
+    TEST_ASSERT_EQUAL(ESP_ERR_INVALID_ARG, spicommon_bus_initialize_io(TEST_SPI_HOST, &cfg, flags_expected | SPICOMMON_BUSFLAG_MASTER, &flags_o));
+    TEST_ASSERT_EQUAL(ESP_ERR_INVALID_ARG, spicommon_bus_initialize_io(TEST_SPI_HOST, &cfg, flags_expected | SPICOMMON_BUSFLAG_SLAVE, &flags_o));
 }
 
 TEST_CASE("SPI Master no response when switch from host1 (SPI2) to host2 (SPI3)", "[spi]")
@@ -776,27 +723,24 @@ TEST_CASE("SPI Master DMA test, TX and RX in different regions", "[spi]")
     //connect MOSI to two devices breaks the output, fix it.
     spitest_gpio_output_sel(buscfg.mosi_io_num, FUNC_GPIO, spi_periph_signal[TEST_SPI_HOST].spid_out);
 
-#define TEST_REGION_SIZE 3
+#define TEST_REGION_SIZE 2
     static spi_transaction_t trans[TEST_REGION_SIZE];
+    int x;
     memset(trans, 0, sizeof(trans));
 
-    trans[0].length = 320 * 8;
-    trans[0].tx_buffer = data_malloc + 2;
+    trans[0].length = 320 * 8,
+            trans[0].tx_buffer = data_malloc + 2;
     trans[0].rx_buffer = data_dram;
 
-    trans[1].length = 4 * 8;
-    trans[1].flags = SPI_TRANS_USE_RXDATA | SPI_TRANS_USE_TXDATA;
+    trans[1].length = 4 * 8,
+            trans[1].flags = SPI_TRANS_USE_RXDATA | SPI_TRANS_USE_TXDATA;
     uint32_t *ptr = (uint32_t *)trans[1].rx_data;
     *ptr = 0x54545454;
     ptr = (uint32_t *)trans[1].tx_data;
     *ptr = 0xbc124960;
 
-    trans[2].length = 64 * 8;
-    trans[2].tx_buffer = data_drom;
-    trans[2].rx_buffer = data_malloc;
-
     //Queue all transactions.
-    for (int x = 0; x < TEST_REGION_SIZE; x++) {
+    for (x = 0; x < TEST_REGION_SIZE; x++) {
         ESP_LOGI(TAG, "transmitting %d...", x);
         ret = spi_device_transmit(spi, &trans[x]);
         TEST_ASSERT(ret == ESP_OK);
@@ -914,7 +858,10 @@ void test_cmd_addr(spi_slave_task_context_t *slave_context, bool lsb_first)
     TEST_ESP_OK(spi_bus_add_device(TEST_SPI_HOST, &devcfg, &spi));
 
     //connecting pins to two peripherals breaks the output, fix it.
-    same_pin_func_sel(buscfg, devcfg.spics_io_num, 0, false);
+    spitest_gpio_output_sel(buscfg.mosi_io_num, FUNC_GPIO, spi_periph_signal[TEST_SPI_HOST].spid_out);
+    spitest_gpio_output_sel(buscfg.miso_io_num, FUNC_GPIO, spi_periph_signal[TEST_SLAVE_HOST].spiq_out);
+    spitest_gpio_output_sel(devcfg.spics_io_num, FUNC_GPIO, spi_periph_signal[TEST_SPI_HOST].spics_out[0]);
+    spitest_gpio_output_sel(buscfg.sclk_io_num, FUNC_GPIO, spi_periph_signal[TEST_SPI_HOST].spiclk_out);
 
     for (int i = 0; i < 8; i++) {
         //prepare slave tx data
@@ -1099,7 +1046,10 @@ TEST_CASE("SPI master variable dummy test", "[spi]")
     spi_slave_interface_config_t slave_cfg = SPI_SLAVE_TEST_DEFAULT_CONFIG();
     TEST_ESP_OK(spi_slave_initialize(TEST_SLAVE_HOST, &bus_cfg, &slave_cfg, SPI_DMA_DISABLED));
 
-    same_pin_func_sel(bus_cfg, dev_cfg.spics_io_num, 0, false);
+    spitest_gpio_output_sel(bus_cfg.mosi_io_num, FUNC_GPIO, spi_periph_signal[TEST_SPI_HOST].spid_out);
+    spitest_gpio_output_sel(bus_cfg.miso_io_num, FUNC_GPIO, spi_periph_signal[TEST_SLAVE_HOST].spiq_out);
+    spitest_gpio_output_sel(dev_cfg.spics_io_num, FUNC_GPIO, spi_periph_signal[TEST_SPI_HOST].spics_out[0]);
+    spitest_gpio_output_sel(bus_cfg.sclk_io_num, FUNC_GPIO, spi_periph_signal[TEST_SPI_HOST].spiclk_out);
 
     uint8_t data_to_send[] = {0x12, 0x34, 0x56, 0x78};
 
@@ -1142,7 +1092,7 @@ TEST_CASE("SPI master hd dma TX without RX test", "[spi]")
     spi_slave_interface_config_t slave_cfg = SPI_SLAVE_TEST_DEFAULT_CONFIG();
     TEST_ESP_OK(spi_slave_initialize(TEST_SLAVE_HOST, &bus_cfg, &slave_cfg, SPI_DMA_CH_AUTO));
 
-    same_pin_func_sel(bus_cfg, dev_cfg.spics_io_num, 0, false);
+    same_pin_func_sel(bus_cfg, dev_cfg, 0);
 
     uint32_t buf_size = 32;
     uint8_t *mst_send_buf = spi_bus_dma_memory_alloc(TEST_SPI_HOST, buf_size, 0);
@@ -1392,8 +1342,8 @@ TEST_CASE_MULTIPLE_DEVICES("SPI Master: FD, DMA, Master Single Direction Test", 
 /********************************************************************************
  *      Test SPI transaction interval
  ********************************************************************************/
-//Disabled since place code in flash increase the delay
-#if CONFIG_SPI_MASTER_ISR_IN_IRAM
+//Disabled since the check in portENTER_CRITICAL in esp_intr_enable/disable increase the delay
+#ifndef CONFIG_FREERTOS_CHECK_PORT_CRITICAL_COMPLIANCE
 
 #define RECORD_TIME_PREPARE() uint32_t __t1, __t2
 #define RECORD_TIME_START()   do {__t1 = esp_cpu_get_cycle_count();}while(0)
@@ -1474,8 +1424,8 @@ TEST_CASE("spi_speed", "[spi]")
         ESP_LOGI(TAG, "%.2lf", GET_US_BY_CCOUNT(t_flight_sorted[i]));
     }
 #ifndef CONFIG_SPIRAM
-    printf("[Performance][%s]: %d us\n", "SPI_PER_TRANS_INTR_DMA", (int)GET_US_BY_CCOUNT(t_flight_sorted[(TEST_TIMES + 1) / 2]));
-    TEST_ASSERT_LESS_THAN_INT(IDF_TARGET_MAX_TRANS_TIME_INTR_DMA, (int)GET_US_BY_CCOUNT(t_flight_sorted[(TEST_TIMES + 1) / 2]));
+    printf("[Performance][%s]: %d us\n", "SPI_PER_TRANS_NO_POLLING", (int)GET_US_BY_CCOUNT(t_flight_sorted[(TEST_TIMES + 1) / 2]));
+    TEST_ASSERT_LESS_THAN_INT(IDF_PERFORMANCE_MAX_SPI_PER_TRANS_NO_POLLING, (int)GET_US_BY_CCOUNT(t_flight_sorted[(TEST_TIMES + 1) / 2]));
 #endif
 
     //acquire the bus to send polling transactions faster
@@ -1492,8 +1442,8 @@ TEST_CASE("spi_speed", "[spi]")
         ESP_LOGI(TAG, "%.2lf", GET_US_BY_CCOUNT(t_flight_sorted[i]));
     }
 #ifndef CONFIG_SPIRAM
-    printf("[Performance][%s]: %d us\n", "SPI_PER_TRANS_POLL_DMA", (int)GET_US_BY_CCOUNT(t_flight_sorted[(TEST_TIMES + 1) / 2]));
-    TEST_ASSERT_LESS_THAN_INT(IDF_TARGET_MAX_TRANS_TIME_POLL_DMA, (int)GET_US_BY_CCOUNT(t_flight_sorted[(TEST_TIMES + 1) / 2]));
+    printf("[Performance][%s]: %d us\n", "SPI_PER_TRANS_POLLING", (int)GET_US_BY_CCOUNT(t_flight_sorted[(TEST_TIMES + 1) / 2]));
+    TEST_ASSERT_LESS_THAN_INT(IDF_PERFORMANCE_MAX_SPI_PER_TRANS_POLLING, (int)GET_US_BY_CCOUNT(t_flight_sorted[(TEST_TIMES + 1) / 2]));
 #endif
 
     //release the bus
@@ -1512,8 +1462,8 @@ TEST_CASE("spi_speed", "[spi]")
         ESP_LOGI(TAG, "%.2lf", GET_US_BY_CCOUNT(t_flight_sorted[i]));
     }
 #ifndef CONFIG_SPIRAM
-    printf("[Performance][%s]: %d us\n", "SPI_PER_TRANS_INTR_CPU", (int)GET_US_BY_CCOUNT(t_flight_sorted[(TEST_TIMES + 1) / 2]));
-    TEST_ASSERT_LESS_THAN_INT(IDF_TARGET_MAX_TRANS_TIME_INTR_CPU, (int)GET_US_BY_CCOUNT(t_flight_sorted[(TEST_TIMES + 1) / 2]));
+    printf("[Performance][%s]: %d us\n", "SPI_PER_TRANS_NO_POLLING_NO_DMA", (int)GET_US_BY_CCOUNT(t_flight_sorted[(TEST_TIMES + 1) / 2]));
+    TEST_ASSERT_LESS_THAN_INT(IDF_PERFORMANCE_MAX_SPI_PER_TRANS_NO_POLLING_NO_DMA, (int)GET_US_BY_CCOUNT(t_flight_sorted[(TEST_TIMES + 1) / 2]));
 #endif
 
     //acquire the bus to send polling transactions faster
@@ -1530,8 +1480,8 @@ TEST_CASE("spi_speed", "[spi]")
         ESP_LOGI(TAG, "%.2lf", GET_US_BY_CCOUNT(t_flight_sorted[i]));
     }
 #ifndef CONFIG_SPIRAM
-    printf("[Performance][%s]: %d us\n", "SPI_PER_TRANS_POLL_CPU", (int)GET_US_BY_CCOUNT(t_flight_sorted[(TEST_TIMES + 1) / 2]));
-    TEST_ASSERT_LESS_THAN_INT(IDF_TARGET_MAX_TRANS_TIME_POLL_CPU, (int)GET_US_BY_CCOUNT(t_flight_sorted[(TEST_TIMES + 1) / 2]));
+    printf("[Performance][%s]: %d us\n", "SPI_PER_TRANS_POLLING_NO_DMA", (int)GET_US_BY_CCOUNT(t_flight_sorted[(TEST_TIMES + 1) / 2]));
+    TEST_ASSERT_LESS_THAN_INT(IDF_PERFORMANCE_MAX_SPI_PER_TRANS_POLLING_NO_DMA, (int)GET_US_BY_CCOUNT(t_flight_sorted[(TEST_TIMES + 1) / 2]));
 #endif
 
     //release the bus
@@ -1727,7 +1677,6 @@ static IRAM_ATTR void test_master_iram(void)
 
     spi_device_handle_t dev_handle = {0};
     spi_device_interface_config_t devcfg = SPI_DEVICE_TEST_DEFAULT_CONFIG();
-    devcfg.cs_ena_pretrans = 1;
     devcfg.post_cb = test_master_iram_post_trans_cbk;
     TEST_ESP_OK(spi_bus_add_device(TEST_SPI_HOST, &devcfg, &dev_handle));
 
@@ -1843,12 +1792,11 @@ TEST_CASE("test_bus_free_safty_to_remain_devices", "[spi]")
     TEST_ESP_OK(spi_bus_free(TEST_SPI_HOST));
 }
 
-#if SOC_LIGHT_SLEEP_SUPPORTED
 TEST_CASE("test_spi_master_sleep_retention", "[spi]")
 {
     // Prepare a TOP PD sleep
     TEST_ESP_OK(esp_sleep_enable_timer_wakeup(1 * 1000 * 1000));
-#if CONFIG_PM_ESP_SLEEP_POWER_DOWN_CPU
+#if ESP_SLEEP_POWER_DOWN_CPU
     TEST_ESP_OK(sleep_cpu_configure(true));
 #endif
     esp_sleep_context_t sleep_ctx;
@@ -1859,7 +1807,6 @@ TEST_CASE("test_spi_master_sleep_retention", "[spi]")
     spi_device_interface_config_t devcfg = SPI_DEVICE_TEST_DEFAULT_CONFIG();
     buscfg.flags |= SPICOMMON_BUSFLAG_GPIO_PINS;
     buscfg.flags |= SPICOMMON_BUSFLAG_SLP_ALLOW_PD;
-    buscfg.miso_io_num = buscfg.mosi_io_num;    // set spi "self-loop"
     uint8_t send[16] = "hello spi x\n";
     uint8_t recv[16];
     spi_transaction_t trans_cfg = {
@@ -1876,6 +1823,8 @@ TEST_CASE("test_spi_master_sleep_retention", "[spi]")
 #endif
             printf("Retention on GPSPI%d with dma: %d\n", periph + 1, use_dma);
             TEST_ESP_OK(spi_bus_initialize(periph, &buscfg, use_dma));
+            // set spi "self-loop" after bus initialized
+            spitest_gpio_output_sel(buscfg.miso_io_num, FUNC_GPIO, spi_periph_signal[periph].spid_out);
             TEST_ESP_OK(spi_bus_add_device(periph, &devcfg, &dev_handle));
 
             for (uint8_t cnt = 0; cnt < 3; cnt ++) {
@@ -1885,7 +1834,7 @@ TEST_CASE("test_spi_master_sleep_retention", "[spi]")
 
                 // check if the sleep happened as expected
                 TEST_ASSERT_EQUAL(0, sleep_ctx.sleep_request_result);
-#if SOC_SPI_SUPPORT_SLEEP_RETENTION && CONFIG_PM_POWER_DOWN_PERIPHERAL_IN_LIGHT_SLEEP && !SOC_PM_TOP_PD_NOT_ALLOWED
+#if SOC_SPI_SUPPORT_SLEEP_RETENTION && CONFIG_PM_POWER_DOWN_PERIPHERAL_IN_LIGHT_SLEEP
                 // check if the power domain also is powered down
                 TEST_ASSERT_EQUAL((buscfg.flags & SPICOMMON_BUSFLAG_SLP_ALLOW_PD) ? PMU_SLEEP_PD_TOP : 0, (sleep_ctx.sleep_flags) & PMU_SLEEP_PD_TOP);
 #endif
@@ -1902,7 +1851,7 @@ TEST_CASE("test_spi_master_sleep_retention", "[spi]")
     }
 
     esp_sleep_set_sleep_context(NULL);
-#if CONFIG_PM_ESP_SLEEP_POWER_DOWN_CPU
+#if ESP_SLEEP_POWER_DOWN_CPU
     TEST_ESP_OK(sleep_cpu_configure(false));
 #endif
 }
@@ -1930,8 +1879,9 @@ TEST_CASE("test_spi_master_auto_sleep_retention", "[spi]")
         spi_bus_config_t buscfg = SPI_BUS_TEST_DEFAULT_CONFIG();
         buscfg.flags = (allow_pd) ? SPICOMMON_BUSFLAG_SLP_ALLOW_PD : 0;
         buscfg.flags |= SPICOMMON_BUSFLAG_GPIO_PINS;
-        buscfg.miso_io_num = buscfg.mosi_io_num;    // set spi "self-loop"
         TEST_ESP_OK(spi_bus_initialize(TEST_SPI_HOST, &buscfg, SPI_DMA_DISABLED));
+        // set spi "self-loop" after bus initialized
+        spitest_gpio_output_sel(buscfg.miso_io_num, FUNC_GPIO, spi_periph_signal[TEST_SPI_HOST].spid_out);
 
         spi_device_handle_t dev_handle;
         spi_device_interface_config_t devcfg = SPI_DEVICE_TEST_DEFAULT_CONFIG();
@@ -1952,7 +1902,7 @@ TEST_CASE("test_spi_master_auto_sleep_retention", "[spi]")
 
             // check if the sleep happened as expected
             TEST_ASSERT_EQUAL(0, sleep_ctx.sleep_request_result);
-#if SOC_SPI_SUPPORT_SLEEP_RETENTION && CONFIG_PM_POWER_DOWN_PERIPHERAL_IN_LIGHT_SLEEP && !SOC_PM_TOP_PD_NOT_ALLOWED
+#if SOC_SPI_SUPPORT_SLEEP_RETENTION && CONFIG_PM_POWER_DOWN_PERIPHERAL_IN_LIGHT_SLEEP
             // check if the power domain also is powered down
             TEST_ASSERT_EQUAL((buscfg.flags & SPICOMMON_BUSFLAG_SLP_ALLOW_PD) ? PMU_SLEEP_PD_TOP : 0, (sleep_ctx.sleep_flags) & PMU_SLEEP_PD_TOP);
 #endif
@@ -1971,101 +1921,3 @@ TEST_CASE("test_spi_master_auto_sleep_retention", "[spi]")
     TEST_ESP_OK(esp_pm_configure(&pm_config));
 }
 #endif  //CONFIG_PM_ENABLE
-#endif  //SOC_LIGHT_SLEEP_SUPPORTED
-
-#if CONFIG_SPIRAM && SOC_PSRAM_DMA_CAPABLE
-#define TEST_EDMA_PSRAM_TRANS_NUM    5
-#define TEST_EDMA_TRANS_LEN          20000
-#define TEST_EDMA_BUFFER_SZ          (TEST_EDMA_PSRAM_TRANS_NUM * TEST_EDMA_TRANS_LEN)
-
-void test_spi_psram_trans(spi_device_handle_t dev_handle, void *tx, void *rx)
-{
-    spi_transaction_t trans_cfg = {
-        .tx_buffer = tx,
-        .rx_buffer = rx,
-    };
-
-    int trans_len = TEST_EDMA_TRANS_LEN - TEST_EDMA_PSRAM_TRANS_NUM / 2;
-    for (uint8_t cnt = 0; cnt < TEST_EDMA_PSRAM_TRANS_NUM; cnt ++) {
-        trans_cfg.length = trans_len * 8;
-        trans_cfg.rxlength = trans_len * 8;
-        trans_cfg.flags = (cnt % 2) ? 0 : SPI_TRANS_DMA_USE_PSRAM;
-
-        // To use psram, hardware will pass data through MSPI and GDMA to GPSPI, which need some time
-        // GPSPI bandwidth(speed * line_num) should always no more than PSRAM bandwidth
-        trans_cfg.override_freq_hz = (CONFIG_SPIRAM_SPEED / 4) * 1000 * 1000;
-        printf("%d TX %p RX %p len %d @%ld kHz\n", cnt, trans_cfg.tx_buffer, trans_cfg.rx_buffer, trans_len, trans_cfg.override_freq_hz / 1000);
-        TEST_ESP_OK(spi_device_transmit(dev_handle, &trans_cfg));
-        TEST_ASSERT(!(trans_cfg.flags & (SPI_TRANS_DMA_RX_FAIL | SPI_TRANS_DMA_TX_FAIL)));
-        spitest_cmp_or_dump(trans_cfg.tx_buffer, trans_cfg.rx_buffer, trans_len);
-        trans_cfg.tx_buffer += trans_len;
-        trans_cfg.rx_buffer += trans_len;
-        trans_len ++;
-    }
-}
-
-TEST_CASE("SPI_Master: PSRAM buffer transaction via EDMA", "[spi]")
-{
-    spi_bus_config_t buscfg = SPI_BUS_TEST_DEFAULT_CONFIG();
-    buscfg.miso_io_num = buscfg.mosi_io_num;    // set spi "self-loopback"
-    buscfg.max_transfer_sz = TEST_EDMA_BUFFER_SZ;
-    TEST_ESP_OK(spi_bus_initialize(TEST_SPI_HOST, &buscfg, SPI_DMA_CH_AUTO));
-
-    spi_device_handle_t dev_handle = NULL;
-    spi_device_interface_config_t devcfg = SPI_DEVICE_TEST_DEFAULT_CONFIG();
-    devcfg.clock_speed_hz = 80 * 1000 * 1000;   // Test error case on highest freq first
-    TEST_ESP_OK(spi_bus_add_device(TEST_SPI_HOST, &devcfg, &dev_handle));
-    int real_freq_khz;
-    spi_device_get_actual_freq(dev_handle, &real_freq_khz);
-
-    uint8_t *internal_1 = heap_caps_calloc(1, TEST_EDMA_BUFFER_SZ, MALLOC_CAP_INTERNAL);
-    uint8_t *external_1 = heap_caps_calloc(1, TEST_EDMA_BUFFER_SZ, MALLOC_CAP_SPIRAM);
-    uint8_t *external_2 = heap_caps_calloc(1, TEST_EDMA_BUFFER_SZ, MALLOC_CAP_SPIRAM);
-    test_fill_random_to_buffers_dualboard(1001, internal_1, external_2, TEST_EDMA_BUFFER_SZ);
-
-    printf("Test error case: High freq @%d kHz\n", real_freq_khz);
-    spi_transaction_t trans_cfg = {
-        .length = TEST_EDMA_TRANS_LEN * 8,
-        .tx_buffer = external_2,
-        .rx_buffer = external_1,
-    };
-
-    // also test on polling API, and automalloc mechanism
-    for (uint8_t i = 0; i < 2; i++) {
-        printf("\n==== %s ====\n", i ? "EDMA" : "Auto Malloc");
-        trans_cfg.flags = i ? SPI_TRANS_DMA_USE_PSRAM : 0;
-        uint32_t before = esp_get_free_heap_size();
-        spi_device_polling_start(dev_handle, &trans_cfg, portMAX_DELAY);
-        uint32_t after = esp_get_free_heap_size();
-        printf("mem_diff: %ld, trans_len: %d\n", after - before, TEST_EDMA_TRANS_LEN);
-        // rx buffer still potential re-malloc from psram even if SPI_TRANS_DMA_USE_PSRAM is set
-        TEST_ASSERT(i ? (before - after) < 2 * TEST_EDMA_TRANS_LEN : (before - after) > 2 * TEST_EDMA_TRANS_LEN);
-        spi_device_polling_end(dev_handle, portMAX_DELAY);
-        printf("TX fail: %d, RX fail: %d\n", !!(trans_cfg.flags & SPI_TRANS_DMA_TX_FAIL), !!(trans_cfg.flags & SPI_TRANS_DMA_RX_FAIL));
-        TEST_ASSERT((!!i) == !!(trans_cfg.flags & (SPI_TRANS_DMA_TX_FAIL | SPI_TRANS_DMA_RX_FAIL)));
-        if (!i) { // data should be correct if using auto malloc
-            spitest_cmp_or_dump(trans_cfg.tx_buffer, trans_cfg.rx_buffer, TEST_EDMA_TRANS_LEN);
-        }
-    }
-
-    printf("\nTest trans: internal -> psram\n");
-    memset(external_1, 0, TEST_EDMA_BUFFER_SZ);
-    TEST_ESP_OK(esp_cache_msync((void *)external_1, TEST_EDMA_BUFFER_SZ, (ESP_CACHE_MSYNC_FLAG_DIR_C2M | ESP_CACHE_MSYNC_FLAG_UNALIGNED)));
-    test_spi_psram_trans(dev_handle, internal_1, external_1);
-
-    printf("\nTest trans: psram    -> psram\n");
-    memset(external_2, 0, TEST_EDMA_BUFFER_SZ);
-    TEST_ESP_OK(esp_cache_msync((void *)external_2, TEST_EDMA_BUFFER_SZ, (ESP_CACHE_MSYNC_FLAG_DIR_C2M | ESP_CACHE_MSYNC_FLAG_UNALIGNED)));
-    test_spi_psram_trans(dev_handle, external_1, external_2);
-
-    printf("\nTest trans: psram    -> internal\n");
-    memset(internal_1, 0, TEST_EDMA_BUFFER_SZ);
-    test_spi_psram_trans(dev_handle, external_2, internal_1);
-
-    free(internal_1);
-    free(external_1);
-    free(external_2);
-    spi_bus_remove_device(dev_handle);
-    spi_bus_free(TEST_SPI_HOST);
-}
-#endif

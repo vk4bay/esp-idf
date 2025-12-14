@@ -1,6 +1,5 @@
 # SPDX-FileCopyrightText: 2024-2025 Espressif Systems (Shanghai) CO LTD
 # SPDX-License-Identifier: Apache-2.0
-import base64
 import getpass
 import os
 import re
@@ -9,14 +8,17 @@ import sys
 import textwrap
 from datetime import datetime
 from datetime import timedelta
-from importlib.metadata import version as importlib_version
 from pathlib import Path
 from subprocess import run
+from tempfile import gettempdir
 from tempfile import NamedTemporaryFile
 from tempfile import TemporaryDirectory
-from tempfile import gettempdir
+from typing import Dict
+from typing import List
 from typing import TextIO
+from typing import Union
 
+import click
 from console_output import debug
 from console_output import status_message
 from console_output import warn
@@ -24,22 +26,14 @@ from utils import conf
 from utils import run_cmd
 
 
-class Shell:
-    def __init__(self, shell: str, deactivate_cmd: str, new_esp_idf_env: dict[str, str]):
+class Shell():
+    def __init__(self, shell: str, deactivate_cmd: str, new_esp_idf_env: Dict[str,str]):
         self.shell = shell
         self.deactivate_cmd = deactivate_cmd
         self.new_esp_idf_env = new_esp_idf_env
 
         try:
-            username = getpass.getuser()
-            username_safe = (
-                # If username contains special characters, base64-encode it
-                base64.urlsafe_b64encode(username.encode('utf-8')).decode('ascii').rstrip('=')
-                # Find characters that are not ASCII alphanumeric, dot, or dash
-                if re.search(r'[^\w.-]', username, flags=re.ASCII)
-                else username
-            )
-            self.tmp_dir_path = Path(gettempdir()) / f'esp_idf_activate_{username_safe}'
+            self.tmp_dir_path = Path(gettempdir()) / ('esp_idf_activate_' + getpass.getuser())
         except Exception as e:
             self.tmp_dir_path = Path(gettempdir()) / 'esp_idf_activate'
             warn(f'Failed to get username with error: {e}. Using default temporary directory {self.tmp_dir_path}.')
@@ -62,7 +56,7 @@ class Shell:
     def export(self) -> None:
         raise NotImplementedError('Subclass must implement abstract method "export"')
 
-    def expanded_env(self) -> dict[str, str]:
+    def expanded_env(self) -> Dict[str, str]:
         expanded_env = self.new_esp_idf_env.copy()
 
         if 'PATH' not in expanded_env:
@@ -85,7 +79,7 @@ class Shell:
 
 
 class UnixShell(Shell):
-    def __init__(self, shell: str, deactivate_cmd: str, new_esp_idf_env: dict[str, str]):
+    def __init__(self, shell: str, deactivate_cmd: str, new_esp_idf_env: Dict[str,str]):
         super().__init__(shell, deactivate_cmd, new_esp_idf_env)
 
         with NamedTemporaryFile(dir=self.tmp_dir_path, delete=False, prefix='activate_') as fd:
@@ -106,10 +100,8 @@ class UnixShell(Shell):
         stdout = self.autocompletion()  # type: ignore
         if stdout is not None:
             fd.write(f'{stdout}\n')
-        fd.write(
-            'echo "\nDone! You can now compile ESP-IDF projects.\n'
-            'Go to the project directory and run:\n\n  idf.py build"\n'
-        )
+        fd.write((f'echo "\nDone! You can now compile ESP-IDF projects.\n'
+                  'Go to the project directory and run:\n\n  idf.py build"\n'))
 
     def export(self) -> None:
         with open(self.script_file_path, 'w', encoding='utf-8') as fd:
@@ -117,7 +109,7 @@ class UnixShell(Shell):
         print(f'. {self.script_file_path}')
 
     def click_ver(self) -> int:
-        return int(importlib_version('click').split('.')[0])
+        return int(click.__version__.split('.')[0])
 
 
 class BashShell(UnixShell):
@@ -134,7 +126,6 @@ class BashShell(UnixShell):
                 then
                     echo "$WARNING_MSG"
                 fi
-                export IDF_PY_COMP_WORDBREAKS="$COMP_WORDBREAKS"
             fi
             """)
 
@@ -203,7 +194,7 @@ class ZshShell(UnixShell):
 
 
 class FishShell(UnixShell):
-    def __init__(self, shell: str, deactivate_cmd: str, new_esp_idf_env: dict[str, str]):
+    def __init__(self, shell: str, deactivate_cmd: str, new_esp_idf_env: Dict[str,str]):
         super().__init__(shell, deactivate_cmd, new_esp_idf_env)
         self.new_esp_idf_env['IDF_TOOLS_INSTALL_CMD'] = os.path.join(conf.IDF_PATH, 'install.fish')
         self.new_esp_idf_env['IDF_TOOLS_EXPORT_CMD'] = os.path.join(conf.IDF_PATH, 'export.fish')
@@ -227,7 +218,7 @@ class FishShell(UnixShell):
 
 
 class PowerShell(Shell):
-    def __init__(self, shell: str, deactivate_cmd: str, new_esp_idf_env: dict[str, str]):
+    def __init__(self, shell: str, deactivate_cmd: str, new_esp_idf_env: Dict[str,str]):
         super().__init__(shell, deactivate_cmd, new_esp_idf_env)
 
         with NamedTemporaryFile(dir=self.tmp_dir_path, delete=False, prefix='activate_', suffix='.ps1') as fd:
@@ -238,17 +229,14 @@ class PowerShell(Shell):
         self.new_esp_idf_env['IDF_TOOLS_EXPORT_CMD'] = os.path.join(conf.IDF_PATH, 'export.ps1')
 
     def get_functions(self) -> str:
-        ESPTOOL_WRAPPERS = r'$Env:IDF_PATH\components\esptool_py\esptool'
-        return '\n'.join(
-            [
-                r'function idf.py { &python "$Env:IDF_PATH\tools\idf.py" $args }',
-                rf'function global:esptool.py {{ &python "{ESPTOOL_WRAPPERS}\esptool.py" $args }}',
-                rf'function global:espefuse.py {{ &python "{ESPTOOL_WRAPPERS}\espefuse.py" $args }}',
-                rf'function global:espsecure.py {{ &python "{ESPTOOL_WRAPPERS}\espsecure.py" $args }}',
-                r'function global:otatool.py { &python "$Env:IDF_PATH\components\app_update\otatool.py" $args }',
-                r'function global:parttool.py { &python "$Env:IDF_PATH\components\partition_table\parttool.py" $args }',
-            ]
-        )
+        return '\n'.join([
+            r'function idf.py { &python "$Env:IDF_PATH\tools\idf.py" $args }',
+            r'function global:esptool.py { &python -m esptool $args }',
+            r'function global:espefuse.py { &python -m espefuse $args }',
+            r'function global:espsecure.py { &python -m espsecure $args }',
+            r'function global:otatool.py { &python "$Env:IDF_PATH\components\app_update\otatool.py" $args }',
+            r'function global:parttool.py { &python "$Env:IDF_PATH\components\partition_table\parttool.py" $args }',
+        ])
 
     def export(self) -> None:
         self.init_file()
@@ -265,21 +253,19 @@ class PowerShell(Shell):
                 fd.write(f'$Env:{var}="{value}"\n')
             functions = self.get_functions()
             fd.write(f'{functions}\n')
-            fd.write(
-                'echo "\nDone! You can now compile ESP-IDF projects.\n'
-                'Go to the project directory and run:\n\n  idf.py build\n"'
-            )
+            fd.write((f'echo "\nDone! You can now compile ESP-IDF projects.\n'
+                      'Go to the project directory and run:\n\n  idf.py build\n"'))
 
     def spawn(self) -> None:
         self.init_file()
         new_env = os.environ.copy()
         arguments = ['-NoExit', '-Command', f'{self.script_file_path}']
-        cmd: str | list[str] = [self.shell] + arguments
+        cmd: Union[str, List[str]] = [self.shell] + arguments
         run(cmd, env=new_env)
 
 
 class WinCmd(Shell):
-    def __init__(self, shell: str, deactivate_cmd: str, new_esp_idf_env: dict[str, str]):
+    def __init__(self, shell: str, deactivate_cmd: str, new_esp_idf_env: Dict[str,str]):
         super().__init__(shell, deactivate_cmd, new_esp_idf_env)
 
         with NamedTemporaryFile(dir=self.tmp_dir_path, delete=False, prefix='activate_', suffix='.bat') as fd:
@@ -292,16 +278,14 @@ class WinCmd(Shell):
         self.new_esp_idf_env['IDF_TOOLS_PY_PATH'] = conf.IDF_TOOLS_PY
 
     def get_functions(self) -> str:
-        return '\n'.join(
-            [
-                r'DOSKEY idf.py=python.exe "%IDF_PATH%\tools\idf.py" $*',
-                r'DOSKEY esptool.py=python.exe "%IDF_PATH%\components\esptool_py\esptool\esptool.py" $*',
-                r'DOSKEY espefuse.py=python.exe "%IDF_PATH%\components\esptool_py\esptool\espefuse.py" $*',
-                r'DOSKEY espsecure.py=python.exe "%IDF_PATH%\components\esptool_py\esptool\espsecure.py" $*',
-                r'DOSKEY otatool.py=python.exe "%IDF_PATH%\components\app_update\otatool.py" $*',
-                r'DOSKEY parttool.py=python.exe "%IDF_PATH%\components\partition_table\parttool.py" $*',
-            ]
-        )
+        return '\n'.join([
+            r'DOSKEY idf.py=python.exe "%IDF_PATH%\tools\idf.py" $*',
+            r'DOSKEY esptool.py=python.exe -m esptool $*',
+            r'DOSKEY espefuse.py=python.exe -m espefuse $*',
+            r'DOSKEY espsecure.py=python.exe -m espsecure $*',
+            r'DOSKEY otatool.py=python.exe "%IDF_PATH%\components\app_update\otatool.py" $*',
+            r'DOSKEY parttool.py=python.exe "%IDF_PATH%\components\partition_table\parttool.py" $*',
+        ])
 
     def export(self) -> None:
         self.init_file()
@@ -315,24 +299,20 @@ class WinCmd(Shell):
                 fd.write(f'set {var}={value}\n')
             functions = self.get_functions()
             fd.write(f'{functions}\n')
-            fd.write(
-                '\n'.join(
-                    [
-                        'echo.',
-                        'echo Done! You can now compile ESP-IDF projects.',
-                        'echo Go to the project directory and run:',
-                        'echo.',
-                        'echo   idf.py build',
-                        'echo.',
-                    ]
-                )
-            )
+            fd.write('\n'.join([
+                'echo.',
+                'echo Done! You can now compile ESP-IDF projects.',
+                'echo Go to the project directory and run:',
+                'echo.',
+                'echo   idf.py build',
+                'echo.',
+            ]))
 
     def spawn(self) -> None:
         self.init_file()
         new_env = os.environ.copy()
         arguments = ['/k', f'{self.script_file_path}']
-        cmd: str | list[str] = [self.shell] + arguments
+        cmd: Union[str, List[str]] = [self.shell] + arguments
         cmd = ' '.join(cmd)
         run(cmd, env=new_env)
 
@@ -342,14 +322,7 @@ SHELL_CLASSES = {
     'zsh': ZshShell,
     'fish': FishShell,
     'sh': UnixShell,
-    # KornShell variants
     'ksh': UnixShell,
-    'ksh93': UnixShell,
-    'mksh': UnixShell,
-    'lksh': UnixShell,
-    'pdksh': UnixShell,
-    'oksh': UnixShell,
-    'loksh': UnixShell,
     'dash': UnixShell,
     'nu': UnixShell,
     'pwsh.exe': PowerShell,
@@ -357,7 +330,7 @@ SHELL_CLASSES = {
     'powershell.exe': PowerShell,
     'powershell': PowerShell,
     'cmd.exe': WinCmd,
-    'cmd': WinCmd,
+    'cmd': WinCmd
 }
 
 SUPPORTED_SHELLS = ' '.join(SHELL_CLASSES.keys())

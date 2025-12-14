@@ -14,15 +14,14 @@
 #include "esp_log.h"
 #include "esp_memory_utils.h"
 #include "soc/soc_caps.h"
-#include "soc/uart_pins.h"
 
 #include "sdkconfig.h"
 
 #include "driver/gpio.h"
 #include "hal/gpio_hal.h"
 #include "hal/rtc_io_hal.h"
-#include "hal/rtc_io_periph.h"
-#include "soc/uart_pins.h"
+#include "soc/rtc_io_periph.h"
+#include "soc/uart_channel.h"
 
 #include "hal/rtc_hal.h"
 
@@ -32,66 +31,23 @@
 #include "esp_private/startup_internal.h"
 #include "bootloader_flash.h"
 
-ESP_LOG_ATTR_TAG(TAG, "sleep_gpio");
+static const char *TAG = "sleep_gpio";
 
-#if CONFIG_IDF_TARGET_ESP32
-/* On ESP32, for IOs with RTC functionality, setting SLP_PU, SLP_PD couldn't change IO status
- * from FUN_PU, FUN_PD to SLP_PU, SLP_PD at sleep.
- */
-typedef struct gpio_slp_mode_cfg {
-    volatile uint32_t fun_pu;
-    volatile uint32_t fun_pd;
-} gpio_slp_mode_cfg_t;
-
-static DRAM_ATTR gpio_slp_mode_cfg_t gpio_cfg = {};
-
-void esp_sleep_gpio_pupd_config_workaround_apply(void)
+#if CONFIG_GPIO_ESP32_SUPPORT_SWITCH_SLP_PULL
+void gpio_sleep_mode_config_apply(void)
 {
-    /* Record fun_pu and fun_pd state in bitmap */
     for (gpio_num_t gpio_num = GPIO_NUM_0; gpio_num < GPIO_NUM_MAX; gpio_num++) {
-        int rtcio_num = rtc_io_num_map[gpio_num];
-        if (rtcio_num >= 0 && gpio_ll_sleep_sel_is_enabled(&GPIO, gpio_num)) {
-            if (rtcio_ll_is_pullup_enabled(rtcio_num)) {
-                gpio_cfg.fun_pu |= BIT(rtcio_num);
-            } else {
-                gpio_cfg.fun_pu &= ~BIT(rtcio_num);
-            }
-            if (rtcio_ll_is_pulldown_enabled(rtcio_num)) {
-                gpio_cfg.fun_pd |= BIT(rtcio_num);
-            } else {
-                gpio_cfg.fun_pd &= ~BIT(rtcio_num);
-            }
-
-            if (gpio_ll_sleep_pullup_is_enabled(&GPIO, gpio_num)) {
-                rtcio_ll_pullup_enable(rtcio_num);
-            } else {
-                rtcio_ll_pullup_disable(rtcio_num);
-            }
-            if (gpio_ll_sleep_pulldown_is_enabled(&GPIO, gpio_num)) {
-                rtcio_ll_pulldown_enable(rtcio_num);
-            } else {
-                rtcio_ll_pulldown_disable(rtcio_num);
-            }
+        if (GPIO_IS_VALID_GPIO(gpio_num)) {
+            gpio_sleep_pupd_config_apply(gpio_num);
         }
     }
 }
 
-void esp_sleep_gpio_pupd_config_workaround_unapply(void)
+IRAM_ATTR void gpio_sleep_mode_config_unapply(void)
 {
-    /* Restore fun_pu and fun_pd state from bitmap */
     for (gpio_num_t gpio_num = GPIO_NUM_0; gpio_num < GPIO_NUM_MAX; gpio_num++) {
-        int rtcio_num = rtc_io_num_map[gpio_num];
-        if (rtcio_num >= 0 && gpio_ll_sleep_sel_is_enabled(&GPIO, gpio_num)) {
-            if (gpio_cfg.fun_pu & BIT(rtcio_num)) {
-                rtcio_ll_pullup_enable(rtcio_num);
-            } else {
-                rtcio_ll_pullup_disable(rtcio_num);
-            }
-            if (gpio_cfg.fun_pd & BIT(rtcio_num)) {
-                rtcio_ll_pulldown_enable(rtcio_num);
-            } else {
-                rtcio_ll_pulldown_disable(rtcio_num);
-            }
+        if (GPIO_IS_VALID_GPIO(gpio_num)) {
+            gpio_sleep_pupd_config_unapply(gpio_num);
         }
     }
 }
@@ -113,7 +69,7 @@ void esp_sleep_config_gpio_isolate(void)
     gpio_sleep_set_pull_mode(esp_mspi_get_io(ESP_MSPI_IO_D),   GPIO_PULLUP_ONLY);
     gpio_sleep_set_pull_mode(esp_mspi_get_io(ESP_MSPI_IO_HD),  GPIO_PULLUP_ONLY);
     gpio_sleep_set_pull_mode(esp_mspi_get_io(ESP_MSPI_IO_WP),  GPIO_PULLUP_ONLY);
-#if SOC_SPI_MEM_SUPPORT_FLASH_OPI_MODE
+#if SOC_SPI_MEM_SUPPORT_OPI_MODE
     bool octal_mspi_required = bootloader_flash_is_octal_mode_enabled();
 #if CONFIG_SPIRAM_MODE_OCT
     octal_mspi_required |= true;
@@ -125,7 +81,7 @@ void esp_sleep_config_gpio_isolate(void)
         gpio_sleep_set_pull_mode(esp_mspi_get_io(ESP_MSPI_IO_D6),  GPIO_PULLUP_ONLY);
         gpio_sleep_set_pull_mode(esp_mspi_get_io(ESP_MSPI_IO_D7),  GPIO_PULLUP_ONLY);
     }
-#endif // SOC_SPI_MEM_SUPPORT_FLASH_OPI_MODE
+#endif // SOC_SPI_MEM_SUPPORT_OPI_MODE
 #endif // CONFIG_ESP_SLEEP_MSPI_NEED_ALL_IO_PU
 }
 
@@ -136,11 +92,11 @@ void esp_sleep_enable_gpio_switch(bool enable)
         if (GPIO_IS_VALID_GPIO(gpio_num)) {
 #if CONFIG_ESP_CONSOLE_UART
 #if CONFIG_ESP_CONSOLE_UART_CUSTOM
-            const int uart_tx_gpio = (CONFIG_ESP_CONSOLE_UART_TX_GPIO >= 0) ? CONFIG_ESP_CONSOLE_UART_TX_GPIO : U0TXD_GPIO_NUM;
-            const int uart_rx_gpio = (CONFIG_ESP_CONSOLE_UART_RX_GPIO >= 0) ? CONFIG_ESP_CONSOLE_UART_RX_GPIO : U0RXD_GPIO_NUM;
+            const int uart_tx_gpio = (CONFIG_ESP_CONSOLE_UART_TX_GPIO >= 0) ? CONFIG_ESP_CONSOLE_UART_TX_GPIO : UART_NUM_0_TXD_DIRECT_GPIO_NUM;
+            const int uart_rx_gpio = (CONFIG_ESP_CONSOLE_UART_RX_GPIO >= 0) ? CONFIG_ESP_CONSOLE_UART_RX_GPIO : UART_NUM_0_RXD_DIRECT_GPIO_NUM;
             if ((gpio_num == uart_tx_gpio) || (gpio_num == uart_rx_gpio)) {
 #else
-            if ((gpio_num == U0TXD_GPIO_NUM) || (gpio_num == U0RXD_GPIO_NUM)) {
+            if ((gpio_num == UART_NUM_0_TXD_DIRECT_GPIO_NUM) || (gpio_num == UART_NUM_0_RXD_DIRECT_GPIO_NUM)) {
 #endif
                 gpio_sleep_sel_dis(gpio_num);
                 continue;
@@ -170,7 +126,7 @@ void esp_sleep_enable_gpio_switch(bool enable)
     }
 }
 
-#if !SOC_GPIO_SUPPORT_HOLD_SINGLE_IO_IN_DSLP
+#if SOC_GPIO_SUPPORT_HOLD_IO_IN_DSLP && !SOC_GPIO_SUPPORT_HOLD_SINGLE_IO_IN_DSLP
 IRAM_ATTR void esp_sleep_isolate_digital_gpio(void)
 {
     gpio_hal_context_t gpio_hal = {
@@ -195,23 +151,6 @@ IRAM_ATTR void esp_sleep_isolate_digital_gpio(void)
     /* isolate digital IO that is not held(keep the configuration of digital IOs held by users) */
     for (gpio_num_t gpio_num = GPIO_NUM_0; gpio_num < GPIO_NUM_MAX; gpio_num++) {
         if (GPIO_IS_VALID_DIGITAL_IO_PAD(gpio_num) && !gpio_hal_is_digital_io_hold(&gpio_hal, gpio_num)) {
-
-            bool is_mspi_io_pad = false;
-            esp_mspi_io_t mspi_ios[] = { ESP_MSPI_IO_CS0, ESP_MSPI_IO_CLK, ESP_MSPI_IO_Q, ESP_MSPI_IO_D, ESP_MSPI_IO_HD, ESP_MSPI_IO_WP };
-            for (int i = 0; i < sizeof(mspi_ios) / sizeof(mspi_ios[0]); i++) {
-                if (esp_mspi_get_io(mspi_ios[i]) == gpio_num) {
-                    is_mspi_io_pad = true;
-                    break;
-                }
-            }
-            // Ignore MSPI and default Console UART io pads, When the CPU executes
-            // the following instructions to configure the MSPI IO PAD, access on
-            // the MSPI signal lines (as CPU instruction execution and MSPI access
-            // operations are asynchronous) may cause the SoC to hang.
-            if (is_mspi_io_pad || gpio_num == U0RXD_GPIO_NUM || gpio_num == U0TXD_GPIO_NUM) {
-                continue;
-            }
-
             /* disable I/O */
             gpio_hal_input_disable(&gpio_hal, gpio_num);
             gpio_hal_output_disable(&gpio_hal, gpio_num);
@@ -225,7 +164,7 @@ IRAM_ATTR void esp_sleep_isolate_digital_gpio(void)
         }
     }
 }
-#endif //!SOC_GPIO_SUPPORT_HOLD_SINGLE_IO_IN_DSLP
+#endif //SOC_GPIO_SUPPORT_HOLD_IO_IN_DSLP && !SOC_GPIO_SUPPORT_HOLD_SINGLE_IO_IN_DSLP
 
 #if SOC_DEEP_SLEEP_SUPPORTED
 void esp_deep_sleep_wakeup_io_reset(void)

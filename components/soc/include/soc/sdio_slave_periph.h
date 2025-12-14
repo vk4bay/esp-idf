@@ -1,7 +1,7 @@
 /*
- * SPDX-FileCopyrightText: 2015-2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2015-2023 Espressif Systems (Shanghai) CO LTD
  *
- * SPDX-License-Identifier: Apache-2.0 OR MIT
+ * SPDX-License-Identifier: Apache-2.0
  */
 
 #pragma once
@@ -10,12 +10,12 @@
 #include "soc/soc_caps.h"
 #include "soc/soc_pins.h"
 #if SOC_SDIO_SLAVE_SUPPORTED
-#include "soc/sdio_slc_reg.h"
-#include "soc/sdio_slc_struct.h"
-#include "soc/sdio_slc_host_reg.h"
-#include "soc/sdio_slc_host_struct.h"
-#include "soc/sdio_hinf_reg.h"
-#include "soc/sdio_hinf_struct.h"
+#include "soc/slc_reg.h"
+#include "soc/slc_struct.h"
+#include "soc/host_reg.h"
+#include "soc/host_struct.h"
+#include "soc/hinf_reg.h"
+#include "soc/hinf_struct.h"
 #endif
 
 #ifdef __cplusplus

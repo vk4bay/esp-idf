@@ -72,9 +72,9 @@ void esp_vhci_host_send_packet_wrapper(uint8_t *data, uint16_t len)
 #if (BT_HCI_LOG_INCLUDED == TRUE)
     bt_hci_log_record_hci_data(data[0], &data[1], len - 1);
 #endif
-#if CONFIG_BT_BLE_LOG_SPI_OUT_HCI_ENABLED
-    ble_log_spi_out_hci_write(BLE_LOG_SPI_OUT_SOURCE_HCI_DOWNSTREAM, data, len);
-#endif // CONFIG_BT_BLE_LOG_SPI_OUT_HCI_ENABLED
+#if (CONFIG_BT_BLE_LOG_SPI_OUT_HCI_ENABLED && !SOC_ESP_NIMBLE_CONTROLLER)
+    ble_log_spi_out_write_with_ts(BLE_LOG_SPI_OUT_SOURCE_HCI_DOWNSTREAM, data, len);
+#endif // (CONFIG_BT_BLE_LOG_SPI_OUT_HCI_ENABLED && !SOC_ESP_NIMBLE_CONTROLLER)
     esp_vhci_host_send_packet(data, len);
 }
 
@@ -96,11 +96,7 @@ int ble_hci_trans_hs_cmd_tx(uint8_t *cmd)
         rc = BLE_HS_ETIMEOUT_HCI;
     }
 
-#if MYNEWT_VAL(MP_RUNTIME_ALLOC)
-    ble_transport_free(BLE_HCI_CMD, cmd);
-#else
     ble_transport_free(cmd);
-#endif
     return rc;
 }
 
@@ -166,36 +162,22 @@ static void ble_hci_rx_acl(uint8_t *data, uint16_t len)
     struct os_mbuf *m = NULL;
     int rc;
     int sr;
-
-    int retry_count = 1;
-
     if (len < BLE_HCI_DATA_HDR_SZ || len > MYNEWT_VAL(BLE_TRANSPORT_ACL_SIZE)) {
         return;
     }
 
-
-   do {
+    do {
         m = ble_transport_alloc_acl_from_ll();
 
         if (!m) {
-            if (retry_count % 5) {
-                esp_rom_printf("ACL buf alloc failed %d times\n", retry_count);
-                esp_rom_printf("Free ACL mbufs: %d\n", os_msys_num_free());
-            }
-
-            vTaskDelay(1);
-            retry_count++;
-
-            if (retry_count >= 30) {
-		esp_rom_printf("MBUF alloc stuck");
-                return;
-            }
+            ESP_LOGD(TAG,"Failed to allocate buffer, retrying ");
+	    /* Give some time to free buffer and try again */
+	    vTaskDelay(1);
 	}
-    } while (!m);
-
+    }while(!m);
 
     if ((rc = os_mbuf_append(m, data, len)) != 0) {
-        esp_rom_printf("%s failed to os_mbuf_append; rc = %d", __func__, rc);
+        ESP_LOGE(TAG, "%s failed to os_mbuf_append; rc = %d", __func__, rc);
         os_mbuf_free_chain(m);
         return;
     }
@@ -249,15 +231,15 @@ static int dummy_host_rcv_pkt(uint8_t *data, uint16_t len)
  */
 static int host_rcv_pkt(uint8_t *data, uint16_t len)
 {
-#if CONFIG_BT_BLE_LOG_SPI_OUT_HCI_ENABLED
-    ble_log_spi_out_hci_write(BLE_LOG_SPI_OUT_SOURCE_HCI_UPSTREAM, data, len);
-#endif // CONFIG_BT_BLE_LOG_SPI_OUT_HCI_ENABLED
+#if (CONFIG_BT_BLE_LOG_SPI_OUT_HCI_ENABLED && !SOC_ESP_NIMBLE_CONTROLLER)
+    ble_log_spi_out_write_with_ts(BLE_LOG_SPI_OUT_SOURCE_HCI_UPSTREAM, data, len);
+#endif // (CONFIG_BT_BLE_LOG_SPI_OUT_HCI_ENABLED && !SOC_ESP_NIMBLE_CONTROLLER)
 
     bt_record_hci_data(data, len);
 
     if(!ble_hs_enabled_state) {
         /* If host is not enabled, drop the packet */
-        esp_rom_printf("Host not enabled. Dropping the packet!");
+        ESP_LOGE(TAG, "Host not enabled. Dropping the packet!");
         return 0;
     }
 
@@ -270,7 +252,7 @@ static int host_rcv_pkt(uint8_t *data, uint16_t len)
         assert(totlen <= UINT8_MAX + BLE_HCI_EVENT_HDR_LEN);
 
         if (totlen > MYNEWT_VAL(BLE_TRANSPORT_EVT_SIZE)) {
-            esp_rom_printf("Received HCI data length at host (%d) exceeds maximum configured HCI event buffer size (%d).",
+            ESP_LOGE(TAG, "Received HCI data length at host (%d) exceeds maximum configured HCI event buffer size (%d).",
                      totlen, MYNEWT_VAL(BLE_TRANSPORT_EVT_SIZE));
             ble_hs_sched_reset(BLE_HS_ECONTROLLER);
             return 0;

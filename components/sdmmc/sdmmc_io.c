@@ -17,7 +17,6 @@
 
 #include <inttypes.h>
 #include "esp_private/sdmmc_common.h"
-#include "freertos/FreeRTOS.h"
 #include "esp_attr.h"
 #include "esp_compiler.h"
 
@@ -67,12 +66,9 @@ esp_err_t sdmmc_io_reset(sdmmc_card_t* card)
 {
     uint8_t sdio_reset = CCCR_CTL_RES;
     esp_err_t err = sdmmc_io_rw_direct(card, 0, SD_IO_CCCR_CTL, SD_ARG_CMD52_WRITE, &sdio_reset);
-    if (err == ESP_ERR_TIMEOUT || (host_is_spi(card) && err == ESP_ERR_NOT_SUPPORTED) || err == ESP_ERR_INVALID_CRC) {
+    if (err == ESP_ERR_TIMEOUT || (host_is_spi(card) && err == ESP_ERR_NOT_SUPPORTED)) {
         /* Non-IO cards are allowed to time out (in SD mode) or
          * return "invalid command" error (in SPI mode).
-         * CRC errors are also allowed as the card may be in a state where
-         * CRC is enabled from a previous session, especially after ESP32 restart
-         * without power cycling the SD card.
          */
     } else if (err == ESP_ERR_NOT_FOUND) {
         ESP_LOGD(TAG, "%s: card not present", __func__);
@@ -323,8 +319,9 @@ esp_err_t sdmmc_io_rw_extended(sdmmc_card_t* card, int func,
         .blklen = SDMMC_IO_BLOCK_SIZE /* TODO: read max block size from CIS */
     };
 
-    bool is_aligned = card->host.check_buffer_alignment(card->host.slot, datap, buflen);
-    if (unlikely(datalen > 0 && !is_aligned)) {
+    esp_dma_mem_info_t dma_mem_info;
+    card->host.get_dma_info(card->host.slot, &dma_mem_info);
+    if (unlikely(datalen > 0 && !esp_dma_is_buffer_alignment_satisfied(datap, buflen, dma_mem_info))) {
         if (datalen > SDMMC_IO_BLOCK_SIZE || card->host.dma_aligned_buffer == NULL) {
             // User gives unaligned buffer while `SDMMC_HOST_FLAG_ALLOC_ALIGNED_BUF` not set.
             return ESP_ERR_INVALID_ARG;
@@ -466,8 +463,9 @@ esp_err_t sdmmc_io_read_blocks(sdmmc_card_t* card, uint32_t function,
         addr &= ~SDMMC_IO_FIXED_ADDR;
     }
 
-    bool is_aligned = card->host.check_buffer_alignment(card->host.slot, dst, size);
-    if (unlikely(!is_aligned)) {
+    esp_dma_mem_info_t dma_mem_info;
+    card->host.get_dma_info(card->host.slot, &dma_mem_info);
+    if (unlikely(!esp_dma_is_buffer_alignment_satisfied(dst, size, dma_mem_info))) {
         return ESP_ERR_INVALID_ARG;
     }
     return sdmmc_io_rw_extended(card, function, addr, arg, dst, size);
@@ -483,8 +481,9 @@ esp_err_t sdmmc_io_write_blocks(sdmmc_card_t* card, uint32_t function,
         addr &= ~SDMMC_IO_FIXED_ADDR;
     }
 
-    bool is_aligned = card->host.check_buffer_alignment(card->host.slot, src, size);
-    if (unlikely(!is_aligned)) {
+    esp_dma_mem_info_t dma_mem_info;
+    card->host.get_dma_info(card->host.slot, &dma_mem_info);
+    if (unlikely(!esp_dma_is_buffer_alignment_satisfied(src, size, dma_mem_info))) {
         return ESP_ERR_INVALID_ARG;
     }
     return sdmmc_io_rw_extended(card, function, addr, arg, (void*) src, size);
@@ -498,7 +497,7 @@ esp_err_t sdmmc_io_enable_int(sdmmc_card_t* card)
     return (*card->host.io_int_enable)(card->host.slot);
 }
 
-esp_err_t sdmmc_io_wait_int(sdmmc_card_t* card, uint32_t timeout_ticks)
+esp_err_t sdmmc_io_wait_int(sdmmc_card_t* card, TickType_t timeout_ticks)
 {
     if (card->host.io_int_wait == NULL) {
         return ESP_ERR_NOT_SUPPORTED;

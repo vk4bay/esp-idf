@@ -1,14 +1,7 @@
 idf_build_get_property(target IDF_TARGET)
-idf_build_get_property(esp_tee_build ESP_TEE_BUILD)
 
 set(srcs "hal_utils.c")
 set(includes "platform_port/include")
-set(requires)
-
-if(${target} STREQUAL "esp32")
-    # TODO: IDF-14079 remove this dependency when ADC hal is graduated from the common hal component
-    list(APPEND requires esp_hal_i2s)
-endif()
 
 # target specific include must be added before the generic one
 # because of the "include_next" directive used by the efuse_hal.h
@@ -26,6 +19,10 @@ endif()
 
 if(CONFIG_SOC_LP_TIMER_SUPPORTED)
     list(APPEND srcs "lp_timer_hal.c")
+endif()
+
+if(CONFIG_SOC_WDT_SUPPORTED AND NOT CONFIG_HAL_WDT_USE_ROM_IMPL)
+    list(APPEND srcs "wdt_hal_iram.c")
 endif()
 
 if(CONFIG_SOC_KEY_MANAGER_SUPPORTED)
@@ -51,31 +48,17 @@ else()
     endif()
 endif()
 
-if(esp_tee_build)
-    list(APPEND srcs "apm_hal.c"
-                     "brownout_hal.c")
-
-    if(CONFIG_SOC_AES_SUPPORTED)
-        list(APPEND srcs "aes_hal.c")
-    endif()
-
-    if(CONFIG_SOC_SHA_SUPPORTED)
-        list(APPEND srcs "sha_hal.c")
-    endif()
-
-    if(CONFIG_SOC_HMAC_SUPPORTED)
-        list(APPEND srcs "hmac_hal.c")
-    endif()
-
-    if(CONFIG_SOC_DIG_SIGN_SUPPORTED)
-        list(APPEND srcs "ds_hal.c")
-    endif()
-
-    if(CONFIG_SOC_ECC_SUPPORTED)
-        list(APPEND srcs "ecc_hal.c")
-    endif()
-elseif(NOT BOOTLOADER_BUILD)
+if(NOT BOOTLOADER_BUILD)
     list(APPEND srcs "color_hal.c")
+
+    if(NOT CONFIG_APP_BUILD_TYPE_PURE_RAM_APP)
+        if(CONFIG_SOC_SPI_FLASH_SUPPORTED)
+            list(APPEND srcs "spi_flash_hal.c" "spi_flash_hal_iram.c")
+        endif()
+        if(CONFIG_SOC_FLASH_ENC_SUPPORTED)
+            list(APPEND srcs "spi_flash_encrypt_hal_iram.c")
+        endif()
+    endif()
 
     if(CONFIG_SOC_CLK_TREE_SUPPORTED)
         list(APPEND srcs "${target}/clk_tree_hal.c")
@@ -89,28 +72,100 @@ elseif(NOT BOOTLOADER_BUILD)
         list(APPEND srcs "uart_hal.c" "uart_hal_iram.c")
     endif()
 
+    if(CONFIG_SOC_GPIO_PORT)
+        list(APPEND srcs "gpio_hal.c")
+    endif()
+
+    if(CONFIG_SOC_RTCIO_PIN_COUNT)
+        list(APPEND srcs "rtc_io_hal.c")
+    endif()
+
+    if(CONFIG_SOC_GPTIMER_SUPPORTED)
+        list(APPEND srcs "timer_hal.c")
+    endif()
+
     if(CONFIG_SOC_LEDC_SUPPORTED)
         list(APPEND srcs "ledc_hal.c" "ledc_hal_iram.c")
     endif()
 
-    if(CONFIG_SOC_I3C_MASTER_SUPPORTED)
-        list(APPEND srcs "i3c_master_hal.c")
+    if(CONFIG_SOC_I2C_SUPPORTED)
+        list(APPEND srcs "i2c_hal.c" "i2c_hal_iram.c")
     endif()
 
     if(CONFIG_SOC_ISP_SUPPORTED)
         list(APPEND srcs "isp_hal.c")
     endif()
 
-    if(CONFIG_SOC_UHCI_SUPPORTED)
-        list(APPEND srcs "uhci_hal.c")
+    if(CONFIG_SOC_LP_I2S_SUPPORTED)
+        list(APPEND srcs "lp_i2s_hal.c")
+    endif()
+
+    if(CONFIG_SOC_RMT_SUPPORTED)
+        list(APPEND srcs "rmt_hal.c")
+    endif()
+
+    if(CONFIG_SOC_PCNT_SUPPORTED)
+        list(APPEND srcs "pcnt_hal.c")
+    endif()
+
+    if(CONFIG_SOC_MCPWM_SUPPORTED)
+        list(APPEND srcs "mcpwm_hal.c")
+    endif()
+
+    if(CONFIG_SOC_TWAI_SUPPORTED)
+        list(APPEND srcs "twai_hal.c" "twai_hal_iram.c")
+    endif()
+
+    if(CONFIG_SOC_GDMA_SUPPORTED)
+        list(APPEND srcs "gdma_hal_top.c")
+
+        if(CONFIG_SOC_GDMA_SUPPORT_CRC)
+            list(APPEND srcs "gdma_hal_crc_gen.c")
+        endif()
+
+        if(CONFIG_SOC_AHB_GDMA_VERSION EQUAL 1)
+            list(APPEND srcs "gdma_hal_ahb_v1.c")
+        endif()
+
+        if(CONFIG_SOC_AHB_GDMA_VERSION EQUAL 2)
+            list(APPEND srcs "gdma_hal_ahb_v2.c")
+        endif()
+
+        if(CONFIG_SOC_AXI_GDMA_SUPPORTED)
+            list(APPEND srcs "gdma_hal_axi.c")
+        endif()
+    endif()
+
+    if(CONFIG_SOC_DW_GDMA_SUPPORTED)
+        list(APPEND srcs "dw_gdma_hal.c")
+    endif()
+
+    if(CONFIG_SOC_DMA2D_SUPPORTED)
+        list(APPEND srcs "dma2d_hal.c")
+    endif()
+
+    if(CONFIG_SOC_I2S_SUPPORTED)
+        list(APPEND srcs "i2s_hal.c")
+    endif()
+
+    if(CONFIG_SOC_SDM_SUPPORTED)
+        list(APPEND srcs "sdm_hal.c")
     endif()
 
     if(CONFIG_SOC_SDMMC_HOST_SUPPORTED)
         list(APPEND srcs "sdmmc_hal.c")
     endif()
 
+    if(CONFIG_ETH_USE_ESP32_EMAC)
+        list(APPEND srcs "emac_hal.c")
+    endif()
+
     if(CONFIG_SOC_ETM_SUPPORTED)
-        list(APPEND srcs "etm_hal.c" "${target}/etm_periph.c")
+        list(APPEND srcs "etm_hal.c")
+    endif()
+
+    if(CONFIG_SOC_PARLIO_SUPPORTED)
+        list(APPEND srcs "parlio_hal.c")
     endif()
 
     if(CONFIG_SOC_ADC_SUPPORTED)
@@ -119,6 +174,18 @@ elseif(NOT BOOTLOADER_BUILD)
         if(CONFIG_SOC_ADC_DMA_SUPPORTED)
             list(APPEND srcs "adc_hal.c")
         endif()
+    endif()
+
+    if(CONFIG_SOC_LCDCAM_SUPPORTED)
+        list(APPEND srcs "lcd_hal.c")
+    endif()
+
+    if(CONFIG_SOC_MIPI_DSI_SUPPORTED)
+        list(APPEND srcs "mipi_dsi_hal.c")
+    endif()
+
+    if(CONFIG_SOC_MIPI_CSI_SUPPORTED)
+        list(APPEND srcs "mipi_csi_hal.c")
     endif()
 
     if(CONFIG_SOC_ECC_SUPPORTED)
@@ -153,8 +220,8 @@ elseif(NOT BOOTLOADER_BUILD)
         list(APPEND srcs "brownout_hal.c")
     endif()
 
-    if(CONFIG_SOC_VBAT_SUPPORTED)
-        list(APPEND srcs "vbat_hal.c")
+    if(CONFIG_SOC_JPEG_CODEC_SUPPORTED)
+        list(APPEND srcs "jpeg_hal.c")
     endif()
 
     if(CONFIG_SOC_PPA_SUPPORTED)
@@ -162,7 +229,6 @@ elseif(NOT BOOTLOADER_BUILD)
     endif()
 
     if(CONFIG_SOC_GPSPI_SUPPORTED)
-        # Remember to add esp_hal_gpio to esp_hal_spi PRIV_REQUIRES!!!
         list(APPEND srcs
             "spi_hal.c"
             "spi_hal_iram.c"
@@ -173,6 +239,10 @@ elseif(NOT BOOTLOADER_BUILD)
         if(CONFIG_SOC_SPI_SUPPORT_SLAVE_HD_VER2)
             list(APPEND srcs "spi_slave_hd_hal.c")
         endif()
+    endif()
+
+    if(CONFIG_SOC_GPSPI_SUPPORTED AND NOT CONFIG_IDF_TARGET_ESP32)
+        list(APPEND srcs "spi_flash_hal_gpspi.c")
     endif()
 
     if(CONFIG_SOC_SDIO_SLAVE_SUPPORTED)
@@ -197,30 +267,70 @@ elseif(NOT BOOTLOADER_BUILD)
         list(APPEND srcs "ds_hal.c")
     endif()
 
+    if(CONFIG_SOC_LCDCAM_CAM_SUPPORTED)
+        list(APPEND srcs "cam_hal.c")
+    endif()
+
+    if(CONFIG_SOC_USB_SERIAL_JTAG_SUPPORTED)
+        list(APPEND srcs "usb_serial_jtag_hal.c")
+    endif()
+
+    if(CONFIG_SOC_USB_UTMI_PHY_NUM GREATER 0)
+        list(APPEND srcs "usb_utmi_hal.c")
+    endif()
+
+    if(CONFIG_SOC_USB_OTG_SUPPORTED)
+        list(APPEND srcs
+                    "usb_dwc_hal.c"
+                    "usb_wrap_hal.c")
+    endif()
+
     if(CONFIG_SOC_TOUCH_SENSOR_SUPPORTED)
-        # Source files for the legacy touch hal driver
+        list(APPEND srcs "${target}/touch_sensor_hal.c")
         if(CONFIG_SOC_TOUCH_SENSOR_VERSION LESS 3)
-            list(APPEND srcs "${target}/touch_sensor_hal.c")
             list(APPEND srcs "touch_sensor_hal.c")
         endif()
-        # Source files for the new touch hal driver
-        list(APPEND srcs "touch_sens_hal.c")
     endif()
 
-    if(CONFIG_SOC_TEMP_SENSOR_SUPPORTED)
-        list(APPEND srcs "temperature_sensor_hal.c")
+    if(${target} STREQUAL "esp32")
+        list(APPEND srcs
+            "esp32/gpio_hal_workaround.c")
     endif()
 
-    if(EXISTS "${CMAKE_CURRENT_LIST_DIR}/${target}/rtc_cntl_hal.c")
-        list(APPEND srcs "${target}/rtc_cntl_hal.c")
+    if(${target} STREQUAL "esp32s2")
+        list(APPEND srcs
+                    "xt_wdt_hal.c"
+                    "esp32s2/cp_dma_hal.c")
     endif()
 
+    if(${target} STREQUAL "esp32s3")
+        list(APPEND srcs
+            "xt_wdt_hal.c"
+            "esp32s3/rtc_cntl_hal.c")
+    endif()
+
+    if(${target} STREQUAL "esp32c3")
+        list(APPEND srcs
+              "xt_wdt_hal.c"
+              "esp32c3/rtc_cntl_hal.c")
+    endif()
+
+    if(${target} STREQUAL "esp32c2")
+        list(APPEND srcs
+              "esp32c2/rtc_cntl_hal.c")
+    endif()
+
+    if(${target} STREQUAL "esp32h2")
+        list(REMOVE_ITEM srcs
+                "esp32h2/rtc_cntl_hal.c"
+                )
+    endif()
 endif()
 
 idf_component_register(SRCS ${srcs}
                        INCLUDE_DIRS ${includes}
                        PRIV_INCLUDE_DIRS ${priv_include}
-                       REQUIRES ${requires}
+                       REQUIRES soc esp_rom
                        LDFRAGMENTS linker.lf)
 
 if(CONFIG_HAL_DEFAULT_ASSERTION_LEVEL EQUAL 1)

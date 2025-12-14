@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2015-2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2015-2024 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -44,12 +44,6 @@ extern "C" {
 #define SPI_LL_CPU_MAX_BIT_LEN    (16 * 32)    //Fifo len: 16 words
 #define SPI_LL_MOSI_FREE_LEVEL    0            //Default level after bus initialized
 
-// CS_WORKAROUND: SPI slave with using DMA, the rx dma suffers from unexpected transactions
-// before slave is ready, need disconnect CS before and after each transaction
-#define SPI_LL_SLAVE_NEEDS_CS_WORKAROUND    1
-#define SPI_LL_SLAVE_NEEDS_RESET_WORKAROUND 1
-#define SPI_LL_SUPPORT_TIME_TUNING          1
-
 /**
  * The data structure holding calculated clock configuration. Since the
  * calculation needs long time, it should be calculated during initialization and
@@ -69,10 +63,10 @@ typedef spi_dev_t spi_dma_dev_t;
  * @param host_id   Peripheral index number, see `spi_host_device_t`
  * @param enable    Enable/Disable
  */
-static inline void spi_ll_enable_bus_clock(spi_host_device_t host_id, bool enable)
-{
+static inline void spi_ll_enable_bus_clock(spi_host_device_t host_id, bool enable) {
     if (enable) {
-        switch (host_id) {
+        switch (host_id)
+        {
         case SPI1_HOST:
             DPORT_SET_PERI_REG_MASK(DPORT_PERIP_CLK_EN_REG, DPORT_SPI01_CLK_EN);
             break;
@@ -85,7 +79,8 @@ static inline void spi_ll_enable_bus_clock(spi_host_device_t host_id, bool enabl
         default: HAL_ASSERT(false);
         }
     } else {
-        switch (host_id) {
+        switch (host_id)
+        {
         case SPI1_HOST:
             DPORT_CLEAR_PERI_REG_MASK(DPORT_PERIP_CLK_EN_REG, DPORT_SPI01_CLK_EN);
             break;
@@ -102,19 +97,16 @@ static inline void spi_ll_enable_bus_clock(spi_host_device_t host_id, bool enabl
 
 /// use a macro to wrap the function, force the caller to use it in a critical section
 /// the critical section needs to declare the __DECLARE_RCC_ATOMIC_ENV variable in advance
-#define spi_ll_enable_bus_clock(...) do { \
-        (void)__DECLARE_RCC_ATOMIC_ENV; \
-        spi_ll_enable_bus_clock(__VA_ARGS__); \
-    } while(0)
+#define spi_ll_enable_bus_clock(...) (void)__DECLARE_RCC_ATOMIC_ENV; spi_ll_enable_bus_clock(__VA_ARGS__)
 
 /**
  * Reset whole peripheral register to init value defined by HW design
  *
  * @param host_id   Peripheral index number, see `spi_host_device_t`
  */
-static inline void spi_ll_reset_register(spi_host_device_t host_id)
-{
-    switch (host_id) {
+static inline void spi_ll_reset_register(spi_host_device_t host_id) {
+    switch (host_id)
+    {
     case SPI1_HOST:
         DPORT_SET_PERI_REG_MASK(DPORT_PERIP_RST_EN_REG, DPORT_SPI01_RST);
         DPORT_CLEAR_PERI_REG_MASK(DPORT_PERIP_RST_EN_REG, DPORT_SPI01_RST);
@@ -133,10 +125,7 @@ static inline void spi_ll_reset_register(spi_host_device_t host_id)
 
 /// use a macro to wrap the function, force the caller to use it in a critical section
 /// the critical section needs to declare the __DECLARE_RCC_ATOMIC_ENV variable in advance
-#define spi_ll_reset_register(...) do { \
-        (void)__DECLARE_RCC_ATOMIC_ENV; \
-        spi_ll_reset_register(__VA_ARGS__); \
-    } while(0)
+#define spi_ll_reset_register(...) (void)__DECLARE_RCC_ATOMIC_ENV; spi_ll_reset_register(__VA_ARGS__)
 
 /**
  * Enable functional output clock within peripheral
@@ -661,7 +650,6 @@ static inline void spi_ll_master_set_clock_by_reg(spi_dev_t *hw, const spi_ll_cl
  *
  * @return Frequency of given dividers.
  */
-__attribute__((always_inline))
 static inline int spi_ll_freq_for_pre_n(int fapb, int pre, int n)
 {
     return (fapb / (pre * n));
@@ -677,7 +665,6 @@ static inline int spi_ll_freq_for_pre_n(int fapb, int pre, int n)
  *
  * @return Actual (nearest) frequency.
  */
-__attribute__((always_inline))
 static inline int spi_ll_master_cal_clock(int fapb, int hz, int duty_cycle, spi_ll_clock_val_t *out_reg)
 {
     typeof(SPI1.clock) reg = {.val = 0};
@@ -825,9 +812,7 @@ static inline void spi_ll_set_miso_delay(spi_dev_t *hw, int delay_mode, int dela
 static inline void spi_ll_set_dummy(spi_dev_t *hw, int dummy_n)
 {
     hw->user.usr_dummy = dummy_n ? 1 : 0;
-    if (dummy_n > 0) {
-        HAL_FORCE_MODIFY_U32_REG_FIELD(hw->user1, usr_dummy_cyclelen, dummy_n - 1);
-    }
+    HAL_FORCE_MODIFY_U32_REG_FIELD(hw->user1, usr_dummy_cyclelen, dummy_n - 1);
 }
 
 /**
@@ -1095,8 +1080,7 @@ static inline void spi_ll_enable_int(spi_dev_t *hw)
  * @param host_id   Peripheral index number, see `spi_host_device_t`
  * @param enable    Enable/Disable
  */
-static inline void spi_dma_ll_enable_bus_clock(spi_host_device_t host_id, bool enable)
-{
+static inline void spi_dma_ll_enable_bus_clock(spi_host_device_t host_id, bool enable) {
     (void)host_id; // has only one spi_dma
     if (enable) {
         DPORT_SET_PERI_REG_MASK(DPORT_PERIP_CLK_EN_REG, DPORT_SPI_DMA_CLK_EN);
@@ -1107,10 +1091,7 @@ static inline void spi_dma_ll_enable_bus_clock(spi_host_device_t host_id, bool e
 
 /// use a macro to wrap the function, force the caller to use it in a critical section
 /// the critical section needs to declare the __DECLARE_RCC_ATOMIC_ENV variable in advance
-#define spi_dma_ll_enable_bus_clock(...) do { \
-        (void)__DECLARE_RCC_ATOMIC_ENV; \
-        spi_dma_ll_enable_bus_clock(__VA_ARGS__); \
-    } while(0)
+#define spi_dma_ll_enable_bus_clock(...) (void)__DECLARE_RCC_ATOMIC_ENV; spi_dma_ll_enable_bus_clock(__VA_ARGS__)
 
 /**
  * Reset whole peripheral register to init value defined by HW design
@@ -1118,8 +1099,7 @@ static inline void spi_dma_ll_enable_bus_clock(spi_host_device_t host_id, bool e
  * @param host_id   Peripheral index number, see `spi_host_device_t`
  */
 __attribute__((always_inline))
-static inline void spi_dma_ll_reset_register(spi_host_device_t host_id)
-{
+static inline void spi_dma_ll_reset_register(spi_host_device_t host_id) {
     (void)host_id; // has only one spi_dma
     DPORT_SET_PERI_REG_MASK(DPORT_PERIP_RST_EN_REG, DPORT_SPI_DMA_RST);
     DPORT_CLEAR_PERI_REG_MASK(DPORT_PERIP_RST_EN_REG, DPORT_SPI_DMA_RST);
@@ -1127,10 +1107,7 @@ static inline void spi_dma_ll_reset_register(spi_host_device_t host_id)
 
 /// use a macro to wrap the function, force the caller to use it in a critical section
 /// the critical section needs to declare the __DECLARE_RCC_ATOMIC_ENV variable in advance
-#define spi_dma_ll_reset_register(...) do { \
-        (void)__DECLARE_RCC_ATOMIC_ENV; \
-        spi_dma_ll_reset_register(__VA_ARGS__); \
-    } while(0)
+#define spi_dma_ll_reset_register(...) (void)__DECLARE_RCC_ATOMIC_ENV; spi_dma_ll_reset_register(__VA_ARGS__)
 
 /**
  * Reset RX DMA which stores the data received from a peripheral into RAM.
@@ -1182,19 +1159,6 @@ static inline void spi_dma_ll_rx_enable_burst_data(spi_dma_dev_t *dma_in, uint32
 static inline void spi_dma_ll_rx_enable_burst_desc(spi_dma_dev_t *dma_in, uint32_t channel, bool enable)
 {
     dma_in->dma_conf.indscr_burst_en = enable;
-}
-
-/**
- * Get the DMA RX alignment requirements
- *
- * @param dma_dev Beginning address of the DMA peripheral registers.
- * @param internal_size The internal memory alignment requirements.
- * @param external_size The external memory alignment requirements.
- */
-static inline void spi_dma_ll_get_rx_alignment_require(spi_dma_dev_t *dma_dev, uint32_t *internal_size, uint32_t *external_size)
-{
-    *internal_size = 4;     // esp32 needs 4 bytes alignment on hardware design
-    *external_size = UINT32_MAX;    // dma of esp32 spi don't support external memory
 }
 
 /**

@@ -4,7 +4,7 @@ set(srcs "esp_cam_ctlr.c" "dvp_share_ctrl.c")
 
 set(includes "include" "interface")
 
-set(requires "esp_driver_isp" "esp_hal_cam")
+set(requires "esp_driver_isp")
 
 set(priv_requires "esp_driver_gpio")
 
@@ -34,7 +34,3 @@ idf_component_register(SRCS ${srcs}
                        REQUIRES ${requires}
                        PRIV_REQUIRES ${priv_requires}
                       )
-
-if(CONFIG_PM_ENABLE)
-    idf_component_optional_requires(PRIVATE esp_pm)
-endif()

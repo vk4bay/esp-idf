@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2015-2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2015-2024 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -8,7 +8,6 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include "esp_attr.h"
-#include "esp_rom_sys.h"
 
 #include "soc/adc_periph.h"
 #include "soc/apb_saradc_struct.h"
@@ -39,10 +38,6 @@ extern "C" {
 #define ADC_LL_GET_HIGH_THRES_MASK(monitor_id)    ((monitor_id == 0) ? APB_SARADC_APB_SARADC_THRES0_HIGH_INT_ST_M : APB_SARADC_APB_SARADC_THRES1_HIGH_INT_ST_M)
 #define ADC_LL_GET_LOW_THRES_MASK(monitor_id)     ((monitor_id == 0) ? APB_SARADC_APB_SARADC_THRES0_LOW_INT_ST_M : APB_SARADC_APB_SARADC_THRES1_LOW_INT_ST_M)
 
-#define ADC_LL_NEED_APB_PERIPH_CLAIM(ADC_UNIT)      (1)
-#define ADC_LL_ADC_FE_ON_MODEM_DOMAIN               (1)
-
-#define ADC_LL_UNIT2_CHANNEL_SUBSTRATION 0
 /*---------------------------------------------------------------
                     Oneshot
 ---------------------------------------------------------------*/
@@ -62,7 +57,7 @@ extern "C" {
 #define ADC_LL_CLKM_DIV_B_DEFAULT         1
 #define ADC_LL_CLKM_DIV_A_DEFAULT         0
 #define ADC_LL_DEFAULT_CONV_LIMIT_EN      0
-#define ADC_LL_DEFAULT_CONV_LIMIT_NUM     255
+#define ADC_LL_DEFAULT_CONV_LIMIT_NUM     10
 
 #define ADC_LL_POWER_MANAGE_SUPPORTED     1 //ESP32C6 supported to manage power mode
 /*---------------------------------------------------------------
@@ -133,7 +128,7 @@ static inline void adc_ll_digi_set_fsm_time(uint32_t rst_wait, uint32_t start_wa
  */
 static inline void adc_ll_set_sample_cycle(uint32_t sample_cycle)
 {
-    /* Analog i2c master clock needs to be enabled for regi2c operations (done inside REGI2C_WRITE_MASK) */
+    /* Peripheral reg i2c has powered up in rtc_init, write directly */
     REGI2C_WRITE_MASK(I2C_SAR_ADC, ADC_SAR1_SAMPLE_CYCLE_ADDR, sample_cycle);
 }
 
@@ -143,7 +138,6 @@ static inline void adc_ll_set_sample_cycle(uint32_t sample_cycle)
  *
  * @param div Division factor.
  */
-__attribute__((always_inline))
 static inline void adc_ll_digi_set_clk_div(uint32_t div)
 {
     /* ADC clock divided from digital controller clock clk */
@@ -193,7 +187,6 @@ static inline void adc_ll_digi_set_convert_mode(adc_ll_digi_convert_mode_t mode)
  * @param adc_n ADC unit.
  * @param patt_len Items range: 1 ~ 8.
  */
-__attribute__((always_inline))
 static inline void adc_ll_digi_set_pattern_table_len(adc_unit_t adc_n, uint32_t patt_len)
 {
     APB_SARADC.saradc_ctrl.saradc_saradc_sar_patt_len = patt_len - 1;
@@ -209,7 +202,6 @@ static inline void adc_ll_digi_set_pattern_table_len(adc_unit_t adc_n, uint32_t 
  * @param pattern_index Items index. Range: 0 ~ 7.
  * @param pattern Stored conversion rules.
  */
-__attribute__((always_inline))
 static inline void adc_ll_digi_set_pattern_table(adc_unit_t adc_n, uint32_t pattern_index, adc_digi_pattern_config_t table)
 {
     uint32_t tab;
@@ -229,15 +221,6 @@ static inline void adc_ll_digi_set_pattern_table(adc_unit_t adc_n, uint32_t patt
         tab |= ((uint32_t)(pattern.val & 0x3F) << 18) >> offset;    // Fill in the new data
         APB_SARADC.saradc_sar_patt_tab2.saradc_saradc_sar_patt_tab2 = tab;         // Write back
     }
-}
-
-/**
- * Rest pattern table to default value
- */
-static inline void adc_ll_digi_reset_pattern_table(void)
-{
-    APB_SARADC.saradc_sar_patt_tab1.saradc_saradc_sar_patt_tab1 = 0xffffff;
-    APB_SARADC.saradc_sar_patt_tab2.saradc_saradc_sar_patt_tab2 = 0xffffff;
 }
 
 /**
@@ -282,7 +265,6 @@ static inline void adc_ll_digi_output_invert(adc_unit_t adc_n, bool inv_en)
  * @note The trigger interval should not be smaller than the sampling time of the SAR ADC.
  * @param cycle The clock cycle (trigger interval) of the measurement. Range: 30 ~ 4095.
  */
-__attribute__((always_inline))
 static inline void adc_ll_digi_set_trigger_interval(uint32_t cycle)
 {
     APB_SARADC.saradc_ctrl2.saradc_saradc_timer_target = cycle;
@@ -291,7 +273,6 @@ static inline void adc_ll_digi_set_trigger_interval(uint32_t cycle)
 /**
  * Enable digital controller timer to trigger the measurement.
  */
-__attribute__((always_inline))
 static inline void adc_ll_digi_trigger_enable(void)
 {
     APB_SARADC.saradc_ctrl2.saradc_saradc_timer_en = 1;
@@ -300,7 +281,6 @@ static inline void adc_ll_digi_trigger_enable(void)
 /**
  * Disable digital controller timer to trigger the measurement.
  */
-__attribute__((always_inline))
 static inline void adc_ll_digi_trigger_disable(void)
 {
     APB_SARADC.saradc_ctrl2.saradc_saradc_timer_en = 0;
@@ -314,7 +294,6 @@ static inline void adc_ll_digi_trigger_disable(void)
  * @param div_b Division factor. Range: 1 ~ 63.
  * @param div_a Division factor. Range: 0 ~ 63.
  */
-__attribute__((always_inline))
 static inline void adc_ll_digi_controller_clk_div(uint32_t div_num, uint32_t div_b, uint32_t div_a)
 {
     HAL_FORCE_MODIFY_U32_REG_FIELD(PCR.saradc_clkm_conf, saradc_clkm_div_num, div_num);
@@ -327,7 +306,6 @@ static inline void adc_ll_digi_controller_clk_div(uint32_t div_num, uint32_t div
  *
  * @param clk_src clock source for ADC digital controller.
  */
-__attribute__((always_inline))
 static inline void adc_ll_digi_clk_sel(adc_continuous_clk_src_t clk_src)
 {
     switch (clk_src) {
@@ -582,26 +560,25 @@ static inline uint32_t adc_ll_pwdet_get_cct(void)
  * @brief Enable the ADC clock
  * @param enable true to enable, false to disable
  */
-__attribute__((always_inline))
 static inline void adc_ll_enable_bus_clock(bool enable)
 {
     PCR.saradc_conf.saradc_reg_clk_en = enable;
 }
 
+#if SOC_RCC_IS_INDEPENDENT
 /**
  * @brief Enable the ADC function clock
  * @param enable true to enable, false to disable
  */
-__attribute__((always_inline))
 static inline void adc_ll_enable_func_clock(bool enable)
 {
     PCR.saradc_clkm_conf.saradc_clkm_en = enable;
 }
+#endif
 
 /**
  * @brief Reset ADC module
  */
-__attribute__((always_inline))
 static inline void adc_ll_reset_register(void)
 {
     PCR.saradc_conf.saradc_rst_en = 1;
@@ -637,10 +614,6 @@ static inline void adc_ll_set_controller(adc_unit_t adc_n, adc_ll_controller_t c
 {
     //Not used on ESP32C6
 }
-
-/*---------------------------------------------------------------
-                    Calibration
----------------------------------------------------------------*/
 
 /* ADC calibration code. */
 /**
@@ -694,81 +667,11 @@ static inline void adc_ll_calibration_finish(adc_unit_t adc_n)
 __attribute__((always_inline))
 static inline void adc_ll_set_calibration_param(adc_unit_t adc_n, uint32_t param)
 {
+    HAL_ASSERT(adc_n == ADC_UNIT_1);
     uint8_t msb = param >> 8;
     uint8_t lsb = param & 0xFF;
-
-    if (adc_n == ADC_UNIT_1) {
-        REGI2C_WRITE_MASK(I2C_SAR_ADC, ADC_SAR1_INITIAL_CODE_HIGH_ADDR, msb);
-        REGI2C_WRITE_MASK(I2C_SAR_ADC, ADC_SAR1_INITIAL_CODE_LOW_ADDR, lsb);
-    } else {
-        //C6 doesn't support ADC2, here is for backward compatibility for RNG
-        REGI2C_WRITE_MASK(I2C_SAR_ADC, ADC_SAR2_INITIAL_CODE_HIGH_ADDR, msb);
-        REGI2C_WRITE_MASK(I2C_SAR_ADC, ADC_SAR2_INITIAL_CODE_LOW_ADDR, lsb);
-    }
-}
-
-/**
- * Set the SAR DTEST param
- *
- * @param param DTEST value
- */
-__attribute__((always_inline))
-static inline void adc_ll_set_dtest_param(uint32_t param)
-{
-    REGI2C_WRITE_MASK(I2C_SAR_ADC, ADC_SARADC_DTEST_RTC_ADDR, param);
-}
-
-/**
- * Set the SAR ENT param
- *
- * @param param ENT value
- */
-__attribute__((always_inline))
-static inline void adc_ll_set_ent_param(uint32_t param)
-{
-    REGI2C_WRITE_MASK(I2C_SAR_ADC, ADC_SARADC_ENT_RTC_ADDR, param);
-}
-
-/**
- * Enable/disable the calibration voltage reference for ADC unit.
- *
- * @param adc_n ADC index number.
- * @param en true to enable, false to disable
- */
-__attribute__((always_inline))
-static inline void adc_ll_enable_calibration_ref(adc_unit_t adc_n, bool en)
-{
-    //C6 doesn't support ADC2, here is for backward compatibility for RNG
-    if (adc_n == ADC_UNIT_1) {
-        REGI2C_WRITE_MASK(I2C_SAR_ADC, ADC_SARADC1_ENCAL_REF_ADDR, en);
-    } else {
-        REGI2C_WRITE_MASK(I2C_SAR_ADC, ADC_SARADC2_ENCAL_REF_ADDR, en);
-    }
-}
-
-/**
- * Init regi2c SARADC registers
- */
-__attribute__((always_inline))
-static inline void adc_ll_regi2c_init(void)
-{
-    adc_ll_set_dtest_param(2);
-    adc_ll_set_ent_param(1);
-    // Config ADC circuit (Analog part) with I2C(HOST ID 0x69) and chose internal voltage as sampling source
-    adc_ll_enable_calibration_ref(ADC_UNIT_1, true);
-    adc_ll_enable_calibration_ref(ADC_UNIT_2, true);
-}
-
-/**
- * Deinit regi2c SARADC registers
- */
-__attribute__((always_inline))
-static inline void adc_ll_regi2c_adc_deinit(void)
-{
-    adc_ll_set_dtest_param(0);
-    adc_ll_set_ent_param(0);
-    adc_ll_enable_calibration_ref(ADC_UNIT_1, false);
-    adc_ll_enable_calibration_ref(ADC_UNIT_2, false);
+    REGI2C_WRITE_MASK(I2C_SAR_ADC, ADC_SAR1_INITIAL_CODE_HIGH_ADDR, msb);
+    REGI2C_WRITE_MASK(I2C_SAR_ADC, ADC_SAR1_INITIAL_CODE_LOW_ADDR, lsb);
 }
 
 /*---------------------------------------------------------------
@@ -902,11 +805,7 @@ static inline void adc_oneshot_ll_output_invert(adc_unit_t adc_n, bool inv_en)
 static inline void adc_oneshot_ll_enable(adc_unit_t adc_n)
 {
     HAL_ASSERT(adc_n == ADC_UNIT_1);
-    // For ESP32C6, it need to delay 50us after enable oneshot mode to ensure the ADC channel select is stable.
-    if (APB_SARADC.saradc_onetime_sample.saradc_saradc1_onetime_sample == 0) {
-        APB_SARADC.saradc_onetime_sample.saradc_saradc1_onetime_sample = 1;
-        esp_rom_delay_us(50);
-    }
+    APB_SARADC.saradc_onetime_sample.saradc_saradc1_onetime_sample = 1;
 }
 
 /**
@@ -914,7 +813,8 @@ static inline void adc_oneshot_ll_enable(adc_unit_t adc_n)
  */
 static inline void adc_oneshot_ll_disable_all_unit(void)
 {
-    // For ESP32C6, we keep saradc_saradc1_onetime_sample as 1 when oneshot mode.
+    APB_SARADC.saradc_onetime_sample.saradc_saradc1_onetime_sample = 0;
+    APB_SARADC.saradc_onetime_sample.saradc_saradc2_onetime_sample = 0;
 }
 
 /**

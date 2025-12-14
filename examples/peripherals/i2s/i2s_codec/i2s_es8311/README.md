@@ -1,5 +1,5 @@
-| Supported Targets | ESP32 | ESP32-C3 | ESP32-C5 | ESP32-C6 | ESP32-C61 | ESP32-H2 | ESP32-H21 | ESP32-H4 | ESP32-P4 | ESP32-S2 | ESP32-S3 |
-| ----------------- | ----- | -------- | -------- | -------- | --------- | -------- | --------- | -------- | -------- | -------- | -------- |
+| Supported Targets | ESP32 | ESP32-C3 | ESP32-C6 | ESP32-H2 | ESP32-P4 | ESP32-S2 | ESP32-S3 |
+| ----------------- | ----- | -------- | -------- | -------- | -------- | -------- | -------- |
 
 # I2S ES8311 Example
 
@@ -59,11 +59,11 @@ Note: Since ESP32-C3 & ESP32-H2 board does not have GPIO 16/17, you can use othe
 
 ### Dependency
 
-This example is based on [esp_codec_dev component](https://components.espressif.com/components/espressif/esp_codec_dev)
+This example is based on [es8311 component](https://components.espressif.com/component/espressif/es8311)
 
-The component can be installed by [IDF Component Manager](https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-guides/tools/idf-component-manager.html). This example already includes it. If you want to install [esp_codec_dev component](https://components.espressif.com/components/espressif/esp_codec_dev) separately in your project, you can input the following command:
+The component can be installed by [IDF Component Manager](https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-guides/tools/idf-component-manager.html). This example already includes it. If you want to install [es8311 component](https://components.espressif.com/components/espressif/es8311) separately in your project, you can input the following command:
 ```
-idf.py add-dependency "espressif/esp_codec_dev^1.3.4"
+idf.py add-dependency "espressif/es8311^1.0.0"
 ```
 
 If the dependency is added, you can check `idf_component.yml` for more detail. When building this example or other projects with managed components, the component manager will search for the required components online and download them into the `managed_components` folder.
@@ -142,7 +142,7 @@ The example have contained a piece of music in canon.pcm, if you want to play yo
 2. Install 'ffmpeg' tool
 3. Check your music format using ```ffprobe a.mp3```, you can get the stream format (e.g. Stream #0.0: Audio: mp3, 44100Hz, stereo, s16p, 64kb/s)
 4. Cut your music since there is no enough space for the whole piece of music. ```ffmpeg -i  a.mp3 -ss 00:00:00  -t  00:00:20  a_cut.mp3```
-5. Transfer the music format into .pcm. ```ffmpeg -i a_cut.mp3 -f s16le -ar 16000 -ac 2 -acodec pcm_s16le a.pcm```
+5. Transfer the music format into .pcm. ```ffmpeg -i a_cut.mp3 -f s16ls -ar 16000 -ac -1 -acodec pcm_s16le a.pcm```
 6. Move 'a.pcm' under 'main' directory
 7. Replace 'canon.pcm' with 'a.pcm' in 'CMakeLists.txt' under 'main' directory
 8. Replace '_binary_canon_pcm_start' and '_binary_canon_pcm_end' with '_binary_a_pcm_start' and '_binary_a_pcm_end' in `i2s_es8311_example.c`

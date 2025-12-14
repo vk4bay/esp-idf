@@ -31,8 +31,8 @@ menu "Example 'GATT SERVER' Config"
             overhead at runtime.
 
     config EXAMPLE_CI_ID
-        int "example id for CI test"
-        default 0
+        int
+        default 70
         help
             This config the example id for CI test. Only for internal used.
 

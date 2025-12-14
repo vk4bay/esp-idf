@@ -187,5 +187,4 @@ menu "Example Configuration"
             Event Mask for processing sleep wake-up events from the controller.
             The controller sends a wake-up event (HCI_LE_SLEEP_WAKE_UP 0xFF 0xC3)
             when it resumes from sleep.
-
 endmenu

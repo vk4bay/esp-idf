@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#include <stdatomic.h>
 #include "esp_openthread_radio.h"
 
 #include "esp_err.h"
@@ -12,7 +13,6 @@
 #include "esp_ieee802154.h"
 #include "esp_ieee802154_types.h"
 #include "esp_mac.h"
-#include "esp_openthread_common.h"
 #include "esp_openthread_common_macro.h"
 #include "esp_openthread_platform.h"
 #include "esp_openthread_types.h"
@@ -51,6 +51,12 @@ typedef struct {
     uint8_t length;
     uint8_t psdu[OT_RADIO_FRAME_MAX_SIZE];
 } esp_openthread_radio_tx_psdu;
+
+typedef struct {
+    uint8_t head;
+    uint8_t tail;
+    atomic_uint_fast8_t used;
+} esp_openthread_circular_queue_info_t;
 
 static otRadioFrame s_transmit_frame;
 
@@ -165,39 +171,51 @@ esp_err_t esp_openthread_radio_process(otInstance *aInstance, const esp_openthre
 
     if (get_event(EVENT_TX_DONE)) {
         clr_event(EVENT_TX_DONE);
-
-        if (s_ack_frame.mPsdu == NULL) {
-            otPlatRadioTxDone(aInstance, &s_transmit_frame, NULL, OT_ERROR_NONE);
-        } else {
-            otPlatRadioTxDone(aInstance, &s_transmit_frame, &s_ack_frame, OT_ERROR_NONE);
-            esp_ieee802154_receive_handle_done(s_ack_frame.mPsdu - 1);
-            s_ack_frame.mPsdu = NULL;
+#if CONFIG_OPENTHREAD_DIAG
+        if (otPlatDiagModeGet()) {
+            otPlatDiagRadioTransmitDone(aInstance, &s_transmit_frame, OT_ERROR_NONE);
+        } else
+#endif
+        {
+            if (s_ack_frame.mPsdu == NULL) {
+                otPlatRadioTxDone(aInstance, &s_transmit_frame, NULL, OT_ERROR_NONE);
+            } else {
+                otPlatRadioTxDone(aInstance, &s_transmit_frame, &s_ack_frame, OT_ERROR_NONE);
+                esp_ieee802154_receive_handle_done(s_ack_frame.mPsdu - 1);
+                s_ack_frame.mPsdu = NULL;
+            }
         }
     }
 
     if (get_event(EVENT_TX_FAILED)) {
         clr_event(EVENT_TX_FAILED);
+#if CONFIG_OPENTHREAD_DIAG
+        if (otPlatDiagModeGet()) {
+            otPlatDiagRadioTransmitDone(aInstance, &s_transmit_frame, OT_ERROR_CHANNEL_ACCESS_FAILURE);
+        } else
+#endif
+        {
+            otError err = OT_ERROR_NONE;
 
-        otError err = OT_ERROR_NONE;
+            switch (s_tx_error) {
+            case ESP_IEEE802154_TX_ERR_CCA_BUSY:
+            case ESP_IEEE802154_TX_ERR_ABORT:
+            case ESP_IEEE802154_TX_ERR_COEXIST:
+                err = OT_ERROR_CHANNEL_ACCESS_FAILURE;
+                break;
 
-        switch (s_tx_error) {
-        case ESP_IEEE802154_TX_ERR_CCA_BUSY:
-        case ESP_IEEE802154_TX_ERR_ABORT:
-        case ESP_IEEE802154_TX_ERR_COEXIST:
-            err = OT_ERROR_CHANNEL_ACCESS_FAILURE;
-            break;
+            case ESP_IEEE802154_TX_ERR_NO_ACK:
+            case ESP_IEEE802154_TX_ERR_INVALID_ACK:
+                err = OT_ERROR_NO_ACK;
+                break;
 
-        case ESP_IEEE802154_TX_ERR_NO_ACK:
-        case ESP_IEEE802154_TX_ERR_INVALID_ACK:
-            err = OT_ERROR_NO_ACK;
-            break;
+            default:
+                ETS_ASSERT(false);
+                break;
+            }
 
-        default:
-            ETS_ASSERT(false);
-            break;
+            otPlatRadioTxDone(aInstance, &s_transmit_frame, NULL, err);
         }
-
-        otPlatRadioTxDone(aInstance, &s_transmit_frame, NULL, err);
     }
 
     if (get_event(EVENT_ENERGY_DETECT_DONE)) {
@@ -207,7 +225,14 @@ esp_err_t esp_openthread_radio_process(otInstance *aInstance, const esp_openthre
 
     while (atomic_load(&s_recv_queue.used)) {
         if (s_receive_frame[s_recv_queue.head].mPsdu != NULL) {
-            otPlatRadioReceiveDone(aInstance, &s_receive_frame[s_recv_queue.head], OT_ERROR_NONE);
+#if CONFIG_OPENTHREAD_DIAG
+            if (otPlatDiagModeGet()) {
+                otPlatDiagRadioReceiveDone(aInstance, &s_receive_frame[s_recv_queue.head], OT_ERROR_NONE);
+            } else
+#endif
+            {
+                otPlatRadioReceiveDone(aInstance, &s_receive_frame[s_recv_queue.head], OT_ERROR_NONE);
+            }
             esp_ieee802154_receive_handle_done(s_receive_frame[s_recv_queue.head].mPsdu - 1);
             s_receive_frame[s_recv_queue.head].mPsdu = NULL;
             s_recv_queue.head = (s_recv_queue.head + 1) % CONFIG_IEEE802154_RX_BUFFER_SIZE;
@@ -792,18 +817,6 @@ void otPlatRadioSetRxOnWhenIdle(otInstance *aInstance, bool aEnable)
 }
 #endif
 
-uint32_t otPlatRadioGetPreferredChannelMask(otInstance *aInstance)
-{
-    OT_UNUSED_VARIABLE(aInstance);
-    return CONFIG_OPENTHREAD_PREFERRED_CHANNEL_MASK;
-}
-
-uint32_t otPlatRadioGetSupportedChannelMask(otInstance *aInstance)
-{
-    OT_UNUSED_VARIABLE(aInstance);
-    return CONFIG_OPENTHREAD_SUPPORTED_CHANNEL_MASK;
-}
-
 #if (CONFIG_ESP_COEX_SW_COEXIST_ENABLE || CONFIG_EXTERNAL_COEX_ENABLE)
 void esp_openthread_set_coex_config(esp_ieee802154_coex_config_t config)
 {
@@ -815,6 +828,18 @@ esp_ieee802154_coex_config_t esp_openthread_get_coex_config(void)
     return esp_ieee802154_get_coex_config();
 }
 #endif
+
+uint32_t otPlatRadioGetPreferredChannelMask(otInstance *aInstance)
+{
+    OT_UNUSED_VARIABLE(aInstance);
+    return CONFIG_OPENTHREAD_PREFERRED_CHANNEL_MASK;
+}
+
+uint32_t otPlatRadioGetSupportedChannelMask(otInstance *aInstance)
+{
+    OT_UNUSED_VARIABLE(aInstance);
+    return CONFIG_OPENTHREAD_SUPPORTED_CHANNEL_MASK;
+}
 
 void esp_ieee802154_receive_at_done(void)
 {

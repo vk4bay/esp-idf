@@ -13,7 +13,7 @@ SPI 从机半双工模式
 协议
 ^^^^^^^^
 
-有关主设备与 SPI 从机通信的详细信息，请参阅 `ESP SPI 从机半双工协议 <https://espressif.github.io/idf-extra-components/latest/esp_serial_slave_link/spi_slave_hd_protocol.html#spi-slave-hd-half-duplex-protocol>`_ 。
+有关主设备与 SPI 从机通信的详细信息，请参阅 :doc:`/api-reference/protocols/esp_spi_slave_protocol`。
 
 通过不同类型的事务，从设备为主设备提供以下服务：
 
@@ -47,11 +47,6 @@ SPI 从机半双工模式
 调用 :cpp:func:`spi_slave_hd_init` 初始化 SPI 总线、外设和驱动程序。在初始化之后，SPI 从机将独占使用 SPI 外设和总线上的管脚。这意味着在反初始化前，其他设备无法使用这些资源。因此，为了确保其他设备可以正确利用 SPI 资源并进行正常通信，从机的大部分配置应在其初始化过程中完成。
 
 结构体 :cpp:type:`spi_bus_config_t` 指定了总线的初始化方式，结构体 :cpp:type:`spi_slave_hd_slot_config_t` 指定了 SPI 从机驱动程序的运行方式。
-
-启用/禁用从机驱动（可选）
-^^^^^^^^^^^^^^^^^^^^^^^^^
-
-从机驱动程序支持在程序初始化后通过调用 :cpp:func:`spi_slave_hd_disable` / :cpp:func:`spi_slave_hd_enable` 来禁用/启用驱动程序，以便能够更改时钟或电源配置或休眠以节省电量。默认情况下，驱动程序在初始化后为“启用”状态。
 
 从机反初始化（可选）
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -126,16 +121,6 @@ SPI 从机半双工模式
 
 当主机发送 ``CMD8``、``CMD9`` 或 ``CMDA`` 时，从机会触发相应的动作。目前，``CMD8`` 固定用于指示 ``Rd_DMA`` 段的终止。要接收通用中断，可以在从机初始化时为 ``CMD9`` 和 ``CMDA`` 注册回调函数，详情请参阅 :ref:`spi_slave_hd_callbacks`。
 
-.. only:: SOC_SPI_SUPPORT_SLEEP_RETENTION
-
-    睡眠保留
-    ^^^^^^^^
-
-    {IDF_TARGET_NAME} 支持在进入 **Light Sleep** 之前保留 SPI 寄存器中的内容，并在唤醒后恢复。即程序不需要在 **Light Sleep** 唤醒后重新配置 SPI。
-
-    该特性可以通过置位配置中的 :c:macro:`SPICOMMON_BUSFLAG_SLP_ALLOW_PD` 标志位启用。启用后驱动允许系统在 Light Sleep 时对 SPI 掉电，同时保存寄存器配置。它可以帮助降低轻度睡眠时的功耗，但需要花费一些额外的存储来保存寄存器的配置。
-
-    注意在 Slave 角色下，不支持在所有传输（发送和接收）未完成时进入睡眠，否则将会出错。
 
 .. only:: not esp32
 

@@ -201,12 +201,7 @@ BOOLEAN btm_add_dev_to_controller (BOOLEAN to_add, BD_ADDR bd_addr, tBLE_ADDR_TY
 
     /* Controller do not support resolvable address now, only support public address and static random address */
     BOOLEAN  started = FALSE;
-#if (BLE_50_FEATURE_SUPPORT == TRUE)
-    if (wl_addr_type > BLE_ADDR_RANDOM && wl_addr_type != BLE_ADDR_ANONYMOUS)
-#else
-    if (wl_addr_type > BLE_ADDR_RANDOM)
-#endif // #if (BLE_50_FEATURE_SUPPORT == TRUE)
-    {
+    if(wl_addr_type > BLE_ADDR_RANDOM) {
         BTM_TRACE_ERROR("wl_addr_type is error\n");
         return started;
     }
@@ -283,12 +278,7 @@ void btm_enq_wl_dev_operation(BOOLEAN to_add, BD_ADDR bd_addr, tBLE_ADDR_TYPE ad
 *******************************************************************************/
 BOOLEAN btm_update_dev_to_white_list(BOOLEAN to_add, BD_ADDR bd_addr, tBLE_ADDR_TYPE addr_type, tBTM_UPDATE_WHITELIST_CBACK *update_wl_cb)
 {
-#if (BLE_50_FEATURE_SUPPORT == TRUE)
-    if (addr_type > BLE_ADDR_RANDOM && addr_type != BLE_ADDR_ANONYMOUS)
-#else
-    if (addr_type > BLE_ADDR_RANDOM)
-#endif // #if (BLE_50_FEATURE_SUPPORT == TRUE)
-    {
+    if(addr_type > BLE_ADDR_RANDOM) {
         BTM_TRACE_ERROR("%s address type is error, unable to add device", __func__);
         if (update_wl_cb){
             update_wl_cb(HCI_ERR_ILLEGAL_PARAMETER_FMT,to_add);
@@ -671,7 +661,7 @@ void btm_ble_initiate_select_conn(BD_ADDR bda)
     BTM_TRACE_EVENT ("btm_ble_initiate_select_conn");
 
     /* use direct connection procedure to initiate connection */
-    if (!L2CA_ConnectFixedChnl(L2CAP_ATT_CID, bda, BLE_ADDR_UNKNOWN_TYPE, FALSE, FALSE, 0xFF, 0xFF)) {
+    if (!L2CA_ConnectFixedChnl(L2CAP_ATT_CID, bda, BLE_ADDR_UNKNOWN_TYPE, FALSE)) {
         BTM_TRACE_ERROR("btm_ble_initiate_select_conn failed");
     }
 }
@@ -821,7 +811,6 @@ tBTM_BLE_CONN_ST btm_ble_get_conn_st(void)
 *******************************************************************************/
 void btm_ble_set_conn_st(tBTM_BLE_CONN_ST new_st)
 {
-    BTM_TRACE_DEBUG("%s old=%u new=%u", __func__, btm_cb.ble_ctr_cb.conn_state, new_st);
     btm_cb.ble_ctr_cb.conn_state = new_st;
 
     if (new_st == BLE_BG_CONN || new_st == BLE_DIR_CONN) {

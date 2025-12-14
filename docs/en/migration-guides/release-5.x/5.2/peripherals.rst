@@ -12,8 +12,6 @@ Peripherals
 
 .. only:: SOC_I2C_SUPPORTED
 
-    .. _migration_guide_i2c_driver_5_2:
-
     I2C
     ---
 

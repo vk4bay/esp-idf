@@ -6,12 +6,14 @@
 
 #include "esp_private/sleep_clock.h"
 #include "soc/i2c_ana_mst_reg.h"
+#include "soc/regi2c_defs.h"
 #include "soc/pcr_reg.h"
+#include "soc/regi2c_defs.h"
 #include "modem/modem_syscon_reg.h"
 #include "modem/modem_lpcon_reg.h"
 
 
-ESP_LOG_ATTR_TAG(TAG, "sleep_clock");
+static const char *TAG = "sleep_clock";
 
 esp_err_t sleep_clock_system_retention_init(void *arg)
 {

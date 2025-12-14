@@ -88,14 +88,9 @@
 #define BTC_AV_INCLUDED             TRUE
 #define BTA_AV_SINK_INCLUDED        TRUE
 #define BTC_AV_SINK_INCLUDED        TRUE
-#define BTC_AV_SRC_INCLUDED         TRUE
-#if (UC_BT_A2DP_USE_EXTERNAL_CODEC == TRUE)
-#define BTC_AV_EXT_CODEC            TRUE
-#define BTA_AV_EXT_CODEC            TRUE
-#else
 #define SBC_DEC_INCLUDED            TRUE
+#define BTC_AV_SRC_INCLUDED         TRUE
 #define SBC_ENC_INCLUDED            TRUE
-#endif
 #if UC_BT_AVRCP_CT_COVER_ART_ENABLED
 #define BTA_AV_CA_INCLUDED          TRUE
 #define BTC_AV_CA_INCLUDED          TRUE
@@ -127,22 +122,14 @@
 #ifndef BTM_SCO_INCLUDED
 #define BTM_SCO_INCLUDED            TRUE
 #endif
-#if (UC_BT_HFP_AUDIO_DATA_PATH_HCI == TRUE)
-#if (UC_BT_HFP_USE_EXTERNAL_CODEC == TRUE)
-#define BTC_HFP_EXT_CODEC           TRUE
-#define BTA_HFP_EXT_CODEC           TRUE
-#define PLC_INCLUDED                FALSE
-#else
 #ifndef SBC_DEC_INCLUDED
 #define SBC_DEC_INCLUDED            TRUE
 #endif
 #ifndef SBC_ENC_INCLUDED
 #define SBC_ENC_INCLUDED            TRUE
 #endif
+#ifndef PLC_INCLUDED
 #define PLC_INCLUDED                TRUE
-#endif /* (UC_BT_HFP_USE_EXTERNAL_CODEC == TRUE) */
-#else
-#define PLC_INCLUDED                FALSE
 #endif
 
 #if (UC_BT_HFP_AG_ENABLED == TRUE)
@@ -194,21 +181,11 @@
 #endif
 
 #if UC_BT_GOEPC_ENABLED
-#ifndef RFCOMM_INCLUDED
-#define RFCOMM_INCLUDED             TRUE
-#endif
 #ifndef OBEX_INCLUDED
 #define OBEX_INCLUDED               TRUE
 #endif
 #define GOEPC_INCLUDED              TRUE
 #endif /* UC_BT_GOEPC_ENABLED */
-
-#if UC_BT_PBAC_ENABLED
-#define BTC_PBA_CLIENT_INCLUDED     TRUE
-#define BTC_PBA_SUPPORTED_FEAT      UC_BT_PBAC_SUPPORTED_FEAT
-#define BTC_PBA_PREFERRED_MTU       UC_BT_PBAC_PREFERRED_MTU
-#define BTA_PBA_CLIENT_INCLUDED     TRUE
-#endif
 
 #endif /* UC_BT_CLASSIC_ENABLED */
 
@@ -415,30 +392,6 @@
 #define BLE_FEAT_CONN_SUBRATING     FALSE
 #endif
 
-#if (UC_BT_BLE_FEAT_PAWR_EN == TRUE)
-#define BT_BLE_FEAT_PAWR_EN     TRUE
-#else
-#define BT_BLE_FEAT_PAWR_EN     FALSE
-#endif
-
-#if (UC_BT_BLE_FEAT_ADV_CODING_SELECTION == TRUE)
-#define BT_BLE_FEAT_ADV_CODING_SELECTION     TRUE
-#else
-#define BT_BLE_FEAT_ADV_CODING_SELECTION     FALSE
-#endif
-
-#if (UC_BT_BLE_FEAT_CHANNEL_SOUNDING == TRUE)
-#define BT_BLE_FEAT_CHANNEL_SOUNDING     TRUE
-#else
-#define BT_BLE_FEAT_CHANNEL_SOUNDING     FALSE
-#endif
-
-#if (UC_BT_BLE_VENDOR_HCI_EN == TRUE)
-#define BLE_VENDOR_HCI_EN TRUE
-#else
-#define BLE_VENDOR_HCI_EN FALSE
-#endif
-
 #if (UC_BT_BLE_HIGH_DUTY_ADV_INTERVAL == TRUE)
 #define BLE_HIGH_DUTY_ADV_INTERVAL TRUE
 #else
@@ -606,10 +559,6 @@
 #define BTC_AV_SRC_INCLUDED FALSE
 #endif
 
-#ifndef BTC_AV_EXT_CODEC
-#define BTC_AV_EXT_CODEC FALSE
-#endif
-
 #ifndef BTC_SPP_INCLUDED
 #define BTC_SPP_INCLUDED FALSE
 #endif
@@ -632,10 +581,6 @@
 
 #ifndef SBC_ENC_INCLUDED
 #define SBC_ENC_INCLUDED FALSE
-#endif
-
-#ifndef BTC_HFP_EXT_CODEC
-#define BTC_HFP_EXT_CODEC FALSE
 #endif
 
 /******************************************************************************
@@ -687,10 +632,6 @@
 #define BTA_AV_CA_INCLUDED FALSE
 #endif
 
-#ifndef BTA_AV_EXT_CODEC
-#define BTA_AV_EXT_CODEC FALSE
-#endif
-
 #ifndef BTA_AV_SINK_INCLUDED
 #define BTA_AV_SINK_INCLUDED FALSE
 #endif
@@ -701,10 +642,6 @@
 
 #ifndef BTA_SDP_INCLUDED
 #define BTA_SDP_INCLUDED FALSE
-#endif
-
-#ifndef BTA_HFP_EXT_CODEC
-#define BTA_HFP_EXT_CODEC FALSE
 #endif
 
 /* This is set to enable use of GAP L2CAP connections. */
@@ -802,12 +739,6 @@
 #define GATTS_APPEARANCE_WRITABLE TRUE
 #else
 #define GATTS_APPEARANCE_WRITABLE FALSE
-#endif
-
-#if (UC_BT_GATTS_SECURITY_LEVELS_CHAR == TRUE)
-#define BT_GATTS_SECURITY_LEVELS_CHAR TRUE
-#else
-#define BT_GATTS_SECURITY_LEVELS_CHAR FALSE
 #endif
 
 #ifdef UC_BT_BLE_ACT_SCAN_REP_ADV_SCAN
@@ -1156,11 +1087,7 @@
 
 /* The number of security records for peer devices. 15 AS Default*/
 #ifndef BTM_SEC_MAX_DEVICE_RECORDS
-#define BTM_SEC_MAX_DEVICE_RECORDS  (UC_BT_SMP_MAX_BONDS + UC_BT_ACL_CONNECTIONS)
-#endif
-
-#ifndef BTM_SEC_MAX_BONDS
-#define BTM_SEC_MAX_BONDS  UC_BT_SMP_MAX_BONDS
+#define BTM_SEC_MAX_DEVICE_RECORDS  UC_BT_SMP_MAX_BONDS
 #endif
 
 #if BTA_SDP_INCLUDED
@@ -1187,16 +1114,10 @@
 #define BTM_JV_SEC_SERVICE_RECORDS 0
 #endif
 
-#if BTA_PBA_CLIENT_INCLUDED
-#define BTM_PBA_SEC_SERVICE_RECORDS 2
-#else
-#define BTM_PBA_SEC_SERVICE_RECORDS 0
-#endif
-
 #if BTA_AV_CA_INCLUDED
-#define BTM_AC_VA_SEC_SERVICE_RECORDS 1
+#define BTM_AV_CA_SEC_SERVICE_RECORDS 1
 #else
-#define BTM_AC_VA_SEC_SERVICE_RECORDS 0
+#define BTM_AV_CA_SEC_SERVICE_RECORDS 0
 #endif
 
 #if AVCT_INCLUDED
@@ -1249,9 +1170,9 @@
 #ifndef BTM_SEC_MAX_SERVICE_RECORDS
 #define BTM_SEC_MAX_SERVICE_RECORDS (BTM_SDP_SEC_SERVICE_RECORDS + BTM_AG_SEC_SERVICE_RECORDS     \
    + BTM_AVCT_SEC_SERVICE_RECORDS + BTM_AVDT_SEC_SERVICE_RECORDS + BTM_GAP_SEC_SERVICE_RECORDS    \
-   + BTM_HIDD_SEC_SERVICE_RECORDS  + BTM_GATT_SEC_SERVICE_RECORDS + BTM_PBA_SEC_SERVICE_RECORDS   \
+   + BTM_HIDD_SEC_SERVICE_RECORDS + BTM_GATT_SEC_SERVICE_RECORDS + BTM_AV_CA_SEC_SERVICE_RECORDS  \
    + BTM_HIDH_SEC_SERVICE_RECORDS + BTM_SEC_DEV_SERVICE_RECORDS + BTM_HF_SEC_SERVICE_RECORDS      \
-   + BTM_JV_SEC_SERVICE_RECORDS + BTM_AC_VA_SEC_SERVICE_RECORDS )
+   + BTM_JV_SEC_SERVICE_RECORDS)
 #endif
 
 /* If True, force a retrieval of remote device name for each bond in case it's changed */
@@ -1373,12 +1294,10 @@
 **************************/
 
 /* 4.1/4.2 secure connections feature */
-#if defined(CONFIG_IDF_TARGET_ESP32) && (BT_CONTROLLER_INCLUDED == TRUE)
-// Disable AES-CCM (BT 4.1) for BT Classic to workaround controller AES issue on ESP32 controller. E0 encryption (BT 4.0) will be used.
+#ifndef SC_MODE_INCLUDED
+// Disable AES-CCM (BT 4.1) for BT Classic to workaround controller AES issue. E0 encryption (BT 4.0) will be used.
 #define SC_MODE_INCLUDED                FALSE
-#else
-#define SC_MODE_INCLUDED                TRUE
-#endif // CONFIG_IDF_TARGET_ESP32
+#endif
 
 /* Used for conformance testing ONLY */
 #ifndef BTM_BLE_CONFORMANCE_TESTING

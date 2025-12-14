@@ -19,7 +19,7 @@ extern "C" {
 /**
  * @brief Group of RMT TX callbacks
  * @note The callbacks are all running under ISR environment
- * @note When CONFIG_RMT_TX_ISR_CACHE_SAFE is enabled, the callback itself and functions called by it should be placed in IRAM.
+ * @note When CONFIG_RMT_ISR_IRAM_SAFE is enabled, the callback itself and functions called by it should be placed in IRAM.
  *       The variables used in the function should be in the SRAM as well.
  */
 typedef struct {
@@ -42,9 +42,10 @@ typedef struct {
     struct {
         uint32_t invert_out: 1;   /*!< Whether to invert the RMT channel signal before output to GPIO pad */
         uint32_t with_dma: 1;     /*!< If set, the driver will allocate an RMT channel with DMA capability */
+        uint32_t io_loop_back: 1; /*!< The signal output from the GPIO will be fed to the input path as well */
+        uint32_t io_od_mode: 1;   /*!< Configure the GPIO as open-drain mode */
         uint32_t allow_pd: 1;     /*!< If set, driver allows the power domain to be powered off when system enters sleep mode.
                                        This can save power, but at the expense of more RAM being consumed to save register context. */
-        uint32_t init_level: 1;    /*!< Set the initial level of the RMT channel signal */
     } flags;                      /*!< TX channel config flags */
 } rmt_tx_channel_config_t;
 
@@ -127,7 +128,7 @@ esp_err_t rmt_tx_wait_all_done(rmt_channel_handle_t tx_channel, int timeout_ms);
  * @brief Set event callbacks for RMT TX channel
  *
  * @note User can deregister a previously registered callback by calling this function and setting the callback member in the `cbs` structure to NULL.
- * @note When CONFIG_RMT_TX_ISR_CACHE_SAFE is enabled, the callback itself and functions called by it should be placed in IRAM.
+ * @note When CONFIG_RMT_ISR_IRAM_SAFE is enabled, the callback itself and functions called by it should be placed in IRAM.
  *       The variables used in the function should be in the SRAM as well. The `user_data` should also reside in SRAM.
  *
  * @param[in] tx_channel RMT generic channel that created by `rmt_new_tx_channel()`

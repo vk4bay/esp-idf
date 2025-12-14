@@ -29,7 +29,7 @@ VFS 组件支持 C 库函数（如 fopen 和 fprintf 等）与文件系统 (FS) 
 
     // esp_vfs_fs_ops_t 及其子组件的声明必须是静态的
     static const esp_vfs_dir_ops_t myfs_dir = {
-        .stat = &myfs_stat,
+        .fstat = &myfs_fstat,
     };
 
     static const esp_vfs_fs_ops_t myfs = {
@@ -55,7 +55,7 @@ VFS 组件支持 C 库函数（如 fopen 和 fprintf 等）与文件系统 (FS) 
     // 可能是局部作用域
     {
         esp_vfs_dir_ops_t myfs_dir = {
-            .stat = &myfs_stat,
+            .fstat = &myfs_fstat,
         };
 
         bool some_condition = false;

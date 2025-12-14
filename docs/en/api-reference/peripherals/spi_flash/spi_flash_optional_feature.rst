@@ -155,7 +155,6 @@ List of Flash chips that support this feature:
 
 1. W25Q256
 2. GD25Q256
-3. XM25QH256D
 
 Restrictions
 ^^^^^^^^^^^^
@@ -164,21 +163,17 @@ Restrictions
 
     .. important::
 
-        The part of flash above 16 MB can be used for data storage, for example using a file system.
+        Over 16 MB space on flash mentioned above can be only used for ``data saving``, like file system.
 
         Mapping data/instructions to 32-bit physical address space (so as to be accessed by the CPU) needs the support of MMU. However {IDF_TARGET_NAME} doesn't support this feature. Only ESP32-S3 and ESP32-P4 supports this up to now.
 
 .. only:: SOC_SPI_MEM_SUPPORT_CACHE_32BIT_ADDR_MAP
 
-    For Quad flash chips, by default, the part of flash above 16 MB can be used for data storage, for example using a file system.
+    By default, space over 16 MB on flash mentioned above can be used for ``data saving``, like file system.
 
-    *Experimental Feature*: To enable full support for Quad flash addresses above 16MB (for both code execution and data access), enable this experimental feature by setting below options to ``y``:
-    - :ref:`CONFIG_IDF_EXPERIMENTAL_FEATURES`
-    - :ref:`CONFIG_BOOTLOADER_CACHE_32BIT_ADDR_QUAD_FLASH`
+    Furthermore, to map data/instructions to 32-bit physical address space (so as to be accessed by the CPU), please enable the config ``IDF_EXPERIMENTAL_FEATURES`` and ``BOOTLOADER_CACHE_32BIT_ADDR_QUAD_FLASH``.
 
-    Please note that, this option is experimental, which means that it can not be used on all Quad flash chips stably. For more information, please contact `Espressif's business team <https://www.espressif.com/en/contact-us/sales-questions>`_.
-
-    For Octal flash chips, this feature is enabled by default if :ref:`CONFIG_ESPTOOLPY_OCT_FLASH` is enabled.
+    Please note that, this option is experimental, which means that it can not be used on all flash chips stably. For more information, please contact `Espressif's business team <https://www.espressif.com/en/contact-us/sales-questions>`_.
 
 .. _oct-flash-doc:
 

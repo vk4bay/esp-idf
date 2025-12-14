@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier: ISC
  *
- * SPDX-FileContributor: 2016-2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileContributor: 2016-2024 Espressif Systems (Shanghai) CO LTD
  */
 /*
  * Copyright (c) 2006 Uwe Stuehler <uwe@openbsd.org>
@@ -26,9 +26,9 @@
 #include <stdint.h>
 #include <stddef.h>
 #include "esp_err.h"
+#include "freertos/FreeRTOS.h"
 #include "sd_pwr_ctrl.h"
 #include "esp_dma_utils.h"
-#include "hal/sd_types.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -76,14 +76,14 @@ typedef struct {
  * Note: When new member is added, update reserved bits accordingly
  */
 typedef struct {
-    uint32_t alloc_unit_kb: 20;     /*!< Allocation unit of the card, in multiples of kB (1024 bytes) */
+    uint32_t alloc_unit_kb: 16;     /*!< Allocation unit of the card, in multiples of kB (1024 bytes) */
     uint32_t erase_size_au: 16;     /*!< Erase size for the purpose of timeout calculation, in multiples of allocation unit */
     uint32_t cur_bus_width: 2;      /*!< SD current bus width */
     uint32_t discard_support: 1;    /*!< SD discard feature support */
     uint32_t fule_support: 1;       /*!< SD FILE (Full User Area Logical Erase) feature support */
     uint32_t erase_timeout: 6;      /*!< Timeout (in seconds) for erase of a single allocation unit */
     uint32_t erase_offset: 2;       /*!< Constant timeout offset (in seconds) for any erase operation */
-    uint32_t reserved: 16;          /*!< reserved for future expansion */
+    uint32_t reserved: 20;          /*!< reserved for future expansion */
 } sdmmc_ssr_t;
 
 /**
@@ -154,6 +154,24 @@ typedef struct {
 } sdmmc_command_t;
 
 /**
+ * SD/MMC Host clock timing delay phases
+ *
+ * This will only take effect when the host works in
+ * - SDMMC_FREQ_HIGHSPEED
+ * - SDMMC_FREQ_52M
+ * - SDR50
+ * - DDR50
+ * Driver will print out how long the delay is, in picosecond (ps).
+ */
+typedef enum {
+    SDMMC_DELAY_PHASE_0,            /*!< Delay phase 0 */
+    SDMMC_DELAY_PHASE_1,            /*!< Delay phase 1 */
+    SDMMC_DELAY_PHASE_2,            /*!< Delay phase 2 */
+    SDMMC_DELAY_PHASE_3,            /*!< Delay phase 3 */
+    SDMMC_DELAY_PHASE_AUTO,         /*!< Auto detect phase, only valid for UHS-I mode */
+} sdmmc_delay_phase_t;
+
+/**
  * @brief SD/MMC Driver Strength
  */
 typedef enum {
@@ -201,7 +219,6 @@ typedef struct {
 #define SDMMC_FREQ_26M          26000       /*!< MMC 26MHz speed */
 #define SDMMC_FREQ_DDR50        50000       /*!< MMC 50MHz speed */
 #define SDMMC_FREQ_SDR50        100000      /*!< MMC 100MHz speed */
-#define SDMMC_FREQ_SDR104       200000      /*!< MMC 200MHz speed */
     float io_voltage;           /*!< I/O voltage used by the controller (voltage switching is not supported) */
     sdmmc_driver_strength_t driver_strength; /*!< Driver Strength */
     sdmmc_current_limit_t current_limit;     /*!< Current Limit */
@@ -217,15 +234,14 @@ typedef struct {
         esp_err_t (*deinit_p)(int slot);  /*!< host function to deinitialize the driver, called with the `slot` */
     };
     esp_err_t (*io_int_enable)(int slot); /*!< Host function to enable SDIO interrupt line */
-    esp_err_t (*io_int_wait)(int slot, uint32_t timeout_ticks); /*!< Host function to wait for SDIO interrupt line to be active */
+    esp_err_t (*io_int_wait)(int slot, TickType_t timeout_ticks); /*!< Host function to wait for SDIO interrupt line to be active */
     int command_timeout_ms;     /*!< timeout, in milliseconds, of a single command. Set to 0 to use the default value. */
     esp_err_t (*get_real_freq)(int slot, int* real_freq); /*!< Host function to provide real working freq, based on SDMMC controller setup */
     sdmmc_delay_phase_t input_delay_phase; /*!< input delay phase, this will only take into effect when the host works in SDMMC_FREQ_HIGHSPEED or SDMMC_FREQ_52M. Driver will print out how long the delay is*/
     esp_err_t (*set_input_delay)(int slot, sdmmc_delay_phase_t delay_phase); /*!< set input delay phase */
-    esp_err_t (*set_input_delayline)(int slot, sdmmc_delay_line_t delay_line); /*!< set input delay line */
     void* dma_aligned_buffer; /*!< Leave it NULL. Reserved for cache aligned buffers for SDIO mode */
     sd_pwr_ctrl_handle_t pwr_ctrl_handle;  /*!< Power control handle */
-    bool (*check_buffer_alignment)(int slot, const void *buf, size_t size); /*!< Check if buffer meets alignment requirements */
+    esp_err_t (*get_dma_info)(int slot, esp_dma_mem_info_t *dma_mem_info); /*!< host function to dma memory information*/
     esp_err_t (*is_slot_set_to_uhs1)(int slot, bool *is_uhs1); /*!< host slot is set to uhs1 or not*/
 } sdmmc_host_t;
 

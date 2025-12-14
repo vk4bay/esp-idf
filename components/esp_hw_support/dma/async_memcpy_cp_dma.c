@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2020-2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2020-2024 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -21,11 +21,10 @@
 #include "esp_async_memcpy_priv.h"
 #include "esp_private/gdma_link.h"
 #include "esp_private/esp_dma_utils.h"
-#include "esp_private/critical_section.h"
 #include "hal/cp_dma_hal.h"
 #include "hal/cp_dma_ll.h"
 
-ESP_LOG_ATTR_TAG(TAG, "async_mcp.cpdma");
+static const char *TAG = "async_mcp.cpdma";
 
 #define MCP_DMA_DESCRIPTOR_BUFFER_MAX_SIZE 4095
 
@@ -148,12 +147,12 @@ static esp_err_t mcp_cpdma_del(async_memcpy_context_t *ctx)
 static async_memcpy_transaction_t *try_pop_trans_from_ready_queue(async_memcpy_cpdma_context_t *mcp_dma)
 {
     async_memcpy_transaction_t *trans = NULL;
-    esp_os_enter_critical_safe(&mcp_dma->spin_lock);
+    portENTER_CRITICAL_SAFE(&mcp_dma->spin_lock);
     trans = STAILQ_FIRST(&mcp_dma->ready_queue_head);
     if (trans) {
         STAILQ_REMOVE_HEAD(&mcp_dma->ready_queue_head, ready_queue_entry);
     }
-    esp_os_exit_critical_safe(&mcp_dma->spin_lock);
+    portEXIT_CRITICAL_SAFE(&mcp_dma->spin_lock);
     return trans;
 }
 
@@ -183,12 +182,12 @@ static void try_start_pending_transaction(async_memcpy_cpdma_context_t *mcp_dma)
 static async_memcpy_transaction_t *try_pop_trans_from_idle_queue(async_memcpy_cpdma_context_t *mcp_dma)
 {
     async_memcpy_transaction_t *trans = NULL;
-    esp_os_enter_critical_safe(&mcp_dma->spin_lock);
+    portENTER_CRITICAL_SAFE(&mcp_dma->spin_lock);
     trans = STAILQ_FIRST(&mcp_dma->idle_queue_head);
     if (trans) {
         STAILQ_REMOVE_HEAD(&mcp_dma->idle_queue_head, idle_queue_entry);
     }
-    esp_os_exit_critical_safe(&mcp_dma->spin_lock);
+    portEXIT_CRITICAL_SAFE(&mcp_dma->spin_lock);
     return trans;
 }
 
@@ -217,6 +216,7 @@ static esp_err_t mcp_cpdma_memcpy(async_memcpy_context_t *ctx, void *dst, void *
 
     // allocate gdma TX link
     gdma_link_list_config_t tx_link_cfg = {
+        .buffer_alignment = 1, // CP_DMA doesn't have alignment requirement for internal memory
         .item_alignment = 4,   // CP_DMA requires 4 bytes alignment for each descriptor
         .num_items = num_dma_nodes,
         .flags = {
@@ -229,11 +229,10 @@ static esp_err_t mcp_cpdma_memcpy(async_memcpy_context_t *ctx, void *dst, void *
     gdma_buffer_mount_config_t tx_buf_mount_config[1] = {
         [0] = {
             .buffer = src,
-            .buffer_alignment = 1, // CP_DMA doesn't have alignment requirement for internal memory
             .length = n,
             .flags = {
                 .mark_eof = true,   // mark the last item as EOF, so the RX channel can also received an EOF list item
-                .mark_final = GDMA_FINAL_LINK_TO_NULL, // using singly list, so terminate the link here
+                .mark_final = true, // using singly list, so terminate the link here
             }
         }
     };
@@ -241,6 +240,7 @@ static esp_err_t mcp_cpdma_memcpy(async_memcpy_context_t *ctx, void *dst, void *
 
     // allocate gdma RX link
     gdma_link_list_config_t rx_link_cfg = {
+        .buffer_alignment = 1, // CP_DMA doesn't have alignment requirement for internal memory
         .item_alignment = 4,   // CP_DMA requires 4 bytes alignment for each descriptor
         .num_items = num_dma_nodes,
         .flags = {
@@ -253,11 +253,10 @@ static esp_err_t mcp_cpdma_memcpy(async_memcpy_context_t *ctx, void *dst, void *
     gdma_buffer_mount_config_t rx_buf_mount_config[1] = {
         [0] = {
             .buffer = dst,
-            .buffer_alignment = 1, // CP_DMA doesn't have alignment requirement for internal memory
             .length = n,
             .flags = {
                 .mark_eof = false,  // EOF is set by TX side
-                .mark_final = GDMA_FINAL_LINK_TO_NULL, // using singly list, so terminate the link here
+                .mark_final = true, // using singly list, so terminate the link here
             }
         }
     };
@@ -267,10 +266,10 @@ static esp_err_t mcp_cpdma_memcpy(async_memcpy_context_t *ctx, void *dst, void *
     trans->cb = cb_isr;
     trans->cb_args = cb_args;
 
-    esp_os_enter_critical(&mcp_dma->spin_lock);
+    portENTER_CRITICAL(&mcp_dma->spin_lock);
     // insert the trans to ready queue
     STAILQ_INSERT_TAIL(&mcp_dma->ready_queue_head, trans, ready_queue_entry);
-    esp_os_exit_critical(&mcp_dma->spin_lock);
+    portEXIT_CRITICAL(&mcp_dma->spin_lock);
 
     // check driver state, if there's no running transaction, start a new one
     try_start_pending_transaction(mcp_dma);
@@ -280,9 +279,9 @@ static esp_err_t mcp_cpdma_memcpy(async_memcpy_context_t *ctx, void *dst, void *
 err:
     if (trans) {
         // return back the trans to idle queue
-        esp_os_enter_critical(&mcp_dma->spin_lock);
+        portENTER_CRITICAL(&mcp_dma->spin_lock);
         STAILQ_INSERT_TAIL(&mcp_dma->idle_queue_head, trans, idle_queue_entry);
-        esp_os_exit_critical(&mcp_dma->spin_lock);
+        portEXIT_CRITICAL(&mcp_dma->spin_lock);
     }
     return ret;
 }
@@ -292,8 +291,8 @@ static void mcp_default_isr_handler(void *args)
     bool need_yield = false;
     async_memcpy_cpdma_context_t *mcp_dma = (async_memcpy_cpdma_context_t *)args;
     // get the interrupt status and clear it
-    uint32_t status = cp_dma_ll_get_intr_status(mcp_dma->hal.dev);
-    cp_dma_ll_clear_intr_status(mcp_dma->hal.dev, status);
+    uint32_t status = cp_dma_hal_get_intr_status(&mcp_dma->hal);
+    cp_dma_hal_clear_intr_status(&mcp_dma->hal, status);
 
     // End-Of-Frame on RX side
     if (status & CP_DMA_LL_EVENT_RX_EOF) {
@@ -312,10 +311,10 @@ static void mcp_default_isr_handler(void *args)
             }
             trans->cb = NULL;
 
-            esp_os_enter_critical_isr(&mcp_dma->spin_lock);
+            portENTER_CRITICAL_ISR(&mcp_dma->spin_lock);
             // insert the trans object to the idle queue
             STAILQ_INSERT_TAIL(&mcp_dma->idle_queue_head, trans, idle_queue_entry);
-            esp_os_exit_critical_isr(&mcp_dma->spin_lock);
+            portEXIT_CRITICAL_ISR(&mcp_dma->spin_lock);
 
             atomic_store(&mcp_dma->fsm, MCP_FSM_IDLE);
         }

@@ -51,15 +51,11 @@ def _strip_trailing_ffs(binary_table):
     Strip all FFs down to the last 32 bytes (terminating entry)
     """
     while binary_table.endswith(b'\xff' * 64):
-        binary_table = binary_table[0 : len(binary_table) - 32]
+        binary_table = binary_table[0: len(binary_table) - 32]
     return binary_table
 
 
 class CSVParserTests(Py23TestCase):
-    def tearDown(self):
-        gen_esp32part.primary_bootloader_offset = None
-        gen_esp32part.recovery_bootloader_offset = None
-        gen_esp32part.offset_part_table = 0
 
     def test_simple_partition(self):
         table = gen_esp32part.PartitionTable.from_csv(SIMPLE_CSV)
@@ -177,49 +173,6 @@ first, app, ota_0,  0x200000, 1M
         with self.assertRaisesRegex(gen_esp32part.InputError, 'Partition names must be unique'):
             t = gen_esp32part.PartitionTable.from_csv(csv)
             t.verify()
-
-    def test_bootloader_and_part_table_partitions_no_sdkconfig(self):
-        csv = """
-bootloader, bootloader, primary, N/A, N/A
-"""
-        with self.assertRaisesRegex(
-            gen_esp32part.InputError, 'Primary bootloader offset is not defined. Please use --primary-bootloader-offset'
-        ):
-            gen_esp32part.PartitionTable.from_csv(csv)
-
-    def test_bootloader_and_part_table_partitions(self):
-        csv = """
-bootloader,       bootloader,       primary, N/A, N/A
-partition_table,  partition_table,  primary, N/A, N/A
-FactoryApp,       app,              factory, ,    1M
-OtaBTLDR,         bootloader,       ota,     ,    N/A
-OtaPrtTable,      partition_table,  ota,     ,    N/A
-RecoveryBTLDR,    bootloader,       recovery, N/A, N/A
-"""
-        gen_esp32part.primary_bootloader_offset = 0x1000
-        gen_esp32part.recovery_bootloader_offset = 0x200000
-        gen_esp32part.offset_part_table = 0x9000
-        part_table_size = 0x1000
-        bootloader_size = gen_esp32part.offset_part_table - gen_esp32part.primary_bootloader_offset
-        t = gen_esp32part.PartitionTable.from_csv(csv)
-        t.verify()
-        # bootloader
-        self.assertEqual(t[0].offset, gen_esp32part.primary_bootloader_offset)
-        self.assertEqual(t[0].size, bootloader_size)
-        # partition_table
-        self.assertEqual(t[1].offset, gen_esp32part.offset_part_table)
-        self.assertEqual(t[1].size, part_table_size)
-        # FactoryApp
-        self.assertEqual(t[2].offset, 0x10000)
-        # OtaBTLDR
-        self.assertEqual(t[3].offset, 0x110000)
-        self.assertEqual(t[3].size, bootloader_size)
-        # OtaPrtTable
-        self.assertEqual(t[4].offset, 0x118000)
-        self.assertEqual(t[4].size, part_table_size)
-        # RecoveryBTLDR
-        self.assertEqual(t[5].offset, gen_esp32part.recovery_bootloader_offset)
-        self.assertEqual(t[5].size, bootloader_size)
 
 
 class BinaryOutputTests(Py23TestCase):

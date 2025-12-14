@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2024-2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2024 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -37,7 +37,7 @@ static esp_err_t s_isp_claim_af_controller(isp_proc_handle_t isp_proc, isp_af_ct
     assert(isp_proc && af_ctlr);
 
     bool found = false;
-    esp_os_enter_critical(&isp_proc->spinlock);
+    portENTER_CRITICAL(&isp_proc->spinlock);
     for (int i = 0; i < SOC_ISP_AF_CTLR_NUMS; i++) {
         found = !isp_proc->af_ctlr[i];
         if (found) {
@@ -47,7 +47,7 @@ static esp_err_t s_isp_claim_af_controller(isp_proc_handle_t isp_proc, isp_af_ct
             break;
         }
     }
-    esp_os_exit_critical(&isp_proc->spinlock);
+    portEXIT_CRITICAL(&isp_proc->spinlock);
 
     if (!found) {
         return ESP_ERR_NOT_FOUND;
@@ -59,9 +59,9 @@ static void s_isp_declaim_af_controller(isp_af_ctlr_t af_ctlr)
 {
     assert(af_ctlr && af_ctlr->isp_proc);
 
-    esp_os_enter_critical(&af_ctlr->isp_proc->spinlock);
+    portENTER_CRITICAL(&af_ctlr->isp_proc->spinlock);
     af_ctlr->isp_proc->af_ctlr[af_ctlr->id] = NULL;
-    esp_os_exit_critical(&af_ctlr->isp_proc->spinlock);
+    portEXIT_CRITICAL(&af_ctlr->isp_proc->spinlock);
 }
 
 static void s_isp_af_free_controller(isp_af_ctlr_t af_ctlr)
@@ -127,7 +127,6 @@ esp_err_t esp_isp_new_af_controller(isp_proc_handle_t isp_proc, const esp_isp_af
     isp_ll_af_set_edge_thresh_mode(isp_proc->hal.hw, ISP_LL_AF_EDGE_DETECTOR_MODE_MANUAL);
     isp_ll_af_set_edge_thresh(isp_proc->hal.hw, af_config->edge_thresh);
     isp_ll_clear_intr(isp_proc->hal.hw, ISP_LL_EVENT_AF_MASK);
-    isp_ll_af_set_clk_ctrl_mode(isp_proc->hal.hw, ISP_LL_PIPELINE_CLK_CTRL_AUTO);
 
     *ret_hdl = af_ctlr;
 
@@ -169,6 +168,7 @@ esp_err_t esp_isp_af_controller_enable(isp_af_ctlr_t af_ctlr)
     ESP_RETURN_ON_FALSE(atomic_compare_exchange_strong(&af_ctlr->fsm, &expected_fsm, ISP_FSM_ENABLE),
                         ESP_ERR_INVALID_STATE, TAG, "controller not in init state");
 
+    isp_ll_af_clk_enable(af_ctlr->isp_proc->hal.hw, true);
     isp_ll_enable_intr(af_ctlr->isp_proc->hal.hw, ISP_LL_EVENT_AF_MASK, true);
     isp_ll_af_enable(af_ctlr->isp_proc->hal.hw, true);
 
@@ -182,6 +182,7 @@ esp_err_t esp_isp_af_controller_disable(isp_af_ctlr_t af_ctlr)
     ESP_RETURN_ON_FALSE(atomic_compare_exchange_strong(&af_ctlr->fsm, &expected_fsm, ISP_FSM_INIT),
                         ESP_ERR_INVALID_STATE, TAG, "controller not in enable state");
 
+    isp_ll_af_clk_enable(af_ctlr->isp_proc->hal.hw, false);
     isp_ll_enable_intr(af_ctlr->isp_proc->hal.hw, ISP_LL_EVENT_AF_MASK, false);
     isp_ll_af_enable(af_ctlr->isp_proc->hal.hw, false);
     esp_intr_disable(af_ctlr->intr_handle);
