@@ -5,7 +5,6 @@
  */
 
 #include <stdio.h>
-#include <stdlib.h>
 #include <inttypes.h>
 
 extern int _bss_start_low, _bss_start_high;

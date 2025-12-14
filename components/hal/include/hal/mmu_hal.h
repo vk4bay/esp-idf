@@ -15,26 +15,9 @@ extern "C" {
 #endif
 
 /**
- * @brief MMU hal config
- */
-typedef struct {
-    uint8_t core_nums;         ///< CPU core numbers
-    uint32_t mmu_page_size;    ///< MMU page size
-} mmu_hal_config_t;
-
-/**
  * MMU Hal layer initialisation
- *
- * @param config  MMU hal config
  */
-void mmu_hal_init(const mmu_hal_config_t *config);
-
-/**
- * MMU Hal layer context initialisation
- *
- * @param config  MMU hal config
- */
-void mmu_hal_ctx_init(const mmu_hal_config_t *config);
+void mmu_hal_init(void);
 
 /**
  * Unmap all the MMU table. After this all external memory vaddr are not available

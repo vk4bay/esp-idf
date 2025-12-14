@@ -29,7 +29,7 @@ To register an FS driver, an application needs to define an instance of the :cpp
 
     // Both esp_vfs_fs_ops_t and its subcomponents have to have static storage
     static const esp_vfs_dir_ops_t myfs_dir = {
-        .stat = &myfs_stat,
+        .fstat = &myfs_fstat,
     };
 
     static const esp_vfs_fs_ops_t myfs = {
@@ -55,7 +55,7 @@ The recommended approach for registering filesystem is to use statically allocat
     // Possibly local scope
     {
         esp_vfs_dir_ops_t myfs_dir = {
-            .stat = &myfs_stat,
+            .fstat = &myfs_fstat,
         };
 
         bool some_condition = false;

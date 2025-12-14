@@ -1,11 +1,12 @@
 /*
- * SPDX-FileCopyrightText: 2015-2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2015-2022 Espressif Systems (Shanghai) CO LTD
  *
- * SPDX-License-Identifier: Apache-2.0 OR MIT
+ * SPDX-License-Identifier: Apache-2.0
  */
 
 #include <stdint.h>
 #include "soc/sdio_slave_periph.h"
+#include "soc/gpio_periph.h"
 
 /**
  * I/O slot of sdio slave:

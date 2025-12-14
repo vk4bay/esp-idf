@@ -21,10 +21,6 @@ SECTIONS
 
     mapping[rtc_text]
 
-    /* mutable libs begin */
-    mutable[rtc_text]
-    /* mutable libs end */
-
     *rtc_wake_stub*.*(.literal .text .literal.* .text.*)
 
     _rtc_text_end = ABSOLUTE(.);
@@ -55,10 +51,6 @@ SECTIONS
 
     mapping[rtc_force_fast]
 
-    /* mutable libs begin */
-    mutable[rtc_force_fast]
-    /* mutable libs end */
-
     *(.rtc.force_fast .rtc.force_fast.*)
 
     ALIGNED_SYMBOL(4, _rtc_force_fast_end)
@@ -78,10 +70,6 @@ SECTIONS
 
     mapping[rtc_data]
 
-    /* mutable libs begin */
-    mutable[rtc_data]
-    /* mutable libs end */
-
     *rtc_wake_stub*.*(.data .rodata .data.* .rodata.*)
 
     _rtc_data_end = ABSOLUTE(.);
@@ -96,10 +84,6 @@ SECTIONS
     *rtc_wake_stub*.*(COMMON)
 
     mapping[rtc_bss]
-
-    /* mutable libs begin */
-    mutable[rtc_bss]
-    /* mutable libs end */
 
     _rtc_bss_end = ABSOLUTE(.);
   } > rtc_data_location
@@ -228,9 +212,18 @@ SECTIONS
     . = 0x3C0;
     KEEP(*(.DoubleExceptionVector.text));
     . = 0x400;
-    KEEP(*(._invalid_pc_placeholder.text));
-
+    _invalid_pc_placeholder = ABSOLUTE(.);
     *(.*Vector.literal)
+
+    *(.UserEnter.literal);
+    *(.UserEnter.text);
+    . = ALIGN (16);
+    *(.entry.literal)
+    *(.entry.text)
+    *(.init.literal)
+    *(.init)
+
+    _init_end = ABSOLUTE(.);
   } > iram0_0_seg
 
   .iram0.text :
@@ -239,11 +232,6 @@ SECTIONS
     _iram_text_start = ABSOLUTE(.);
 
     mapping[iram0_text]
-
-    /* mutable libs begin */
-    mutable[iram0_text]
-    FAST_REFLASHING_PADDING;
-    /* mutable libs end */
 
   } > iram0_0_seg
 
@@ -259,11 +247,6 @@ SECTIONS
     *(.jcr)
 
     mapping[dram0_data]
-
-    /* mutable libs begin */
-    mutable[dram0_data]
-    FAST_REFLASHING_PADDING;
-    /* mutable libs end */
 
     _data_end = ABSOLUTE(.);
   } > dram0_0_seg
@@ -303,10 +286,6 @@ SECTIONS
 
     mapping[extern_ram]
 
-    /* mutable libs begin */
-    mutable[extern_ram]
-    /* mutable libs end */
-
     ALIGNED_SYMBOL(4, _ext_ram_bss_end)
   } > extern_ram_seg
 
@@ -319,12 +298,7 @@ SECTIONS
      * ldgen places all bss-related data to mapping[dram0_bss]
      * (See components/esp_system/app.lf).
      */
-
     mapping[dram0_bss]
-
-    /* mutable libs begin */
-    mutable[dram0_bss]
-    /* mutable libs end */
 
     ALIGNED_SYMBOL(8, _bss_end)
   } > dram0_0_seg
@@ -379,7 +353,7 @@ SECTIONS
     __XT_EXCEPTION_DESCS_END__ = ABSOLUTE(.);
     *(.xt_except_desc_end)
 
-#if EH_FRAME_LINKING_ENABLED
+#if CONFIG_COMPILER_CXX_EXCEPTIONS
     ALIGNED_SYMBOL(4, __eh_frame)
     KEEP(*(.eh_frame))
     /**
@@ -387,19 +361,15 @@ SECTIONS
      * (see __FRAME_END__ in libgcc sources), it is manually provided here.
      */
     LONG(0);
-#endif // EH_FRAME_LINKING_ENABLED
+#endif // CONFIG_COMPILER_CXX_EXCEPTIONS
 
     /**
      * C++ constructor tables.
      *
      * Excluding crtbegin.o/crtend.o since IDF doesn't use the toolchain crt.
      */
-    ALIGNED_SYMBOL(4, __preinit_array_start)
-    KEEP (*(.preinit_array))
-    __preinit_array_end = ABSOLUTE(.);
     ALIGNED_SYMBOL(4, __init_array_start)
-    KEEP (*(SORT_BY_INIT_PRIORITY(EXCLUDE_FILE (*crtend.* *crtbegin.*) .ctors.*)))
-    KEEP (*(EXCLUDE_FILE (*crtend.* *crtbegin.*) .ctors))
+    KEEP (*(EXCLUDE_FILE (*crtend.* *crtbegin.*) .ctors SORT(.ctors.*)))
     __init_array_end = ABSOLUTE(.);
 
     /* Addresses of memory regions reserved via SOC_RESERVE_MEMORY_REGION() */
@@ -411,11 +381,6 @@ SECTIONS
     ALIGNED_SYMBOL(4, _esp_system_init_fn_array_start)
     KEEP (*(SORT_BY_INIT_PRIORITY(.esp_system_init_fn.*)))
     _esp_system_init_fn_array_end = ABSOLUTE(.);
-
-    /* mutable libs begin */
-    mutable[flash_rodata]
-    FAST_REFLASHING_PADDING;
-    /* mutable libs end */
 
     _rodata_end = ABSOLUTE(.);
 
@@ -451,10 +416,6 @@ SECTIONS
     _rodata_reserved_end = ABSOLUTE(.);
 
     mapping[rodata_noload]
-
-    /* mutable libs begin */
-    mutable[rodata_noload]
-    /* mutable libs end */
   } > default_rodata_seg
 
   .flash.text :
@@ -468,11 +429,6 @@ SECTIONS
     _text_start = ABSOLUTE(.);
 
     mapping[flash_text]
-
-    /* mutable libs begin */
-    mutable[flash_text]
-    FAST_REFLASHING_PADDING;
-    /* mutable libs end */
 
     *(.stub)
     *(.gnu.warning)
@@ -515,10 +471,6 @@ SECTIONS
 
     mapping[iram0_data]
 
-    /* mutable libs begin */
-    mutable[iram0_data]
-    /* mutable libs end */
-
     _iram_data_end = ABSOLUTE(.);
   } > iram0_0_seg
 
@@ -527,10 +479,6 @@ SECTIONS
     ALIGNED_SYMBOL(4, _iram_bss_start)
 
     mapping[iram0_bss]
-
-    /* mutable libs begin */
-    mutable[iram0_bss]
-    /* mutable libs end */
 
     _iram_bss_end = ABSOLUTE(.);
     ALIGNED_SYMBOL(4, _iram_end)

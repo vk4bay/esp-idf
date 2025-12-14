@@ -15,11 +15,9 @@ The subsections below give only absolutely necessary information. For full steps
 
 ### Hardware Required
 
-- OV2640 / SC030IOT camera sensor, or other camera sensors with DVP port that can output raw format color data
+- OV2640 camera sensor, or other camera sensors with DVP port that can output raw format color data
 - EK79007 or ILI9881C LCD screen
 - ESP32P4 devkit
-
-**Note:** For RAW sensors, the ISP needs to be automatically enabled to optimize image quality. Some examples can be found in [esp_video/examples](https://github.com/espressif/esp-video-components/tree/master/esp_video/examples).
 
 **Note:** For EK79007 you will need to connect following pins:
 - 5V - 5V
@@ -108,7 +106,7 @@ Set CONFIG_CAMERA_OV2640 to y
 
 Remember to select the LCD screen model and set corresponding correct horizontal/vertical resolution in ``menuconfig`` > ``Example DSI Configuration``.
 
-Available options for the camera sensor output horizontal/vertical resolution can be seen in ``menuconfig`` > ``Example Configuration``.
+Available options for the camera sensor output horizontal/vertical resolution can be seen in ``menuconfig`` > ``Example Configuration``. Note that the horizontal resolution for the camera should be the same as the LCD screen horizontal resolution.
 
 
 ### Build and Flash

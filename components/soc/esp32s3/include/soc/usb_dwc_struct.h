@@ -1,7 +1,7 @@
 /*
- * SPDX-FileCopyrightText: 2015-2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2015-2024 Espressif Systems (Shanghai) CO LTD
  *
- * SPDX-License-Identifier: Apache-2.0 OR MIT
+ * SPDX-License-Identifier: Apache-2.0
  */
 
 #pragma once
@@ -67,7 +67,7 @@ typedef union {
 } usb_dwc_gotgint_reg_t;
 
 typedef union {
-    struct {
+        struct {
         uint32_t glbllntrmsk: 1;
         uint32_t hbstlen: 4;
         uint32_t dmaen: 1;

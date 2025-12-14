@@ -1,23 +1,16 @@
-/**
- * main.js
- *
- * Bootstraps Vuetify and other plugins then mounts the App`
- */
-
-// Composables
-import { createApp } from 'vue'
-
-// Plugins
-import { registerPlugins } from '@/plugins'
-
-// Components
+import Vue from 'vue'
+import './plugins/vuetify'
 import App from './App.vue'
+import router from './router'
+import axios from 'axios'
+import store from './store'
 
-// Styles
-import 'unfonts.css'
+Vue.config.productionTip = false
 
-const app = createApp(App)
+Vue.prototype.$ajax = axios
 
-registerPlugins(app)
-
-app.mount('#app')
+new Vue({
+  router,
+  store,
+  render: h => h(App)
+}).$mount('#app')

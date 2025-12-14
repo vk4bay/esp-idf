@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2019-2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2019-2024 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -11,17 +11,13 @@
 #include "esp_private/periph_ctrl.h"
 #include "esp_private/io_mux.h"
 #include "freertos/FreeRTOS.h"
+#include "freertos/semphr.h"
+#include "freertos/timers.h"
 #include "driver/rtc_io.h"
 #include "driver/lp_io.h"
 #include "hal/rtc_io_hal.h"
-#include "hal/rtc_io_periph.h"
+#include "soc/rtc_io_periph.h"
 #include "soc/soc_caps.h"
-#if SOC_RTCIO_PIN_COUNT > 0
-#include "hal/rtc_gpio_caps.h"
-#endif
-#if SOC_LP_GPIO_MATRIX_SUPPORTED
-#include "soc/lp_gpio_pins.h"
-#endif
 
 static const char __attribute__((__unused__)) *RTCIO_TAG = "RTCIO";
 
@@ -187,14 +183,8 @@ esp_err_t rtc_gpio_iomux_func_sel(gpio_num_t gpio_num, int func)
 #if SOC_LP_GPIO_MATRIX_SUPPORTED
 esp_err_t lp_gpio_connect_in_signal(gpio_num_t gpio_num, uint32_t signal_idx, bool inv)
 {
-    uint32_t io_num;
-    if (gpio_num == LP_GPIO_MATRIX_CONST_ZERO_INPUT || gpio_num == LP_GPIO_MATRIX_CONST_ONE_INPUT) {
-        io_num = gpio_num;
-    } else {
-        ESP_RETURN_ON_FALSE(rtc_gpio_is_valid_gpio(gpio_num), ESP_ERR_INVALID_ARG, RTCIO_TAG, "LP_IO number error");
-        io_num = rtc_io_number_get(gpio_num);
-    }
-    rtcio_hal_matrix_in(io_num, signal_idx, inv);
+    ESP_RETURN_ON_FALSE(rtc_gpio_is_valid_gpio(gpio_num), ESP_ERR_INVALID_ARG, RTCIO_TAG, "LP_IO number error");
+    rtcio_hal_matrix_in(rtc_io_number_get(gpio_num), signal_idx, inv);
     return ESP_OK;
 }
 
@@ -251,10 +241,8 @@ esp_err_t rtc_gpio_force_hold_dis_all(void)
 esp_err_t rtc_gpio_isolate(gpio_num_t gpio_num)
 {
     ESP_RETURN_ON_FALSE(rtc_gpio_is_valid_gpio(gpio_num), ESP_ERR_INVALID_ARG, RTCIO_TAG, "RTCIO number error");
-    int rtcio_num = rtc_io_number_get(gpio_num);
     RTCIO_ENTER_CRITICAL();
-    rtcio_hal_isolate(rtcio_num);
-    rtcio_hal_hold_enable(rtcio_num);
+    rtcio_hal_isolate(rtc_io_number_get(gpio_num));
     RTCIO_EXIT_CRITICAL();
 
     return ESP_OK;
@@ -266,11 +254,11 @@ esp_err_t rtc_gpio_isolate(gpio_num_t gpio_num)
 esp_err_t rtc_gpio_wakeup_enable(gpio_num_t gpio_num, gpio_int_type_t intr_type)
 {
     ESP_RETURN_ON_FALSE(rtc_gpio_is_valid_gpio(gpio_num), ESP_ERR_INVALID_ARG, RTCIO_TAG, "RTCIO number error");
-#if !RTC_GPIO_CAPS_GET(EDGE_WAKEUP_SUPPORTED)
+#if !SOC_RTCIO_EDGE_WAKE_SUPPORTED
     if (intr_type == GPIO_INTR_POSEDGE || intr_type == GPIO_INTR_NEGEDGE || intr_type == GPIO_INTR_ANYEDGE) {
         return ESP_ERR_INVALID_ARG; // Dont support this mode.
     }
-#endif //!RTC_GPIO_CAPS_GET(EDGE_WAKEUP_SUPPORTED)
+#endif //!SOC_RTCIO_EDGE_WAKE_SUPPORTED
     RTCIO_ENTER_CRITICAL();
     rtcio_hal_wakeup_enable(rtc_io_number_get(gpio_num), intr_type);
     RTCIO_EXIT_CRITICAL();

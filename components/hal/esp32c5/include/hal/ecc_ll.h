@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2023-2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2023-2024 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -121,11 +121,11 @@ static inline void ecc_ll_set_mode(ecc_mode_t mode)
 static inline void ecc_ll_set_curve(ecc_curve_t curve)
 {
     switch(curve) {
-        case ECC_CURVE_SECP192R1:
         case ECC_CURVE_SECP256R1:
-        case ECC_CURVE_SECP384R1:
-        case ECC_CURVE_SM2:
-            REG_SET_FIELD(ECC_MULT_CONF_REG, ECC_MULT_KEY_LENGTH, curve);
+            REG_SET_BIT(ECC_MULT_CONF_REG, ECC_MULT_KEY_LENGTH);
+            break;
+        case ECC_CURVE_SECP192R1:
+            REG_CLR_BIT(ECC_MULT_CONF_REG, ECC_MULT_KEY_LENGTH);
             break;
         default:
             HAL_ASSERT(false && "Unsupported curve");
@@ -146,11 +146,6 @@ static inline void ecc_ll_set_mod_base(ecc_mod_base_t base)
             HAL_ASSERT(false && "Unsupported curve");
             return;
     }
-}
-
-static inline bool ecc_ll_is_p384_curve_operations_supported(void)
-{
-    return true;
 }
 
 static inline void ecc_ll_enable_constant_time_point_mul(bool enable)

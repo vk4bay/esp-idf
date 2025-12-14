@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2015-2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2015-2024 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -16,15 +16,14 @@
 
 #pragma once
 
-#include <sys/queue.h>
-#include <stdbool.h>
 #include "hal/sdio_slave_types.h"
 #include "hal/misc.h"
-#include "soc/sdio_slc_struct.h"
-#include "soc/sdio_slc_reg.h"
-#include "soc/sdio_slc_host_struct.h"
-#include "soc/sdio_slc_host_reg.h"
-#include "soc/sdio_hinf_struct.h"
+#include "soc/slc_struct.h"
+#include "soc/slc_reg.h"
+#include "soc/host_struct.h"
+#include "soc/host_reg.h"
+#include "soc/hinf_struct.h"
+#include "soc/lldesc.h"
 #include "soc/dport_reg.h"
 
 #ifdef __cplusplus
@@ -37,8 +36,6 @@ extern "C" {
 #define sdio_slave_ll_get_host(ID)  (&HOST)
 /// Get address of the only HINF registers for ESP32
 #define sdio_slave_ll_get_hinf(ID)  (&HINF)
-/// Get the mask of the interrupt status.
-#define sdio_slave_ll_intr_status_mask  (0xff | SLC_SLC0_RX_DONE_INT_ST | SLC_SLC0_RX_EOF_INT_ST | SLC_SLC0_TX_DONE_INT_ST)
 
 /*
  *  SLC2 DMA Desc struct, aka sdio_slave_ll_desc_t
@@ -94,10 +91,7 @@ static inline void _sdio_slave_ll_enable_bus_clock(bool enable)
 
 /// use a macro to wrap the function, force the caller to use it in a critical section
 /// the critical section needs to declare the __DECLARE_RCC_ATOMIC_ENV variable in advance
-#define sdio_slave_ll_enable_bus_clock(...) do { \
-        (void)__DECLARE_RCC_ATOMIC_ENV; \
-        _sdio_slave_ll_enable_bus_clock(__VA_ARGS__); \
-    } while(0)
+#define sdio_slave_ll_enable_bus_clock(...) (void)__DECLARE_RCC_ATOMIC_ENV; _sdio_slave_ll_enable_bus_clock(__VA_ARGS__)
 
 /**
  * @brief Reset the SDIO slave module
@@ -110,10 +104,7 @@ static inline void _sdio_slave_ll_reset_register(void)
 
 /// use a macro to wrap the function, force the caller to use it in a critical section
 /// the critical section needs to declare the __DECLARE_RCC_ATOMIC_ENV variable in advance
-#define sdio_slave_ll_reset_register(...) do { \
-        (void)__DECLARE_RCC_ATOMIC_ENV; \
-        _sdio_slave_ll_reset_register(__VA_ARGS__); \
-    } while(0)
+#define sdio_slave_ll_reset_register(...) (void)__DECLARE_RCC_ATOMIC_ENV; _sdio_slave_ll_reset_register(__VA_ARGS__)
 
 /**
  * Initialize the hardware.
@@ -550,17 +541,6 @@ static inline void sdio_slave_ll_slvint_fetch_clear(slc_dev_t *slc, sdio_slave_l
     sdio_slave_ll_slvint_t slv_int = (sdio_slave_ll_slvint_t)(slc->slc0_int_st.val & 0xff);
     *out_slv_int = slv_int;
     slc->slc0_int_clr.val = slv_int;
-}
-
-/**
- * Get the address of the interrupt status register.
- *
- * @param slc Address of the SLC registers
- * @return Address of the interrupt status register
- */
-static inline volatile void* sdio_slave_ll_get_intr_status_reg(slc_dev_t *slc)
-{
-    return &slc->slc0_int_st.val;
 }
 
 #ifdef __cplusplus

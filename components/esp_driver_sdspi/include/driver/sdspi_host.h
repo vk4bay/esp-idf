@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2015-2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2015-2024 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -8,7 +8,6 @@
 
 #include <stdint.h>
 #include <stddef.h>
-#include <stdbool.h>
 #include "esp_err.h"
 #include "sd_protocol_types.h"
 #include "driver/gpio.h"
@@ -21,11 +20,8 @@ extern "C" {
 /// Handle representing an SD SPI device
 typedef int sdspi_dev_handle_t;
 
-#if CONFIG_IDF_TARGET_ESP32
-#define SDSPI_DEFAULT_HOST SPI2_HOST
-#define SDSPI_DEFAULT_DMA  SDSPI_DEFAULT_HOST
-#elif CONFIG_IDF_TARGET_ESP32S2
-#define SDSPI_DEFAULT_HOST SPI3_HOST
+#if CONFIG_IDF_TARGET_ESP32 || CONFIG_IDF_TARGET_ESP32S2
+#define SDSPI_DEFAULT_HOST HSPI_HOST
 #define SDSPI_DEFAULT_DMA  SDSPI_DEFAULT_HOST
 #else
 #define SDSPI_DEFAULT_HOST SPI2_HOST
@@ -60,10 +56,9 @@ typedef int sdspi_dev_handle_t;
     .get_real_freq = &sdspi_host_get_real_freq, \
     .input_delay_phase = SDMMC_DELAY_PHASE_0, \
     .set_input_delay = NULL, \
-    .set_input_delayline = NULL, \
     .dma_aligned_buffer = NULL, \
     .pwr_ctrl_handle = NULL, \
-    .check_buffer_alignment = sdspi_host_check_buffer_alignment, \
+    .get_dma_info = &sdspi_host_get_dma_info, \
     .is_slot_set_to_uhs1 = NULL, \
 }
 
@@ -80,10 +75,6 @@ typedef struct {
                                     0 means "active low", i.e. card is protected when the GPIO is low;
                                     1 means "active high", i.e. card is protected when GPIO is high. */
     uint16_t duty_cycle_pos;  ///< Duty cycle of positive clock, in 1/256th increments (128 = 50%/50% duty). Setting this to 0 (=not setting it) is equivalent to setting this to 128.
-    int8_t wait_for_miso; /*!< Timeout value in the driver will be waiting for MISO to be high before sending commands. Possible values are the following:
-                               0: default value (40ms); -1: no waiting (0ms); 1-127: timeout in ms; else: invalid value, default will be used.
-                               This can be used to speed up transactions in certain scenarios but should not be needed if correct pull-up resistors are used.
-                               Use with care on devices where multiple SPI slaves use the same SPI bus.*/
 } sdspi_device_config_t;
 
 #define SDSPI_SLOT_NO_CS          GPIO_NUM_NC      ///< indicates that card select line is not used
@@ -95,15 +86,14 @@ typedef struct {
 /**
  * Macro defining default configuration of SD SPI device.
  */
-#define SDSPI_DEVICE_CONFIG_DEFAULT() { \
+#define SDSPI_DEVICE_CONFIG_DEFAULT() {\
     .host_id   = SDSPI_DEFAULT_HOST, \
     .gpio_cs   = GPIO_NUM_13, \
     .gpio_cd   = SDSPI_SLOT_NO_CD, \
     .gpio_wp   = SDSPI_SLOT_NO_WP, \
     .gpio_int  = GPIO_NUM_NC, \
     .gpio_wp_polarity = SDSPI_IO_ACTIVE_LOW, \
-    .duty_cycle_pos = 0, \
-    .wait_for_miso = 0, \
+    .duty_cycle_pos = 0,\
 }
 
 /**
@@ -225,19 +215,18 @@ esp_err_t sdspi_host_io_int_enable(sdspi_dev_handle_t handle);
  * @return
  *      - ESP_OK on success
  */
-esp_err_t sdspi_host_io_int_wait(sdspi_dev_handle_t handle, uint32_t timeout_ticks);
+esp_err_t sdspi_host_io_int_wait(sdspi_dev_handle_t handle, TickType_t timeout_ticks);
 
 /**
- * @brief Check if the buffer meets the alignment requirements
+ * @brief Get the DMA memory information for the host driver
  *
- * @param[in]  slot slot number (SDMMC_HOST_SLOT_0 or SDMMC_HOST_SLOT_1)
- * @param[in]  buf  buffer pointer
- * @param[in]  size buffer size
- *
+ * @param[in]  slot          Not used
+ * @param[out] dma_mem_info  DMA memory information structure
  * @return
- *        True for aligned buffer, false for not aligned buffer
+ *        - ESP_OK:                ON success.
+ *        - ESP_ERR_INVALID_ARG:   Invalid argument.
  */
-bool sdspi_host_check_buffer_alignment(int slot, const void *buf, size_t size);
+esp_err_t sdspi_host_get_dma_info(int slot, esp_dma_mem_info_t *dma_mem_info);
 
 #ifdef __cplusplus
 }

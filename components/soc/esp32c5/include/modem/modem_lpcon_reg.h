@@ -1,7 +1,7 @@
 /*
- * SPDX-FileCopyrightText: 2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2024 Espressif Systems (Shanghai) CO LTD
  *
- * SPDX-License-Identifier: Apache-2.0 OR MIT
+ * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
 
@@ -222,12 +222,6 @@ extern "C" {
 #define MODEM_LPCON_CLK_WIFIPWR_ST_MAP_S  16
 
 #define MODEM_LPCON_RST_CONF_REG          (DR_REG_MODEM_LPCON_BASE + 0x24)
-/* MODEM_LPCON_RST_DCMEM : WO ;bitpos:[4] ;default: 1'b0 ; */
-/*description: .*/
-#define MODEM_LPCON_RST_DCMEM    (BIT(4))
-#define MODEM_LPCON_RST_DCMEM_M  (BIT(4))
-#define MODEM_LPCON_RST_DCMEM_V  0x1
-#define MODEM_LPCON_RST_DCMEM_S  4
 /* MODEM_LPCON_RST_LP_TIMER : WO ;bitpos:[3] ;default: 1'b0 ; */
 /*description: .*/
 #define MODEM_LPCON_RST_LP_TIMER    (BIT(3))
@@ -371,40 +365,8 @@ extern "C" {
 #define MODEM_LPCON_CHAN_FREQ_MEM_EN_V  0x1
 #define MODEM_LPCON_CHAN_FREQ_MEM_EN_S  0
 
-#define MODEM_LPCON_DCMEM_VALID_0_REG       (DR_REG_MODEM_LPCON_BASE + 0x3C)
-/* MODEM_LPCON_DCMEM_VALID_0 : RO ;bitpos:[31:0] ;default: 32'h0 ; */
-/*description: .*/
-#define MODEM_LPCON_DCMEM_VALID_0    0xFFFFFFFF
-#define MODEM_LPCON_DCMEM_VALID_0_M  ((MODEM_LPCON_DCMEM_VALID_0_V)<<(MODEM_LPCON_DCMEM_VALID_0_S))
-#define MODEM_LPCON_DCMEM_VALID_0_V  0xFFFFFFFF
-#define MODEM_LPCON_DCMEM_VALID_0_S  0
-
-#define MODEM_LPCON_DCMEM_VALID_1_REG       (DR_REG_MODEM_LPCON_BASE + 0x40)
-/* MODEM_LPCON_DCMEM_VALID_1 : RO ;bitpos:[31:0] ;default: 32'h0 ; */
-/*description: .*/
-#define MODEM_LPCON_DCMEM_VALID_1    0xFFFFFFFF
-#define MODEM_LPCON_DCMEM_VALID_1_M  ((MODEM_LPCON_DCMEM_VALID_1_V)<<(MODEM_LPCON_DCMEM_VALID_1_S))
-#define MODEM_LPCON_DCMEM_VALID_1_V  0xFFFFFFFF
-#define MODEM_LPCON_DCMEM_VALID_1_S  0
-
-#define MODEM_LPCON_DCMEM_VALID_2_REG       (DR_REG_MODEM_LPCON_BASE + 0x44)
-/* MODEM_LPCON_DCMEM_VALID_2 : RO ;bitpos:[31:0] ;default: 32'h0 ; */
-/*description: .*/
-#define MODEM_LPCON_DCMEM_VALID_2    0xFFFFFFFF
-#define MODEM_LPCON_DCMEM_VALID_2_M  ((MODEM_LPCON_DCMEM_VALID_2_V)<<(MODEM_LPCON_DCMEM_VALID_2_S))
-#define MODEM_LPCON_DCMEM_VALID_2_V  0xFFFFFFFF
-#define MODEM_LPCON_DCMEM_VALID_2_S  0
-
-#define MODEM_LPCON_DCMEM_VALID_3_REG       (DR_REG_MODEM_LPCON_BASE + 0x48)
-/* MODEM_LPCON_DCMEM_VALID_3 : RO ;bitpos:[31:0] ;default: 32'h0 ; */
-/*description: .*/
-#define MODEM_LPCON_DCMEM_VALID_3    0xFFFFFFFF
-#define MODEM_LPCON_DCMEM_VALID_3_M  ((MODEM_LPCON_DCMEM_VALID_3_V)<<(MODEM_LPCON_DCMEM_VALID_3_S))
-#define MODEM_LPCON_DCMEM_VALID_3_V  0xFFFFFFFF
-#define MODEM_LPCON_DCMEM_VALID_3_S  0
-
-#define MODEM_LPCON_DATE_REG          (DR_REG_MODEM_LPCON_BASE + 0x4C)
-/* MODEM_LPCON_DATE : R/W ;bitpos:[27:0] ;default: 28'h2410170 ; */
+#define MODEM_LPCON_DATE_REG          (DR_REG_MODEM_LPCON_BASE + 0x3C)
+/* MODEM_LPCON_DATE : R/W ;bitpos:[27:0] ;default: 28'h2311220 ; */
 /*description: .*/
 #define MODEM_LPCON_DATE    0x0FFFFFFF
 #define MODEM_LPCON_DATE_M  ((MODEM_LPCON_DATE_V)<<(MODEM_LPCON_DATE_S))

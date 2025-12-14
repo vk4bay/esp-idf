@@ -13,6 +13,7 @@
  */
 #include "esp_zigbee_core.h"
 #include "switch_driver.h"
+#include "zcl_utility.h"
 
 /* Zigbee configuration */
 #define MAX_CHILDREN                    10         /* the max amount of connected devices */

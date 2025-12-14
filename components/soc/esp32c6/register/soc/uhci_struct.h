@@ -1,7 +1,7 @@
 /**
- * SPDX-FileCopyrightText: 2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2022 Espressif Systems (Shanghai) CO LTD
  *
- *  SPDX-License-Identifier: Apache-2.0 OR MIT
+ *  SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
 
@@ -618,7 +618,7 @@ typedef union {
 } uhci_date_reg_t;
 
 
-typedef struct uhci_dev_t {
+typedef struct uhci_dev_s {
     volatile uhci_conf0_reg_t conf0;
     volatile uhci_int_raw_reg_t int_raw;
     volatile uhci_int_st_reg_t int_st;

@@ -1,10 +1,6 @@
 # Documentation: .gitlab/ci/README.md#manifest-file-to-control-the-buildtest-apps
 
 examples/network/bridge:
-  disable:
-    - if: IDF_TARGET in ["esp32h21", "esp32h4"]
-      temporary: true
-      reason: not supported yet # TODO: [ESP32H21] IDF-12203 [ESP32H4] IDF-12712
   disable_test:
     - if: IDF_TARGET != "esp32"
       reason: Generic functionality, no need to be run on specific targets
@@ -24,10 +20,21 @@ examples/network/eth2ap:
 examples/network/simple_sniffer:
   disable:
     - if: SOC_WIFI_SUPPORTED != 1
+  disable_test:
+    - if: IDF_TARGET not in ["esp32", "esp32c3", "esp32s3"]
+      temporary: true
+      reason: lack of runners
+  depends_filepatterns:
+    - tools/ci/python_packages/common_test_methods.py
+    - examples/protocols/**/*
+    - examples/wifi/**/*
+    - examples/network/simple_sniffer/**/*
+    - components/mbedtls/port/dynamic/*
+    - examples/system/ota/**/*
   depends_components:
-    - esp_wifi
-    - fatfs
-    - esp_eth
+    - app_update
+    - esp_https_ota
+    - protocol_examples_common
 
 examples/network/sta2eth:
   disable:
@@ -36,6 +43,7 @@ examples/network/sta2eth:
     - esp_eth
     - esp_wifi
     - protocomm
+    - usb
     - esp_tinyusb
     - http-server
 
@@ -45,4 +53,11 @@ examples/network/vlan_support:
       reason: Runner uses esp32 ethernet kit
   depends_components:
     - esp_eth
-    - esp_netif
+  depends_filepatterns:
+    - tools/ci/python_packages/common_test_methods.py
+    - examples/common_components/**/*
+    - examples/protocols/**/*
+    - examples/system/ota/**/*
+    - examples/ethernet/iperf/**/*
+    - examples/network/vlan_support/**/*
+    - components/esp_netif/esp_netif_handlers.c

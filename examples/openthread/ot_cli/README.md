@@ -1,5 +1,5 @@
-| Supported Targets | ESP32-C5 | ESP32-C6 | ESP32-H2 | ESP32-H4 |
-| ----------------- | -------- | -------- | -------- | -------- |
+| Supported Targets | ESP32-C5 | ESP32-C6 | ESP32-H2 |
+| ----------------- | -------- | -------- | -------- |
 
 # OpenThread Command Line Example
 
@@ -37,7 +37,7 @@ Now you'll get an OpenThread command line shell.
 
 The `help` command will print all of the supported commands.
 ```bash
-esp32h2> ot help
+>  help
 I(7058) OPENTHREAD:[INFO]-CLI-----: execute command: help
 bbr
 bufferinfo
@@ -71,51 +71,51 @@ To run this example, at least two ESP32-H2 boards flashed with this ot_cli examp
 
 On the first device, run the following commands:
 ```bash
-esp32h2> ot factoryreset
+> factoryreset
 ... # the device will reboot
 
-esp32h2> ot dataset init new
+> dataset init new
 Done
-esp32h2> ot dataset commit active
+> dataset commit active
 Done
-esp32h2> ot ifconfig up
+> ifconfig up
 Done
-esp32h2> ot thread start
+> thread start
 Done
 
 # After some seconds
 
-esp32h2> ot state
+> state
 leader
 Done
 ```
 Now the first device has formed a Thread network as a leader. Get some information which will be used in next steps:
 ```bash
-esp32h2> ot ipaddr
+> ipaddr
 fdde:ad00:beef:0:0:ff:fe00:fc00
 fdde:ad00:beef:0:0:ff:fe00:8000
 fdde:ad00:beef:0:a7c6:6311:9c8c:271b
 fe80:0:0:0:5c27:a723:7115:c8f8
 
 # Get the Active Dataset
-esp32h2> ot dataset active -x
+> dataset active -x
 0e080000000000010000000300001835060004001fffe00208fe7bb701f5f1125d0708fd75cbde7c6647bd0510b3914792d44f45b6c7d76eb9306eec94030f4f70656e5468726561642d35383332010258320410e35c581af5029b054fc904a24c2b27700c0402a0fff8
 ```
 
 On the second device, set the active dataset from leader, and start Thread interface:
 ```bash
-esp32h2> ot factoryreset
+> factoryreset
 ... # the device will reboot
 
-esp32h2> ot dataset set active 0e080000000000010000000300001835060004001fffe00208fe7bb701f5f1125d0708fd75cbde7c6647bd0510b3914792d44f45b6c7d76eb9306eec94030f4f70656e5468726561642d35383332010258320410e35c581af5029b054fc904a24c2b27700c0402a0fff8
-esp32h2> ot ifconfig up
+> dataset set active 0e080000000000010000000300001835060004001fffe00208fe7bb701f5f1125d0708fd75cbde7c6647bd0510b3914792d44f45b6c7d76eb9306eec94030f4f70656e5468726561642d35383332010258320410e35c581af5029b054fc904a24c2b27700c0402a0fff8
+> ifconfig up
 Done
-esp32h2> ot thread start
+> thread start
 Done
 
 # After some seconds
 
-esp32h2> ot state
+> state
 router  # child is also a valid state
 Done
 ```

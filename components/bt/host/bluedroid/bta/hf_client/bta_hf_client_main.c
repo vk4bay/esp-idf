@@ -24,7 +24,6 @@
 #include "bta/bta_sys.h"
 #include "bta/bta_hf_client_api.h"
 #include "bta_hf_client_int.h"
-#include "osi/allocator.h"
 
 #if BT_HF_CLIENT_BQB_INCLUDED
 static BOOLEAN s_bta_hf_client_bqb_clip_flag = TRUE;
@@ -80,8 +79,6 @@ enum {
     BTA_HF_CLIENT_SEND_AT_CMD,
 #if (BTM_SCO_HCI_INCLUDED == TRUE)
     BTA_HF_CLIENT_CI_SCO_DATA,
-    BTA_HF_CLIENT_SCO_DATA_SEND,
-    BTA_HF_CLIENT_SCO_DATA_FREE,
     BTA_HF_CLIENT_PKT_STAT_NUMS,
 #endif
     BTA_HF_CLIENT_NUM_ACTIONS,
@@ -121,8 +118,6 @@ const tBTA_HF_CLIENT_ACTION bta_hf_client_action[] = {
     /* BTA_HF_CLIENT_SEND_AT_CMD */   bta_hf_client_send_at_cmd,
 #if (BTM_SCO_HCI_INCLUDED == TRUE)
     /* BTA_HF_CLIENT_CI_SCO_DATA */   bta_hf_client_ci_sco_data,
-    /* BTA_HF_CLIENT_SCO_DATA_SEND */ bta_hf_client_sco_data_send,
-    /* BTA_HF_CLIENT_SCO_DATA_FREE */ bta_hf_client_sco_data_free,
     /* BTA_HF_CLIENT_PKT_STAT_NUMS */ bta_hf_client_pkt_stat_nums,
 #endif /* (BTM_SCO_HCI_INCLUDED == TRUE ) */
 };
@@ -154,7 +149,6 @@ const UINT8 bta_hf_client_st_init[][BTA_HF_CLIENT_NUM_COLS] = {
     /* SEND_AT_CMD_EVT */       {BTA_HF_CLIENT_IGNORE,         BTA_HF_CLIENT_IGNORE,          BTA_HF_CLIENT_INIT_ST},
 #if (BTM_SCO_HCI_INCLUDED == TRUE )
     /* CI_SCO_DATA_EVT */       {BTA_HF_CLIENT_IGNORE,         BTA_HF_CLIENT_IGNORE,          BTA_HF_CLIENT_INIT_ST},
-    /* SCO_DATA_SEND_EVT */     {BTA_HF_CLIENT_SCO_DATA_FREE,  BTA_HF_CLIENT_IGNORE,          BTA_HF_CLIENT_INIT_ST},
     /* PKT_STAT_NUMS_GET_EVT */ {BTA_HF_CLIENT_PKT_STAT_NUMS,  BTA_HF_CLIENT_IGNORE,          BTA_HF_CLIENT_INIT_ST},
 #endif /* (BTM_SCO_HCI_INCLUDED == TRUE ) */
 };
@@ -181,7 +175,6 @@ const UINT8 bta_hf_client_st_opening[][BTA_HF_CLIENT_NUM_COLS] = {
     /* SEND_AT_CMD_EVT */       {BTA_HF_CLIENT_IGNORE,         BTA_HF_CLIENT_IGNORE,          BTA_HF_CLIENT_OPENING_ST},
 #if (BTM_SCO_HCI_INCLUDED == TRUE)
     /* CI_SCO_DATA_EVT */       {BTA_HF_CLIENT_IGNORE,         BTA_HF_CLIENT_IGNORE,          BTA_HF_CLIENT_OPENING_ST},
-    /* SCO_DATA_SEND_EVT */     {BTA_HF_CLIENT_SCO_DATA_FREE,  BTA_HF_CLIENT_IGNORE,          BTA_HF_CLIENT_OPENING_ST},
     /* PKT_STAT_NUMS_GET_EVT */ {BTA_HF_CLIENT_PKT_STAT_NUMS,  BTA_HF_CLIENT_IGNORE,          BTA_HF_CLIENT_OPENING_ST},
 #endif /* (BTM_SCO_HCI_INCLUDED == TRUE ) */
 };
@@ -208,7 +201,6 @@ const UINT8 bta_hf_client_st_open[][BTA_HF_CLIENT_NUM_COLS] = {
     /* SEND_AT_CMD_EVT */       {BTA_HF_CLIENT_SEND_AT_CMD,    BTA_HF_CLIENT_IGNORE,          BTA_HF_CLIENT_OPEN_ST},
 #if (BTM_SCO_HCI_INCLUDED == TRUE )
     /* CI_SCO_DATA_EVT */       {BTA_HF_CLIENT_CI_SCO_DATA,    BTA_HF_CLIENT_IGNORE,          BTA_HF_CLIENT_OPEN_ST},
-    /* SCO_DATA_SEND_EVT */     {BTA_HF_CLIENT_SCO_DATA_SEND,  BTA_HF_CLIENT_IGNORE,          BTA_HF_CLIENT_OPEN_ST},
     /* PKT_STAT_NUMS_GET_EVT */ {BTA_HF_CLIENT_PKT_STAT_NUMS,  BTA_HF_CLIENT_IGNORE,          BTA_HF_CLIENT_OPEN_ST},
 #endif /* (BTM_SCO_HCI_INCLUDED == TRUE ) */
 };
@@ -235,7 +227,6 @@ const UINT8 bta_hf_client_st_closing[][BTA_HF_CLIENT_NUM_COLS] = {
     /* SEND_AT_CMD_EVT */       {BTA_HF_CLIENT_IGNORE,         BTA_HF_CLIENT_IGNORE,          BTA_HF_CLIENT_CLOSING_ST},
 #if (BTM_SCO_HCI_INCLUDED == TRUE )
     /* CI_SCO_DATA_EVT */       {BTA_HF_CLIENT_IGNORE,         BTA_HF_CLIENT_IGNORE,          BTA_HF_CLIENT_CLOSING_ST},
-    /* SCO_DATA_SEND_EVT */     {BTA_HF_CLIENT_SCO_DATA_FREE,  BTA_HF_CLIENT_IGNORE,          BTA_HF_CLIENT_CLOSING_ST},
     /* PKT_STAT_NUMS_GET_EVT */ {BTA_HF_CLIENT_PKT_STAT_NUMS,  BTA_HF_CLIENT_IGNORE,          BTA_HF_CLIENT_CLOSING_ST},
 #endif /* (BTM_SCO_HCI_INCLUDED == TRUE ) */
 };
@@ -293,7 +284,6 @@ void bta_hf_client_scb_init(void)
     memset(&bta_hf_client_cb.scb, 0, sizeof(tBTA_HF_CLIENT_SCB));
     bta_hf_client_cb.scb.sco_idx = BTM_INVALID_SCO_INDEX;
     bta_hf_client_cb.scb.negotiated_codec = BTM_SCO_CODEC_CVSD;
-    bta_hf_client_cb.scb.p_sco_data = NULL;
 }
 
 /*******************************************************************************
@@ -309,10 +299,6 @@ void bta_hf_client_scb_init(void)
 void bta_hf_client_scb_disable(void)
 {
     APPL_TRACE_DEBUG("%s", __FUNCTION__);
-    if (bta_hf_client_cb.scb.p_sco_data != NULL) {
-        osi_free(bta_hf_client_cb.scb.p_sco_data);
-        bta_hf_client_cb.scb.p_sco_data = NULL;
-    }
 
     bta_hf_client_scb_init();
 
@@ -484,7 +470,6 @@ static void bta_hf_client_api_disable(tBTA_HF_CLIENT_DATA *p_data)
 *******************************************************************************/
 BOOLEAN bta_hf_client_hdl_event(BT_HDR *p_msg)
 {
-    BOOLEAN free_msg = TRUE;
 #if BTA_HF_CLIENT_DEBUG == TRUE
     APPL_TRACE_DEBUG("bta_hf_client_hdl_event %s (0x%x)", bta_hf_client_evt_str(p_msg->event), p_msg->event);
 #endif
@@ -499,16 +484,12 @@ BOOLEAN bta_hf_client_hdl_event(BT_HDR *p_msg)
     case BTA_HF_CLIENT_API_DISABLE_EVT:
         bta_hf_client_api_disable((tBTA_HF_CLIENT_DATA *) p_msg);
         break;
-#if (BTM_SCO_HCI_INCLUDED == TRUE) && (BTA_HFP_EXT_CODEC == TRUE)
-    case BTA_HF_CLIENT_SCO_DATA_SEND_EVT:
-        free_msg = false;
-        /* fall through */
-#endif
+
     default:
         bta_hf_client_sm_execute(p_msg->event, (tBTA_HF_CLIENT_DATA *) p_msg);
         break;
     }
-    return free_msg;
+    return TRUE;
 }
 
 /*******************************************************************************

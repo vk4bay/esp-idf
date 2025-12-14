@@ -12,7 +12,6 @@ extern "C" {
 #endif
 
 #include "sdkconfig.h"
-#include "esp_assert.h"
 
 #define ROMFN_ATTR
 
@@ -20,26 +19,17 @@ extern "C" {
 //and all variables in shared RAM. These macros can be used to redirect
 //particular functions/variables to other memory regions.
 
-// Places code into IRAM instead of flash
-#define IRAM_ATTR _SECTION_ATTR_IMPL(".iram1", __COUNTER__)
-
 // Forces code into IRAM instead of flash
-#define FORCE_IRAM_ATTR _SECTION_FORCE_ATTR_IMPL(".iram1", __COUNTER__)
+#define IRAM_ATTR _SECTION_ATTR_IMPL(".iram1", __COUNTER__)
 
 // Forces data into DRAM instead of flash
 #define DRAM_ATTR _SECTION_ATTR_IMPL(".dram1", __COUNTER__)
 
-// Places code into TCM instead of flash
-#define TCM_IRAM_ATTR _SECTION_ATTR_IMPL(".tcm.text", __COUNTER__)
-
 // Forces code into TCM instead of flash
-#define FORCE_TCM_IRAM_ATTR _SECTION_FORCE_ATTR_IMPL(".tcm.text", __COUNTER__)
+#define TCM_IRAM_ATTR _SECTION_ATTR_IMPL(".tcm.text", __COUNTER__)
 
 // Forces data into TCM instead of L2MEM
 #define TCM_DRAM_ATTR _SECTION_ATTR_IMPL(".tcm.data", __COUNTER__)
-
-// Forces data to be removed from the final binary but keeps it in the ELF file
-#define NOLOAD_ATTR _SECTION_ATTR_IMPL(".noload_keep_in_elf", __COUNTER__)
 
 // IRAM can only be accessed as an 8-bit memory on ESP32, when CONFIG_ESP32_IRAM_AS_8BIT_ACCESSIBLE_MEMORY is set
 #define IRAM_8BIT_ACCESSIBLE (CONFIG_IDF_TARGET_ESP32 && CONFIG_ESP32_IRAM_AS_8BIT_ACCESSIBLE_MEMORY)
@@ -116,15 +106,14 @@ extern "C" {
 // Allows to place data into RTC_FAST memory and map it to coredump
 #define COREDUMP_RTC_FAST_ATTR _SECTION_ATTR_IMPL(".rtc.fast.coredump", __COUNTER__)
 #else
-// RTC memory is not supported on these chips
-#define RTC_DATA_ATTR ESP_STATIC_ASSERT(0, "RTC_DATA_ATTR is not supported on this chip. Use DRAM_ATTR instead.")
-#define RTC_NOINIT_ATTR ESP_STATIC_ASSERT(0, "RTC_NOINIT_ATTR is not supported on this chip. Use DRAM_ATTR instead.")
-#define RTC_RODATA_ATTR ESP_STATIC_ASSERT(0, "RTC_RODATA_ATTR is not supported on this chip. Use DRAM_ATTR instead.")
-#define COREDUMP_RTC_DATA_ATTR ESP_STATIC_ASSERT(0, "COREDUMP_RTC_DATA_ATTR is not supported on this chip. Use COREDUMP_DRAM_ATTR instead.")
-#define RTC_SLOW_ATTR ESP_STATIC_ASSERT(0, "RTC_SLOW_ATTR is not supported on this chip. Use DRAM_ATTR instead.")
-#define RTC_IRAM_ATTR ESP_STATIC_ASSERT(0, "RTC_IRAM_ATTR is not supported on this chip. Use IRAM_ATTR instead.")
-#define RTC_FAST_ATTR ESP_STATIC_ASSERT(0, "RTC_FAST_ATTR is not supported on this chip. Use DRAM_ATTR instead.")
-#define COREDUMP_RTC_FAST_ATTR ESP_STATIC_ASSERT(0, "COREDUMP_RTC_FAST_ATTR is not supported on this chip. Use COREDUMP_DRAM_ATTR instead.")
+#define RTC_DATA_ATTR
+#define RTC_NOINIT_ATTR
+#define RTC_RODATA_ATTR
+#define COREDUMP_RTC_DATA_ATTR
+#define RTC_SLOW_ATTR
+#define RTC_IRAM_ATTR
+#define RTC_FAST_ATTR
+#define COREDUMP_RTC_FAST_ATTR
 #endif
 
 #if CONFIG_SPIRAM_ALLOW_BSS_SEG_EXTERNAL_MEMORY
@@ -132,6 +121,16 @@ extern "C" {
 #define EXT_RAM_BSS_ATTR _SECTION_ATTR_IMPL(".ext_ram.bss", __COUNTER__)
 #else
 #define EXT_RAM_BSS_ATTR
+#endif
+
+/**
+ * Deprecated Macro for putting .bss on PSRAM
+ */
+#if CONFIG_SPIRAM_ALLOW_BSS_SEG_EXTERNAL_MEMORY
+// Forces bss variable into external memory. "
+#define EXT_RAM_ATTR _SECTION_ATTR_IMPL(".ext_ram.bss", __COUNTER__) _Pragma ("GCC warning \"'EXT_RAM_ATTR' macro is deprecated, please use `EXT_RAM_BSS_ATTR`\"")
+#else
+#define EXT_RAM_ATTR _Pragma ("GCC warning \"'EXT_RAM_ATTR' macro is deprecated, please use `EXT_RAM_BSS_ATTR`\"")
 #endif
 
 // Forces data into noinit section to avoid initialization after restart.
@@ -152,13 +151,6 @@ extern "C" {
 
 // Forces to not inline function
 #define NOINLINE_ATTR __attribute__((noinline))
-
-#if !defined(__clang__) && __GNUC__ >= 15
-// Marks a character array as not null-terminated to avoid string-related optimizations or warnings
-#define NONSTRING_ATTR __attribute__ ((nonstring))
-#else
-#define NONSTRING_ATTR
-#endif
 
 // This allows using enum as flags in C++
 // Format: FLAG_ATTR(flag_enum_t)
@@ -194,13 +186,11 @@ FORCE_INLINE_ATTR TYPE& operator<<=(TYPE& a, int b) { a = a << b; return a; }
 // data with a custom section type set
 #ifndef CONFIG_IDF_TARGET_LINUX
 #define _SECTION_ATTR_IMPL(SECTION, COUNTER) __attribute__((section(SECTION "." _COUNTER_STRINGIFY(COUNTER))))
-#define _SECTION_FORCE_ATTR_IMPL(SECTION, COUNTER) __attribute__((noinline, section(SECTION "." _COUNTER_STRINGIFY(COUNTER))))
 #define _COUNTER_STRINGIFY(COUNTER) #COUNTER
 #else
 // Custom section attributes are generally not used in the port files for Linux target, but may be found
 // in the common header files. Don't declare custom sections in that case.
 #define _SECTION_ATTR_IMPL(SECTION, COUNTER)
-#define _SECTION_FORCE_ATTR_IMPL(SECTION, COUNTER)
 #endif
 
 /* Use IDF_DEPRECATED attribute to mark anything deprecated from use in

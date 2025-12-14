@@ -5,16 +5,12 @@ set(srcs "commands.c"
          "split_argv.c"
          "linenoise/linenoise.c")
 
-set(requires vfs)
-
 if(${target} STREQUAL "linux")
-    list(APPEND srcs "esp_console_repl_linux.c" "esp_console_repl_internal.c")
+    list(APPEND srcs "esp_console_repl_linux.c")
+    set(requires "")
 else()
     list(APPEND srcs "esp_console_repl_chip.c")
-    list(APPEND requires esp_stdio)
-    if(CONFIG_VFS_SUPPORT_SELECT)
-        list(APPEND srcs "esp_console_repl_internal.c")
-    endif()
+    set(requires vfs esp_vfs_console)
 endif()
 
 set(argtable_srcs argtable3/arg_cmd.c
@@ -40,7 +36,6 @@ idf_component_register(SRCS ${srcs}
                     REQUIRES "${requires}"
                     PRIV_REQUIRES esp_driver_uart
                                   esp_driver_usb_serial_jtag
-                                  esp_usb_cdc_rom_console
                     )
 
 if(CONFIG_COMPILER_STATIC_ANALYZER AND CMAKE_C_COMPILER_ID STREQUAL "GNU") # TODO IDF-10085

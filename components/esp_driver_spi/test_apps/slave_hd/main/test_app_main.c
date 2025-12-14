@@ -7,9 +7,8 @@
 #include "unity.h"
 #include "unity_test_utils.h"
 #include "esp_heap_caps.h"
-#include "esp_newlib.h"
 
-#define TEST_MEMORY_LEAK_THRESHOLD (300)
+#define TEST_MEMORY_LEAK_THRESHOLD (200)
 
 void setUp(void)
 {

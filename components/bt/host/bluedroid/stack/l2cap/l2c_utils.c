@@ -25,6 +25,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "osi/allocator.h"
 #include "device/controller.h"
 #include "stack/bt_types.h"
 #include "stack/hcimsgs.h"
@@ -35,7 +36,6 @@
 #include "stack/btm_api.h"
 #include "btm_int.h"
 #include "stack/hcidefs.h"
-#include "bt_common.h"
 #include "osi/allocator.h"
 #include "osi/list.h"
 
@@ -67,8 +67,7 @@ tL2C_LCB *l2cu_allocate_lcb (BD_ADDR p_bd_addr, BOOLEAN is_bonding, tBT_TRANSPOR
     /* Check if peer device's and our BD_ADDR is same or not. It
        should be different to avoid 'Impersonation in the Pin Pairing
        Protocol' (CVE-2020-26555) vulnerability. */
-    if ((transport == BT_TRANSPORT_BR_EDR) &&
-        (memcmp((uint8_t *)p_bd_addr, (uint8_t *)&controller_get_interface()->get_address()->address, sizeof (BD_ADDR)) == 0)) {
+    if (memcmp((uint8_t *)p_bd_addr, (uint8_t *)&controller_get_interface()->get_address()->address, sizeof (BD_ADDR)) == 0) {
         L2CAP_TRACE_ERROR ("%s connection rejected due to same BD ADDR", __func__);
         return (NULL);
     }
@@ -157,9 +156,6 @@ void l2cu_update_lcb_4_bonding (BD_ADDR p_bd_addr, BOOLEAN is_bonding)
 void l2cu_release_lcb (tL2C_LCB *p_lcb)
 {
     tL2C_CCB    *p_ccb;
-
-    L2CAP_TRACE_DEBUG("%s handle=%u bda="MACSTR"",
-        __func__, p_lcb->handle, MAC2STR(p_lcb->remote_bd_addr));
 
     p_lcb->in_use     = FALSE;
     p_lcb->is_bonding = FALSE;
@@ -340,23 +336,14 @@ tL2C_LCB  *l2cu_find_free_lcb (void)
     return (NULL);
 }
 
-uint8_t l2cu_ble_plcb_active_count(void)
+uint8_t l2cu_plcb_active_count(void)
 {
     list_node_t *p_node = NULL;
     tL2C_LCB    *p_lcb  = NULL;
     uint8_t active_count = 0;
     for (p_node = list_begin(l2cb.p_lcb_pool); p_node; p_node = list_next(p_node)) {
         p_lcb = list_node(p_node);
-        if (p_lcb && p_lcb->in_use && p_lcb->transport == BT_TRANSPORT_LE) {
-            L2CAP_TRACE_DEBUG("%s LE PLCB active #%d: remote_addr=%02X:%02X:%02X:%02X:%02X:%02X",
-                              __func__,
-                              active_count,
-                              p_lcb->remote_bd_addr[0],
-                              p_lcb->remote_bd_addr[1],
-                              p_lcb->remote_bd_addr[2],
-                              p_lcb->remote_bd_addr[3],
-                              p_lcb->remote_bd_addr[4],
-                              p_lcb->remote_bd_addr[5]);
+        if (p_lcb && p_lcb->in_use) {
             active_count ++;
         }
     }
@@ -628,7 +615,7 @@ void l2cu_send_peer_connect_rsp (tL2C_CCB *p_ccb, UINT16 result, UINT16 status)
 **
 ** Description      Build and send an L2CAP "connection response neg" message
 **                  to the peer. This function is called when there is no peer
-**                  CCB (non-existent PSM or no resources).
+**                  CCB (non-existant PSM or no resources).
 **
 ** Returns          void
 **
@@ -1750,7 +1737,7 @@ void l2cu_release_ccb (tL2C_CCB *p_ccb)
        ) {
         l2cu_dequeue_ccb (p_ccb);
 
-        /* Unlink the CCB from the LCB */
+        /* Delink the CCB from the LCB */
         p_ccb->p_lcb = NULL;
     }
 
@@ -1973,7 +1960,7 @@ tL2C_RCB *l2cu_find_ble_rcb_by_psm (UINT16 psm)
 **
 ** Returns          UINT8 - L2CAP_PEER_CFG_OK if passed to upper layer,
 **                          L2CAP_PEER_CFG_UNACCEPTABLE if automatically responded to
-**                              because parameters are unacceptable from a specification
+**                              because parameters are unnacceptable from a specification
 **                              point of view.
 **                          L2CAP_PEER_CFG_DISCONNECT if no compatible channel modes
 **                              between the two devices, and shall be closed.
@@ -2571,7 +2558,7 @@ BOOLEAN l2cu_set_acl_priority (BD_ADDR bd_addr, UINT8 priority, BOOLEAN reset_af
 **
 ** Function         l2cu_set_non_flushable_pbf
 **
-** Description      set L2CAP_PKT_START_NON_FLUSHABLE if controller supports
+** Description      set L2CAP_PKT_START_NON_FLUSHABLE if controller supoorts
 **
 ** Returns          void
 **
@@ -3341,7 +3328,7 @@ static tL2C_CCB *l2cu_get_next_channel_in_rr(tL2C_LCB *p_lcb)
     for ( i = 0; (i < L2CAP_NUM_CHNL_PRIORITY) && (!p_serve_ccb); i++ ) {
         /* scan all channel within serving priority group until finding a channel to serve */
         for ( j = 0; (j < p_lcb->rr_serv[p_lcb->rr_pri].num_ccb) && (!p_serve_ccb); j++) {
-            /* scanning from next serving channel */
+            /* scaning from next serving channel */
             p_ccb = p_lcb->rr_serv[p_lcb->rr_pri].p_serve_ccb;
 
             if (!p_ccb) {

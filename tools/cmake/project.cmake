@@ -1,5 +1,5 @@
 # Designed to be included from an IDF app's CMakeLists.txt file
-cmake_minimum_required(VERSION 3.22)
+cmake_minimum_required(VERSION 3.16)
 
 # Get the currently selected sdkconfig file early, so this doesn't
 # have to be done multiple times on different places.
@@ -61,7 +61,7 @@ if(NOT "$ENV{IDF_COMPONENT_MANAGER}" EQUAL "0")
     idf_build_set_property(IDF_COMPONENT_MANAGER 1)
 endif()
 # Set component manager interface version
-idf_build_set_property(__COMPONENT_MANAGER_INTERFACE_VERSION 4)
+idf_build_set_property(__COMPONENT_MANAGER_INTERFACE_VERSION 3)
 
 #
 # Parse and store the VERSION argument provided to the project() command.
@@ -351,6 +351,7 @@ function(__project_info test_components)
     include(${sdkconfig_cmake})
     idf_build_get_property(COMPONENT_KCONFIGS KCONFIGS)
     idf_build_get_property(COMPONENT_KCONFIGS_PROJBUILD KCONFIG_PROJBUILDS)
+    idf_build_get_property(debug_prefix_map_gdbinit DEBUG_PREFIX_MAP_GDBINIT)
 
     __generate_gdbinit()
     idf_build_get_property(gdbinit_files_prefix_map GDBINIT_FILES_PREFIX_MAP)
@@ -494,24 +495,6 @@ function(__project_init components_var test_components_var)
         endif()
     endforeach()
 
-    # If a minimal build is requested, set COMPONENTS to "main" only if the COMPONENTS
-    # variable is not already defined. The COMPONENTS variable takes precedence over
-    # the MINIMAL_BUILD property.
-    idf_build_get_property(minimal_build MINIMAL_BUILD)
-    if(minimal_build)
-        if(DEFINED COMPONENTS)
-            message(WARNING "The MINIMAL_BUILD property is disregarded because the COMPONENTS variable is defined.")
-            set(minimal_build OFF)
-        else()
-            set(COMPONENTS main ${TEST_COMPONENTS})
-            set(minimal_build ON)
-        endif()
-    else()
-        set(minimal_build OFF)
-    endif()
-
-    message(STATUS "Minimal build - ${minimal_build}")
-
     spaces2list(COMPONENTS)
     spaces2list(EXCLUDE_COMPONENTS)
     idf_build_get_property(component_targets __COMPONENT_TARGETS)
@@ -606,7 +589,7 @@ macro(project project_name)
         # Set the variables that project() normally sets, documented in the
         # command's docs.
         #
-        # https://cmake.org/cmake/help/v3.22/command/project.html
+        # https://cmake.org/cmake/help/v3.16/command/project.html
         #
         # There is some nuance when it comes to setting version variables in terms of whether
         # CMP0048 is set to OLD or NEW. However, the proper behavior should have bee already handled by the original
@@ -732,31 +715,14 @@ macro(project project_name)
 
     message(STATUS "Building ESP-IDF components for target ${IDF_TARGET}")
 
-    set(result 0)
-    set(retried 0)
-
-    while(true)
-        idf_build_process(${IDF_TARGET}
-            SDKCONFIG_DEFAULTS "${sdkconfig_defaults}"
-            SDKCONFIG ${sdkconfig}
-            BUILD_DIR ${build_dir}
-            PROJECT_NAME ${CMAKE_PROJECT_NAME}
-            PROJECT_DIR ${CMAKE_CURRENT_LIST_DIR}
-            PROJECT_VER "${project_ver}"
-            COMPONENTS "${components};${test_components}"
-        )
-
-        if(result EQUAL 0)
-            break()
-        elseif(result EQUAL 10 AND retried EQUAL 0)
-            message(WARNING "Missing kconfig option. Re-run the build process...")
-            set(retried 1)
-        elseif(result EQUAL 10 AND retried EQUAL 1)
-            message(FATAL_ERROR "Missing required kconfig option after retry.")
-        else()
-            message(FATAL_ERROR "idf_build_process failed with exit code ${result}")
-        endif()
-    endwhile()
+    idf_build_process(${IDF_TARGET}
+                    SDKCONFIG_DEFAULTS "${sdkconfig_defaults}"
+                    SDKCONFIG ${sdkconfig}
+                    BUILD_DIR ${build_dir}
+                    PROJECT_NAME ${CMAKE_PROJECT_NAME}
+                    PROJECT_DIR ${CMAKE_CURRENT_LIST_DIR}
+                    PROJECT_VER "${project_ver}"
+                    COMPONENTS "${components};${test_components}")
 
     # Special treatment for 'main' component for standard projects (not part of core build system).
     # Have it depend on every other component in the build. This is
@@ -802,6 +768,21 @@ macro(project project_name)
         target_link_libraries(${project_elf} PRIVATE "-Wl,--start-group")
     endif()
 
+    if(test_components)
+        target_link_libraries(${project_elf} PRIVATE "-Wl,--whole-archive")
+        foreach(test_component ${test_components})
+            if(TARGET ${test_component})
+                target_link_libraries(${project_elf} PRIVATE ${test_component})
+            endif()
+        endforeach()
+        target_link_libraries(${project_elf} PRIVATE "-Wl,--no-whole-archive")
+    endif()
+
+    idf_build_get_property(build_components BUILD_COMPONENT_ALIASES)
+    if(test_components)
+        list(REMOVE_ITEM build_components ${test_components})
+    endif()
+
     if(CONFIG_IDF_TARGET_LINUX AND CMAKE_HOST_SYSTEM_NAME STREQUAL "Darwin")
         # Compiling for the host, and the host is macOS, so the linker is Darwin LD.
         # Note, when adding support for Clang and LLD based toolchain this check will
@@ -809,29 +790,6 @@ macro(project project_name)
         set(linker_type "Darwin")
     else()
         set(linker_type "GNU")
-    endif()
-
-    if(test_components)
-        if(linker_type STREQUAL "GNU")
-            target_link_libraries(${project_elf} PRIVATE "-Wl,--whole-archive")
-            foreach(test_component ${test_components})
-                if(TARGET ${test_component})
-                    target_link_libraries(${project_elf} PRIVATE ${test_component})
-                endif()
-            endforeach()
-            target_link_libraries(${project_elf} PRIVATE "-Wl,--no-whole-archive")
-        elseif(linker_type STREQUAL "Darwin")
-            foreach(test_component ${test_components})
-                if(TARGET ${test_component})
-                    target_link_libraries(${project_elf} PRIVATE "-Wl,-force_load" ${test_component})
-                endif()
-            endforeach()
-        endif()
-    endif()
-
-    idf_build_get_property(build_components BUILD_COMPONENT_ALIASES)
-    if(test_components)
-        list(REMOVE_ITEM build_components ${test_components})
     endif()
 
     foreach(build_component ${build_components})
@@ -878,9 +836,6 @@ macro(project project_name)
         if(CONFIG_COMPILER_ORPHAN_SECTIONS_WARNING)
             # Print warnings if orphan sections are found
             target_link_options(${project_elf} PRIVATE "-Wl,--orphan-handling=warn")
-        elseif(CONFIG_COMPILER_ORPHAN_SECTIONS_ERROR)
-            # Throw error if orphan sections are found
-            target_link_options(${project_elf} PRIVATE "-Wl,--orphan-handling=error")
         endif()
         unset(idf_target)
     endif()
@@ -940,10 +895,9 @@ macro(project project_name)
     # Add uf2 related targets
     idf_build_get_property(idf_path IDF_PATH)
     idf_build_get_property(python PYTHON)
-    idf_build_get_property(target IDF_TARGET)
 
     set(UF2_ARGS --json "${CMAKE_CURRENT_BINARY_DIR}/flasher_args.json")
-    set(UF2_CMD ${python} "${idf_path}/tools/mkuf2.py" write --chip ${target})
+    set(UF2_CMD ${python} "${idf_path}/tools/mkuf2.py" write --chip ${chip_model})
 
     add_custom_target(uf2
         COMMAND ${CMAKE_COMMAND}

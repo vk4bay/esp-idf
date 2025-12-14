@@ -1,9 +1,10 @@
 /*
- * SPDX-FileCopyrightText: 2015-2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2015-2024 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-#pragma once
+#ifndef nvs_storage_hpp
+#define nvs_storage_hpp
 
 #include <memory>
 #include <cstdlib>
@@ -152,7 +153,7 @@ protected:
 
     void fillEntryInfo(Item &item, nvs_entry_info_t &info);
 
-    esp_err_t findItem(uint8_t nsIndex, ItemType datatype, const char* key, Page* &page, Item& item, uint8_t chunkIdx = Page::CHUNK_ANY, VerOffset chunkStart = VerOffset::VER_ANY, size_t* itemIndex = NULL);
+    esp_err_t findItem(uint8_t nsIndex, ItemType datatype, const char* key, Page* &page, Item& item, uint8_t chunkIdx = Page::CHUNK_ANY, VerOffset chunkStart = VerOffset::VER_ANY);
 
 protected:
     Partition *mPartition;
@@ -174,3 +175,5 @@ struct nvs_opaque_iterator_t
     intrusive_list<nvs::Page>::iterator page;
     nvs_entry_info_t entry_info;
 };
+
+#endif /* nvs_storage_hpp */

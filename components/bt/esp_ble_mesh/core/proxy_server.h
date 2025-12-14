@@ -12,7 +12,6 @@
 
 #include "net.h"
 #include "mesh/adapter.h"
-#include "adv.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -58,7 +57,7 @@ struct bt_mesh_proxy_client {
 
 #if CONFIG_BLE_MESH_PROXY_PRIVACY
     uint8_t proxy_privacy;
-#endif /* CONFIG_BLE_MESH_PROXY_PRIVACY */
+#endif
 #endif /* CONFIG_BLE_MESH_GATT_PROXY_SERVER */
 
     struct k_delayed_work sar_timer;
@@ -95,7 +94,7 @@ void bt_mesh_proxy_server_beacon_send(struct bt_mesh_subnet *sub);
 struct net_buf_simple *bt_mesh_proxy_server_get_buf(void);
 
 int32_t bt_mesh_proxy_server_adv_start(void);
-int bt_mesh_proxy_server_adv_stop(void);
+void bt_mesh_proxy_server_adv_stop(void);
 
 void bt_mesh_proxy_server_update_net_id_rand(void);
 void bt_mesh_proxy_server_update_net_id_rand_stop(void);
@@ -118,7 +117,6 @@ void bt_mesh_proxy_server_identity_stop(struct bt_mesh_subnet *sub);
 
 bool bt_mesh_proxy_server_relay(struct net_buf_simple *buf, uint16_t dst);
 void bt_mesh_proxy_server_addr_add(struct net_buf_simple *buf, uint16_t addr);
-void bt_mesh_proxy_server_adv_flag_set(bool enable);
 
 int bt_mesh_proxy_server_init(void);
 int bt_mesh_proxy_server_deinit(void);

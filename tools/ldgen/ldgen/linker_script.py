@@ -24,7 +24,6 @@ class LinkerScript:
 
     MappingMarker = collections.namedtuple('MappingMarker', 'target indent rules')
     ArraysMarker = collections.namedtuple('ArraysMarker', 'target indent rules')
-    MutableMarker = collections.namedtuple('MutableMarker', 'target indent rules')
 
     def __init__(self, template_file):
         self.members = []
@@ -38,19 +37,16 @@ class LinkerScript:
         target = Fragment.IDENTIFIER
         pattern_mapping = White(' \t') + Suppress('mapping') + Suppress('[') + target + Suppress(']')
         pattern_arrays = White(' \t') + Suppress('arrays') + Suppress('[') + target + Suppress(']')
-        pattern_mutable = White(' \t') + Suppress('mutable') + Suppress('[') + target + Suppress(']')
 
         # Find the markers in the template file line by line. If line does not match marker grammar,
         # set it as a literal to be copied as is to the output file.
         for line in lines:
             parsed = False
-            for pattern in (pattern_arrays, pattern_mapping, pattern_mutable):
+            for pattern in (pattern_arrays, pattern_mapping):
                 try:
                     indent, target = pattern.parse_string(line)
                     if pattern is pattern_arrays:
                         marker = LinkerScript.ArraysMarker(target, indent, [])
-                    elif pattern is pattern_mutable:
-                        marker = LinkerScript.MutableMarker(target, indent, [])
                     else:
                         marker = LinkerScript.MappingMarker(target, indent, [])
                     self.members.append(marker)
@@ -69,10 +65,8 @@ class LinkerScript:
 
                 if isinstance(member, self.ArraysMarker):
                     rules = [x for x in mapping_rules[target] if x.tied]
-                elif isinstance(member, self.MutableMarker):
-                    rules = [x for x in mapping_rules[target] if x.mutable and not x.tied]
                 else:
-                    rules = [x for x in mapping_rules[target] if not x.tied and not x.mutable]
+                    rules = [x for x in mapping_rules[target] if not x.tied]
                 member.rules.extend(rules)
             except KeyError:
                 message = GenerationException.UNDEFINED_REFERENCE + " to target '" + target + "'."
@@ -84,7 +78,7 @@ class LinkerScript:
         # Add information that this is a generated file.
         output_file.write('/* Automatically generated file; DO NOT EDIT */\n')
         output_file.write('/* Espressif IoT Development Framework Linker Script */\n')
-        output_file.write(f'/* Generated from: {self.file} */\n')
+        output_file.write('/* Generated from: %s */\n' % self.file)
         output_file.write('\n')
 
         # Do the text replacement

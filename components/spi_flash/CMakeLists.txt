@@ -6,18 +6,17 @@ if(${target} STREQUAL "linux")
                           "linux/cache_utils.c"
                           "linux/flash_mmap.c"
                            INCLUDE_DIRS include
-                           REQUIRES esp_hal_mspi
                            PRIV_INCLUDE_DIRS include/spi_flash)
     return()
 endif()
 
 if(non_os_build OR CONFIG_APP_BUILD_TYPE_PURE_RAM_APP)
     set(srcs "spi_flash_wrap.c")
-    set(priv_requires bootloader_support soc esp_hal_gpio)
+    set(priv_requires bootloader_support soc)
 else()
     set(srcs "flash_brownout_hook.c")
 
-    if(CONFIG_SOC_SPI_MEM_SUPPORT_FLASH_OPI_MODE)
+    if(CONFIG_SOC_SPI_MEM_SUPPORT_OPI_MODE)
         list(APPEND srcs "${target}/spi_flash_oct_flash_init.c")
     endif()
 
@@ -53,15 +52,13 @@ else()
         "spi_flash_os_func_noos.c")
 
     list(APPEND srcs ${cache_srcs})
-    set(priv_requires bootloader_support soc esp_hal_gpio esp_mm)
-
-    if(${target} STREQUAL "esp32s2")
-        list(APPEND priv_requires esp_security)
-    endif()
+    set(priv_requires bootloader_support app_update soc esp_mm
+                      esp_driver_gpio
+    )
 endif()
 
 idf_component_register(SRCS "${srcs}"
-                    REQUIRES hal esp_hal_mspi
+                    REQUIRES hal
                     PRIV_REQUIRES "${priv_requires}"
                     INCLUDE_DIRS include
                     PRIV_INCLUDE_DIRS include/spi_flash

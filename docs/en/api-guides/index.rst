@@ -7,13 +7,11 @@ API Guides
 
    app_trace
    startup
-   :SOC_BT_SUPPORTED: bt-architecture/index
    :SOC_BT_CLASSIC_SUPPORTED: classic-bt/index
    :SOC_BLE_SUPPORTED: ble/index
    :SOC_BLE_MESH_SUPPORTED: esp-ble-mesh/ble-mesh-index
    bootloader
    build-system
-   build-system-v2
    :SOC_SUPPORT_COEXISTENCE: coexist
    c
    cplusplus
@@ -21,7 +19,7 @@ API Guides
    core_dump
    current-consumption-measurement-modules
    :ESP_ROM_SUPPORT_DEEP_SLEEP_WAKEUP_STUB: deep-sleep-stub
-   :SOC_USB_OTG_SUPPORTED and not esp32h4: dfu
+   :SOC_USB_OTG_SUPPORTED: dfu
    error-handling
    :SOC_WIFI_MESH_SUPPORT: esp-wifi-mesh
    :SOC_SPIRAM_SUPPORTED: external-ram
@@ -31,7 +29,6 @@ API Guides
    hardware-abstraction
    :CONFIG_IDF_TARGET_ARCH_XTENSA: hlinterrupts
    jtag-debugging/index
-   kconfig/index
    linker-script-generation
    low-power-mode/index
    lwip
@@ -40,13 +37,13 @@ API Guides
    partition-tables
    performance/index
    reproducible-builds
-   :(SOC_WIFI_SUPPORTED or SOC_BT_SUPPORTED or SOC_IEEE802154_SUPPORTED): RF_calibration
+   :(SOC_WIFI_SUPPORTED or SOC_BT_SUPPORTED or SOC_IEEE802154_SUPPORTED) and not esp32c5 and not esp32c61: RF_calibration
    stdio
    thread-local-storage
    tools/index
    unit-tests
    host-apps
-   :SOC_USB_OTG_SUPPORTED and not esp32p4 and not esp32h4: usb-otg-console
+   :SOC_USB_OTG_SUPPORTED and not esp32p4: usb-otg-console
    :SOC_USB_SERIAL_JTAG_SUPPORTED: usb-serial-jtag-console
    :SOC_WIFI_SUPPORTED: wifi
    :SOC_WIFI_SUPPORTED: wifi-security

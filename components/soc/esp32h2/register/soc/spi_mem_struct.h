@@ -1,7 +1,7 @@
 /*
  * SPDX-FileCopyrightText: 2022-2025 Espressif Systems (Shanghai) CO LTD
  *
- * SPDX-License-Identifier: Apache-2.0 OR MIT
+ * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
 
@@ -1080,11 +1080,6 @@ typedef volatile struct spi_mem_dev_s {
 } spi_mem_dev_t;
 extern spi_mem_dev_t SPIMEM0;
 extern spi_mem_dev_t SPIMEM1;
-
-#ifndef __cplusplus
-_Static_assert(sizeof(spi_mem_dev_t) == 0x400, "Invalid size of spi_mem_dev_t structure");
-#endif
-
 #ifdef __cplusplus
 }
 #endif

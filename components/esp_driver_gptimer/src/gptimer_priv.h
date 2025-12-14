@@ -23,12 +23,11 @@
 #include "esp_intr_alloc.h"
 #include "esp_heap_caps.h"
 #include "esp_pm.h"
-#include "hal/timer_periph.h"
+#include "soc/timer_periph.h"
 #include "hal/timer_types.h"
 #include "hal/timer_hal.h"
 #include "hal/timer_ll.h"
 #include "clk_ctrl_os.h"
-#include "esp_private/esp_clk_tree_common.h"
 #include "esp_private/sleep_retention.h"
 #include "esp_private/periph_ctrl.h"
 
@@ -44,13 +43,15 @@ extern "C" {
 #define GPTIMER_MEM_ALLOC_CAPS      MALLOC_CAP_DEFAULT
 #endif
 
-#if CONFIG_GPTIMER_ISR_CACHE_SAFE
+#if CONFIG_GPTIMER_ISR_IRAM_SAFE
 #define GPTIMER_INTR_ALLOC_FLAGS    (ESP_INTR_FLAG_IRAM | ESP_INTR_FLAG_INTRDISABLED)
 #else
 #define GPTIMER_INTR_ALLOC_FLAGS    ESP_INTR_FLAG_INTRDISABLED
 #endif
 
 #define GPTIMER_ALLOW_INTR_PRIORITY_MASK ESP_INTR_FLAG_LOWMED
+
+#define GPTIMER_PM_LOCK_NAME_LEN_MAX 16
 
 #define GPTIMER_USE_RETENTION_LINK  (SOC_TIMER_SUPPORT_SLEEP_RETENTION && CONFIG_PM_POWER_DOWN_PERIPHERAL_IN_LIGHT_SLEEP)
 
@@ -69,14 +70,15 @@ typedef struct gptimer_t gptimer_t;
 typedef struct gptimer_group_t {
     int group_id;
     portMUX_TYPE spinlock; // to protect per-group register level concurrent access
-    gptimer_t *timers[TIMG_LL_GET(GPTIMERS_PER_INST)];
+    gptimer_t *timers[SOC_TIMER_GROUP_TIMERS_PER_GROUP];
 } gptimer_group_t;
 
 typedef enum {
-    GPTIMER_FSM_INIT,    // Timer is initialized, but not enabled yet
-    GPTIMER_FSM_ENABLE,  // Timer is enabled, but is not running yet
-    GPTIMER_FSM_RUN,     // Timer is in running
-    GPTIMER_FSM_WAIT,    // Timer is in the middle of state change (Intermediate state)
+    GPTIMER_FSM_INIT,        // Timer is initialized, but not enabled
+    GPTIMER_FSM_ENABLE,      // Timer is enabled, but is not running
+    GPTIMER_FSM_ENABLE_WAIT, // Timer is in the middle of the enable process (Intermediate state)
+    GPTIMER_FSM_RUN,         // Timer is in running
+    GPTIMER_FSM_RUN_WAIT,    // Timer is in the middle of the run process (Intermediate state)
 } gptimer_fsm_t;
 
 struct gptimer_t {
@@ -94,8 +96,9 @@ struct gptimer_t {
     gptimer_alarm_cb_t on_alarm;
     void *user_ctx;
     gptimer_clock_source_t clk_src;
-#if CONFIG_PM_ENABLE
     esp_pm_lock_handle_t pm_lock; // power management lock
+#if CONFIG_PM_ENABLE
+    char pm_lock_name[GPTIMER_PM_LOCK_NAME_LEN_MAX]; // pm lock name
 #endif
     struct {
         uint32_t intr_shared: 1;

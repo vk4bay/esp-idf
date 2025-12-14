@@ -19,7 +19,7 @@ The subsections below give only absolutely necessary information. For full steps
 - EK79007 or ILI9881C LCD screen
 - ESP32P4 devkit
 
-**Note:** OV5647 has its own ISP functions, whereas SC2336 is a camera sensor without ISP functions. You can use the ESP on-chip ISP functions to tune the image together with the sensor ISP functions, if the image quality is not as expected. The [esp-video](https://github.com/espressif/esp-video-components/tree/master/esp_video) component provides support for the ISP control algorithms, and some examples can be found in [esp_video/examples](https://github.com/espressif/esp-video-components/tree/master/esp_video/examples).
+**Note:** OV5647 has its own ISP functions, whereas SC2336 is a camera sensor without ISP functions. You can use the ESP on-chip ISP functions to tune the image together with the sensor ISP functions, if the image quality is not as expected.
 
 **Note:** For EK79007 you will need to connect following pins:
 - 5V - 5V
@@ -142,12 +142,6 @@ I (1305) sensor_init: fmt[1].name:MIPI_2lane_24Minput_RAW8_800x640_50fps
 I (1315) sensor_init: fmt[2].name:MIPI_2lane_24Minput_RAW8_800x800_50fps
 I (1355) sensor_init: Format in use:MIPI_2lane_24Minput_RAW8_800x640_50fps
 ```
-
-Below picture is from the video stream of OV5647 and ILI9881C. The camera module is not focused and has not been calibrated by the ESP on-chip ISP hardware.
-
-This image is also used as a reference, you can check output image after ISP auto-focus and other pipelines in [Example ISP Multi-pipeline](../../isp/multi_pipelines/).
-
-![CSI-ISP](image/csi2.jpg)
 
 
 ## Reference

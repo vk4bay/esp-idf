@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2010-2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2010-2024 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -21,10 +21,30 @@
 #include "freertos/semphr.h"
 #include "sdkconfig.h"
 #include "esp_timer.h"
-#include "esp_timer_impl.h"
 
+//TODO: IDF-9526, refactor this
 // for ETSTimer type
-#include "rom/ets_sys.h"
+#if CONFIG_IDF_TARGET_ESP32
+#include "esp32/rom/ets_sys.h"
+#elif CONFIG_IDF_TARGET_ESP32S2
+#include "esp32s2/rom/ets_sys.h"
+#elif CONFIG_IDF_TARGET_ESP32S3
+#include "esp32s3/rom/ets_sys.h"
+#elif CONFIG_IDF_TARGET_ESP32C3
+#include "esp32c3/rom/ets_sys.h"
+#elif CONFIG_IDF_TARGET_ESP32C2
+#include "esp32c2/rom/ets_sys.h"
+#elif CONFIG_IDF_TARGET_ESP32C6
+#include "esp32c6/rom/ets_sys.h"
+#elif CONFIG_IDF_TARGET_ESP32C61
+#include "esp32c61/rom/ets_sys.h"
+#elif CONFIG_IDF_TARGET_ESP32C5
+#include "esp32c5/rom/ets_sys.h"
+#elif CONFIG_IDF_TARGET_ESP32H2
+#include "esp32h2/rom/ets_sys.h"
+#elif CONFIG_IDF_TARGET_ESP32P4
+#include "esp32p4/rom/ets_sys.h"
+#endif
 
 /* We abuse 'timer_arg' field of ETSTimer structure to hold a pointer to esp_timer */
 #define ESP_TIMER(p_ets_timer) ((esp_timer_handle_t) (p_ets_timer)->timer_arg)
@@ -35,7 +55,7 @@
 #define TIMER_INITIALIZED_FIELD(p_ets_timer) ((p_ets_timer)->timer_expire)
 #define TIMER_INITIALIZED_VAL 0x12121212
 
-static ESP_TIMER_IRAM_ATTR bool timer_initialized(ETSTimer *ptimer)
+static IRAM_ATTR bool timer_initialized(ETSTimer *ptimer)
 {
     return TIMER_INITIALIZED_FIELD(ptimer) == TIMER_INITIALIZED_VAL;
 }
@@ -59,7 +79,7 @@ void ets_timer_setfn(ETSTimer *ptimer, ETSTimerFunc *pfunction, void *parg)
     }
 }
 
-void ESP_TIMER_IRAM_ATTR ets_timer_arm_us(ETSTimer *ptimer, uint32_t time_us, bool repeat_flag)
+void IRAM_ATTR ets_timer_arm_us(ETSTimer *ptimer, uint32_t time_us, bool repeat_flag)
 {
     assert(timer_initialized(ptimer));
     esp_timer_stop(ESP_TIMER(ptimer));  // no error check
@@ -70,7 +90,7 @@ void ESP_TIMER_IRAM_ATTR ets_timer_arm_us(ETSTimer *ptimer, uint32_t time_us, bo
     }
 }
 
-void ESP_TIMER_IRAM_ATTR ets_timer_arm(ETSTimer *ptimer, uint32_t time_ms, bool repeat_flag)
+void IRAM_ATTR ets_timer_arm(ETSTimer *ptimer, uint32_t time_ms, bool repeat_flag)
 {
     uint64_t time_us = 1000LL * (uint64_t) time_ms;
     assert(timer_initialized(ptimer));
@@ -91,7 +111,7 @@ void ets_timer_done(ETSTimer *ptimer)
     }
 }
 
-void ESP_TIMER_IRAM_ATTR ets_timer_disarm(ETSTimer *ptimer)
+void IRAM_ATTR ets_timer_disarm(ETSTimer *ptimer)
 {
     if (timer_initialized(ptimer)) {
         esp_timer_stop(ESP_TIMER(ptimer));

@@ -67,6 +67,22 @@ static void test_ana_cmpr_deinit(ana_cmpr_handle_t cmpr)
     TEST_ESP_OK(ana_cmpr_del_unit(cmpr));
 }
 
+static int test_ana_cmpr_src_gpio_init(void)
+{
+    int gpio_num = -1;
+    TEST_ESP_OK(ana_cmpr_get_gpio(TEST_ANA_CMPR_UNIT_ID, ANA_CMPR_SOURCE_CHAN, &gpio_num));
+    gpio_config_t io_conf = {
+        .intr_type = GPIO_INTR_DISABLE,
+        .mode = GPIO_MODE_OUTPUT,
+        .pin_bit_mask = (1ULL << gpio_num),
+        .pull_down_en = false,
+        .pull_up_en = false,
+    };
+    gpio_config(&io_conf);
+    gpio_set_level(gpio_num, 1);
+    return gpio_num;
+}
+
 typedef struct {
     esp_etm_event_handle_t cmpr_pos_evt;
     esp_etm_event_handle_t cmpr_neg_evt;
@@ -129,19 +145,13 @@ TEST_CASE("ana_cmpr etm event", "[ana_cmpr][etm]")
 {
     gptimer_handle_t gptimer = test_ana_cmpr_gptimer_init();
     ana_cmpr_handle_t cmpr = test_ana_cmpr_init();
-    int src_gpio = test_init_src_chan_gpio(TEST_ANA_CMPR_UNIT_ID, 1);
+    int src_gpio = test_ana_cmpr_src_gpio_init();
     test_ana_cmpr_etm_handles_t handles = test_ana_cmpr_init_etm(cmpr, gptimer);
 
     // triggers a negative pulse, whose duration is ~TEST_TIME_US
-    // negedge triggers the gptimer to start task
-    // posedge triggers the gptimer to stop task
-    // gptimer will record the time between the negedge and posedge
     gpio_set_level(src_gpio, 0);
     esp_rom_delay_us(TEST_TIME_US);
     gpio_set_level(src_gpio, 1);
-
-    // the gptimer should already stopped, so delay any time here is ok
-    vTaskDelay(10);
 
     uint64_t cnt_us = 0;
     TEST_ESP_OK(gptimer_get_raw_count(gptimer, &cnt_us));
@@ -149,7 +159,7 @@ TEST_CASE("ana_cmpr etm event", "[ana_cmpr][etm]")
     // gptimer timer should stopped
     uint64_t cnt_us_again = 0;
     TEST_ESP_OK(gptimer_get_raw_count(gptimer, &cnt_us_again));
-    TEST_ASSERT_EQUAL(cnt_us, cnt_us_again);
+    TEST_ASSERT(cnt_us_again == cnt_us);
 
     test_ana_cmpr_deinit_etm(handles);
     test_ana_cmpr_deinit(cmpr);

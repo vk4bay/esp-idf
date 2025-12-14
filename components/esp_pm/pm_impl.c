@@ -8,7 +8,6 @@
 #include <stdbool.h>
 #include <string.h>
 #include <stdint.h>
-#include <sys/lock.h>
 #include <sys/param.h>
 
 #include "sdkconfig.h"
@@ -28,6 +27,10 @@
 #include "hal/clk_tree_ll.h"
 #include "hal/uart_ll.h"
 #include "hal/uart_types.h"
+
+#if __has_include("hal/mspi_timing_tuning_ll.h")
+#include "hal/mspi_timing_tuning_ll.h"
+#endif
 
 #include "driver/gpio.h"
 
@@ -101,11 +104,7 @@
 #define REF_CLK_DIV_MIN 2
 #elif CONFIG_IDF_TARGET_ESP32H2
 #define REF_CLK_DIV_MIN 2
-#elif CONFIG_IDF_TARGET_ESP32H21
-#define REF_CLK_DIV_MIN 2
 #elif CONFIG_IDF_TARGET_ESP32P4
-#define REF_CLK_DIV_MIN 2
-#elif CONFIG_IDF_TARGET_ESP32H4
 #define REF_CLK_DIV_MIN 2
 #endif
 
@@ -376,19 +375,19 @@ static void IRAM_ATTR esp_pm_execute_exit_sleep_callbacks(int64_t sleep_time_us)
 }
 #endif
 
-static esp_err_t esp_pm_sleep_configure(const esp_pm_config_t *config)
+static esp_err_t esp_pm_sleep_configure(const void *vconfig)
 {
     esp_err_t err = ESP_OK;
+    const esp_pm_config_t* config = (const esp_pm_config_t*) vconfig;
 
-#if CONFIG_PM_ESP_SLEEP_POWER_DOWN_CPU && CONFIG_SOC_LIGHT_SLEEP_SUPPORTED
+#if ESP_SLEEP_POWER_DOWN_CPU
     err = sleep_cpu_configure(config->light_sleep_enable);
     if (err != ESP_OK) {
         return err;
     }
 #endif
-#if CONFIG_SOC_LIGHT_SLEEP_SUPPORTED
+
     err = sleep_modem_configure(config->max_freq_mhz, config->min_freq_mhz, config->light_sleep_enable);
-#endif
     return err;
 }
 
@@ -800,7 +799,7 @@ static inline void IRAM_ATTR other_core_should_skip_light_sleep(int core_id)
 #endif
 }
 
-void vApplicationSleep( TickType_t xExpectedIdleTime )
+void IRAM_ATTR vApplicationSleep( TickType_t xExpectedIdleTime )
 {
     portENTER_CRITICAL(&s_switch_lock);
     int core_id = xPortGetCoreID();
@@ -928,7 +927,7 @@ void esp_pm_impl_init(void)
         ;
     }
 
-    ESP_ERROR_CHECK(esp_clk_tree_enable_src((soc_module_clk_t)clk_source, true));
+    esp_clk_tree_enable_src((soc_module_clk_t)clk_source, true);
     /* When DFS is enabled, override system setting and use REFTICK as UART clock source */
     HP_UART_SRC_CLK_ATOMIC() {
         uart_ll_set_sclk(UART_LL_GET_HW(CONFIG_ESP_CONSOLE_UART_NUM), (soc_module_clk_t)clk_source);

@@ -1,9 +1,14 @@
-# SPDX-FileCopyrightText: 2024-2025 Espressif Systems (Shanghai) CO LTD
+# SPDX-FileCopyrightText: 2024 Espressif Systems (Shanghai) CO LTD
 # SPDX-License-Identifier: Apache-2.0
+import glob
 import os
+import re
+import typing as t
+import xml.etree.ElementTree as ET
 from urllib.parse import urlparse
 
 import requests
+import yaml
 
 from .constants import CI_DASHBOARD_API
 from .constants import CI_JOB_TOKEN
@@ -11,6 +16,75 @@ from .constants import CI_MERGE_REQUEST_SOURCE_BRANCH_SHA
 from .constants import CI_PAGES_URL
 from .constants import CI_PROJECT_URL
 from .models import GitlabJob
+from .models import Job
+from .models import TestCase
+
+
+def dump_jobs_to_yaml(
+    jobs: t.List[Job],
+    output_filepath: str,
+    pipeline_name: str,
+    extra_include_yml: t.Optional[t.List[str]] = None,
+) -> None:
+    yaml_dict = {}
+    for job in jobs:
+        yaml_dict.update(job.to_dict())
+
+    # global stuffs
+    yaml_dict.update(
+        {
+            'include': [
+                'tools/ci/dynamic_pipelines/templates/.dynamic_jobs.yml',
+                '.gitlab/ci/common.yml',
+            ],
+            'workflow': {
+                'name': pipeline_name,
+                'rules': [
+                    # always run the child pipeline, if they are created
+                    {'when': 'always'},
+                ],
+            },
+        }
+    )
+    yaml_dict['include'].extend(extra_include_yml or [])
+
+    with open(output_filepath, 'w') as fw:
+        yaml.dump(yaml_dict, fw, indent=2)
+
+
+def parse_testcases_from_filepattern(junit_report_filepattern: str) -> t.List[TestCase]:
+    """
+    Parses test cases from XML files matching the provided file pattern.
+
+    >>> test_cases = parse_testcases_from_filepattern("path/to/your/junit/reports/*.xml")
+
+    :param junit_report_filepattern: The file pattern to match XML files containing JUnit test reports.
+    :return: List[TestCase]: A list of TestCase objects parsed from the XML files.
+    """
+
+    test_cases = []
+    for f in glob.glob(junit_report_filepattern):
+        root = ET.parse(f).getroot()
+        for tc in root.findall('.//testcase'):
+            test_cases.append(TestCase.from_test_case_node(tc))
+    return test_cases
+
+
+def load_known_failure_cases() -> t.Optional[t.Set[str]]:
+    known_failures_file = os.getenv('KNOWN_FAILURE_CASES_FILE_NAME', '')
+    if not known_failures_file:
+        return None
+    try:
+        with open(known_failures_file, 'r') as f:
+            file_content = f.read()
+
+        pattern = re.compile(r'^(.*?)\s+#\s+([A-Z]+)-\d+', re.MULTILINE)
+        matches = pattern.findall(file_content)
+
+        known_cases_list = [match[0].strip() for match in matches]
+        return set(known_cases_list)
+    except FileNotFoundError:
+        return None
 
 
 def is_url(string: str) -> bool:
@@ -24,7 +98,7 @@ def is_url(string: str) -> bool:
     return bool(parsed.scheme) and bool(parsed.netloc)
 
 
-def fetch_failed_jobs(commit_id: str) -> list[GitlabJob]:
+def fetch_failed_jobs(commit_id: str) -> t.List[GitlabJob]:
     """
     Fetches a list of jobs from the specified commit_id using an API request to ci-dashboard-api.
     :param commit_id: The commit ID for which to fetch jobs.
@@ -48,10 +122,7 @@ def fetch_failed_jobs(commit_id: str) -> list[GitlabJob]:
     response = requests.post(
         f'{CI_DASHBOARD_API}/jobs/failure_ratio',
         headers={'CI-Job-Token': CI_JOB_TOKEN},
-        json={
-            'job_names': failed_job_names,
-            'exclude_branches': [os.getenv('CI_MERGE_REQUEST_SOURCE_BRANCH_NAME', '')],
-        },
+        json={'job_names': failed_job_names, 'exclude_branches': [os.getenv('CI_MERGE_REQUEST_SOURCE_BRANCH_NAME', '')]},
     )
     if response.status_code != 200:
         print(f'Failed to fetch jobs failure rate data: {response.status_code} with error: {response.text}')
@@ -68,35 +139,31 @@ def fetch_failed_jobs(commit_id: str) -> list[GitlabJob]:
     return combined_jobs
 
 
-def fetch_app_metrics(
-    source_commit_sha: str,
-    target_commit_sha: str,
-) -> dict:
+def fetch_failed_testcases_failure_ratio(failed_testcases: t.List[TestCase], branches_filter: dict) -> t.List[TestCase]:
     """
-    Fetches the app metrics for the given source commit SHA and target branch SHA.
-    :param source_commit_sha: The source commit SHA.
-    :param target_branch_sha: The commit SHA of the branch to compare app sizes against.
-    :return: A dict of sizes of built binaries.
+    Fetches info about failure rates of testcases using an API request to ci-dashboard-api.
+    :param failed_testcases: The list of failed testcases models.
+    :param branches_filter: The filter to filter testcases by branch names.
+    :return: A list of testcases with enriched with failure rates data.
     """
-    print(f'Fetching bin size info: {source_commit_sha=} {target_commit_sha=}')
-    build_info_map = dict()
+    req_json = {'testcase_names': list(set([testcase.name for testcase in failed_testcases])), **branches_filter}
     response = requests.post(
-        f'{CI_DASHBOARD_API}/apps/metrics',
+        f'{CI_DASHBOARD_API}/testcases/failure_ratio',
         headers={'CI-Job-Token': CI_JOB_TOKEN},
-        json={
-            'source_commit_sha': source_commit_sha,
-            'target_commit_sha': target_commit_sha,
-        },
+        json=req_json,
     )
     if response.status_code != 200:
-        print(f'Failed to fetch build info: {response.status_code} - {response.text}')
-    else:
-        response_data = response.json()
-        build_info_map = {
-            f'{info["app_path"]}_{info["config_name"]}_{info["target"]}': info for info in response_data.get('data', [])
-        }
+        print(f'Failed to fetch testcases failure rate data: {response.status_code} with error: {response.text}')
+        return []
 
-    return build_info_map
+    failure_rate_data = response.json()
+    failure_rates = {item['name']: item for item in failure_rate_data.get('testcases', [])}
+
+    for testcase in failed_testcases:
+        testcase.latest_total_count = failure_rates.get(testcase.name, {}).get('total_count', 0)
+        testcase.latest_failed_count = failure_rates.get(testcase.name, {}).get('failed_count', 0)
+
+    return failed_testcases
 
 
 def load_file(file_path: str) -> str:
@@ -106,7 +173,7 @@ def load_file(file_path: str) -> str:
     :param file_path: The path to the file needs to be loaded.
     :return: The content of the file as a string.
     """
-    with open(file_path) as file:
+    with open(file_path, 'r') as file:
         return file.read()
 
 

@@ -55,17 +55,6 @@ SPI 从机驱动程序允许将 SPI 外设作为全双工设备使用。驱动�
 
 SPI 从机驱动程序支持将 SPI ISR 注册至指定 CPU 内核。如果多个任务同时尝试访问一个 SPI 设备，建议重构应用程序，以使每个 SPI 外设一次只由一个任务访问。此外，请使用 :cpp:member:`spi_bus_config_t::isr_cpu_id` 将 SPI ISR 注册至与 SPI 外设相关任务相同的内核，确保线程安全。
 
-.. only:: SOC_SPI_SUPPORT_SLEEP_RETENTION
-
-    睡眠保留
-    ^^^^^^^^
-
-    {IDF_TARGET_NAME} 支持在进入 **Light Sleep** 之前保留 SPI 寄存器中的内容，并在唤醒后恢复。即程序不需要在 **Light Sleep** 唤醒后重新配置 SPI。
-
-    该特性可以通过置位配置中的 :c:macro:`SPICOMMON_BUSFLAG_SLP_ALLOW_PD` 标志位启用。启用后驱动允许系统在 Light Sleep 时对 SPI 掉电，同时保存寄存器配置。它可以帮助降低轻度睡眠时的功耗，但需要花费一些额外的存储来保存寄存器的配置。
-
-    注意在 Slave 角色下，不支持在所有传输（发送和接收）未完成时进入睡眠，否则将会出错。
-
 SPI 传输事务
 ----------------
 
@@ -95,9 +84,7 @@ SPI 传输事务
 
 - 传输事务开始前，需用要求的事务参数填充一个或多个 :cpp:type:`spi_slave_transaction_t` 结构体。可以通过调用函数 :cpp:func:`spi_slave_queue_trans` 来将所有传输事务排进队列，并在稍后使用函数 :cpp:func:`spi_slave_get_trans_result` 查询结果；也可以将所有请求输入 :cpp:func:`spi_slave_transmit` 中单独处理。主机上的传输事务完成前，后两个函数将被阻塞，以便发送并接收队列中的数据。
 
-- （可选）启用/禁用驱动程序功能：从机驱动程序支持在程序初始化后通过调用 :cpp:func:`spi_slave_disable` / :cpp:func:`spi_slave_enable` 来禁用/启用驱动程序，以便能够更改时钟或电源配置或休眠以节省电量。默认情况下，驱动程序在初始化后为“启用”状态。
-
-- （可选）如需卸载 SPI 从机驱动程序，请调用 :cpp:func:`spi_slave_free`。
+-（可选）如需卸载 SPI 从机驱动程序，请调用 :cpp:func:`spi_slave_free`。
 
 
 传输事务数据和主/从机长度不匹配
@@ -154,12 +141,12 @@ GPIO 交换矩阵和 IO_MUX
 
 .. only:: not esp32
 
-    {IDF_TARGET_SPI2_IOMUX_PIN_CS:default="N/A",   esp32s2="10", esp32s3="10", esp32c2="10", esp32c3="10", esp32c6="16", esp32h2="1", esp32p4="7" , esp32c5="10", esp32c61="8", esp32h21="12"}
-    {IDF_TARGET_SPI2_IOMUX_PIN_CLK:default="N/A",  esp32s2="12", esp32s3="12", esp32c2="6",  esp32c3="6",  esp32c6="6",  esp32h2="4", esp32p4="9" , esp32c5="6",  esp32c61="6", esp32h21="2"}
-    {IDF_TARGET_SPI2_IOMUX_PIN_MOSI:default="N/A", esp32s2="11"  esp32s3="11", esp32c2="7"   esp32c3="7",  esp32c6="7",  esp32h2="5", esp32p4="8" , esp32c5="7",  esp32c61="7", esp32h21="3"}
-    {IDF_TARGET_SPI2_IOMUX_PIN_MISO:default="N/A", esp32s2="13"  esp32s3="13", esp32c2="2"   esp32c3="2",  esp32c6="2",  esp32h2="0", esp32p4="10", esp32c5="2",  esp32c61="2", esp32h21="4"}
-    {IDF_TARGET_SPI2_IOMUX_PIN_HD:default="N/A",   esp32s2="9"   esp32s3="9",  esp32c2="4"   esp32c3="4",  esp32c6="4",  esp32h2="3", esp32p4="6" , esp32c5="4",  esp32c61="3", esp32h21="1"}
-    {IDF_TARGET_SPI2_IOMUX_PIN_WP:default="N/A",   esp32s2="14"  esp32s3="14", esp32c2="5"   esp32c3="5",  esp32c6="5",  esp32h2="2", esp32p4="11", esp32c5="5",  esp32c61="4", esp32h21="0"}
+    {IDF_TARGET_SPI2_IOMUX_PIN_CS:default="N/A",   esp32s2="10", esp32s3="10", esp32c2="10", esp32c3="10", esp32c6="16", esp32h2="1", esp32p4="7" , esp32c5="10", esp32c61="8"}
+    {IDF_TARGET_SPI2_IOMUX_PIN_CLK:default="N/A",  esp32s2="12", esp32s3="12", esp32c2="6",  esp32c3="6",  esp32c6="6",  esp32h2="4", esp32p4="9" , esp32c5="6",  esp32c61="6"}
+    {IDF_TARGET_SPI2_IOMUX_PIN_MOSI:default="N/A", esp32s2="11"  esp32s3="11", esp32c2="7"   esp32c3="7",  esp32c6="7",  esp32h2="5", esp32p4="8" , esp32c5="7",  esp32c61="7"}
+    {IDF_TARGET_SPI2_IOMUX_PIN_MISO:default="N/A", esp32s2="13"  esp32s3="13", esp32c2="2"   esp32c3="2",  esp32c6="2",  esp32h2="0", esp32p4="10", esp32c5="2",  esp32c61="2"}
+    {IDF_TARGET_SPI2_IOMUX_PIN_HD:default="N/A",   esp32s2="9"   esp32s3="9",  esp32c2="4"   esp32c3="4",  esp32c6="4",  esp32h2="3", esp32p4="6" , esp32c5="4",  esp32c61="3"}
+    {IDF_TARGET_SPI2_IOMUX_PIN_WP:default="N/A",   esp32s2="14"  esp32s3="14", esp32c2="5"   esp32c3="5",  esp32c6="5",  esp32h2="2", esp32p4="11", esp32c5="5",  esp32c61="4"}
 
     {IDF_TARGET_NAME} 的大多数外设信号都直接连接到其专用的 IO_MUX 管脚。不过，也可以使用 GPIO 交换矩阵，将信号路由到任何可用的其他管脚。如果通过 GPIO 交换矩阵路由了至少一个信号，则所有信号都将通过 GPIO 交换矩阵路由。
 
@@ -258,10 +245,6 @@ SPI 从机的工作频率最高可达 {IDF_TARGET_MAX_FREQ} MHz。如果时钟�
 
     如果启用 DMA，从机设备的发射沿会比正常时间提前半个 SPI 时钟周期，变为主机的实际锁存沿。在这种情况下，如果 GPIO 交换矩阵被绕过，数据采样的保持时间将是 68.75 ns，而非半个 SPI 时钟周期。如果使用了 GPIO 交换矩阵，保持时间将增加到 93.75 ns。主机应在锁存沿立即采样数据，或在 SPI 模式 1 或模式 3 中进行通信。如果主机无法满足上述时间要求，请在没有 DMA 的情况下初始化从机设备。
 
-    3. ESP32 SPI Slave 在 CS 片选未使能时 **仍然** 在 MISO 引脚输出电平 0/1, 这可能导致总线上其他设备无法正确输出数据，解决方法为：
-
-      1) 为 ESP32 SPI Slave 单独使用一条总线，不与其他设备共享总线。
-      2) 在 ESP32 SPI MISO 引脚和总线之间增加缓冲器芯片，如 74HC125。
 
 应用示例
 -------------------

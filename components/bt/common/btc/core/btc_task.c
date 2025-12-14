@@ -59,9 +59,6 @@
 #if BTC_HH_INCLUDED == TRUE
 #include "btc_hh.h"
 #endif /* BTC_HH_INCLUDED */
-#if BTC_PBA_CLIENT_INCLUDED
-#include "btc_pba_client.h"
-#endif
 #endif /* #if CLASSIC_BT_INCLUDED */
 #endif
 
@@ -89,7 +86,6 @@
 #include "btc_ble_mesh_rpr_model.h"
 #include "btc_ble_mesh_sar_model.h"
 #include "btc_ble_mesh_srpl_model.h"
-#include "btc_ble_mesh_dfu_model.h"
 #endif /* CONFIG_BLE_MESH_V11_SUPPORT */
 #endif /* #if CONFIG_BLE_MESH */
 
@@ -160,9 +156,6 @@ static const btc_func_t profile_tab[BTC_PID_NUM] = {
 #endif
 #if BTC_HH_INCLUDED
     [BTC_PID_HH]          = {btc_hh_call_handler,          btc_hh_cb_handler      },
-#endif
-#if BTC_PBA_CLIENT_INCLUDED
-    [BTC_PID_PBA_CLIENT]  = {btc_pba_client_call_handler,  btc_pba_client_cb_handler},
 #endif
 #endif /* #if CLASSIC_BT_INCLUDED */
 #endif
@@ -263,12 +256,9 @@ static const btc_func_t profile_tab[BTC_PID_NUM] = {
 #if CONFIG_BLE_MESH_MBT_SRV
     [BTC_PID_MBT_SERVER]        = {btc_ble_mesh_mbt_server_call_handler,        btc_ble_mesh_mbt_server_cb_handler       },
 #endif /* CONFIG_BLE_MESH_MBT_SRV */
-#if CONFIG_BLE_MESH_DFU_CLI
-    [BTC_PID_DFU_CLIENT]        = {btc_ble_mesh_dfu_client_call_handler,        btc_ble_mesh_dfu_client_cb_handler},
-#endif /* CONFIG_BLE_MESH_DFU_CLI */
-#if CONFIG_BLE_MESH_BLE_COEX_SUPPORT || CONFIG_BLE_MESH_USE_BLE_50
+#if CONFIG_BLE_MESH_BLE_COEX_SUPPORT
     [BTC_PID_BLE_MESH_BLE_COEX] = {btc_ble_mesh_ble_call_handler,               btc_ble_mesh_ble_cb_handler              },
-#endif /* CONFIG_BLE_MESH_BLE_COEX_SUPPORT || CONFIG_BLE_MESH_USE_BLE_50 */
+#endif /* CONFIG_BLE_MESH_BLE_COEX_SUPPORT */
 #endif /* #if CONFIG_BLE_MESH */
 #if (BLE_FEAT_ISO_EN == TRUE)
     [BTC_PID_ISO_BLE]           = {btc_iso_ble_call_handler,                    btc_iso_ble_cb_handler                   },
@@ -494,10 +484,10 @@ static bt_status_t btc_init_mem(void) {
 #endif
 
 #if BTC_HF_INCLUDED == TRUE && HFP_DYNAMIC_MEMORY == TRUE
-    if ((hf_local_param_ptr = (hf_local_param_t *)osi_malloc(sizeof(hf_local_param_t))) == NULL) {
+    if ((hf_local_param_ptr = (hf_local_param_t *)osi_malloc(BTC_HF_NUM_CB * sizeof(hf_local_param_t))) == NULL) {
         goto error_exit;
     }
-    memset((void *)hf_local_param_ptr, 0, sizeof(hf_local_param_t));
+    memset((void *)hf_local_param_ptr, 0, BTC_HF_NUM_CB * sizeof(hf_local_param_t));
 #endif
 
 #if BTC_HF_CLIENT_INCLUDED == TRUE && HFP_DYNAMIC_MEMORY == TRUE

@@ -1,7 +1,7 @@
 /*
- * SPDX-FileCopyrightText: 2017-2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2017-2022 Espressif Systems (Shanghai) CO LTD
  *
- * SPDX-License-Identifier: Apache-2.0 OR MIT
+ * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
 
@@ -117,7 +117,7 @@ typedef volatile struct rtc_io_dev_s {
             uint32_t xpd:                1;             /*TOUCH_XPD*/
             uint32_t tie_opt:            1;             /*TOUCH_TIE_OPT*/
             uint32_t start:              1;             /*TOUCH_START*/
-            uint32_t slope:              3;             /*TOUCH_SLOPE*/
+            uint32_t dac:                3;             /*TOUCH_DAC*/
             uint32_t reserved26:         1;
             uint32_t rue:                1;             /*RUE*/
             uint32_t rde:                1;             /*RDE*/

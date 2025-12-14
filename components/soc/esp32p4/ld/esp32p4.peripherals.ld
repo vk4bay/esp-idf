@@ -1,7 +1,7 @@
 /*
- * SPDX-FileCopyrightText: 2022-2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2022-2024 Espressif Systems (Shanghai) CO LTD
  *
- * SPDX-License-Identifier: Apache-2.0 OR MIT
+ * SPDX-License-Identifier: Apache-2.0
  */
 
 
@@ -24,9 +24,8 @@ PROVIDE ( AXI_ICM_QOS       = 0x500A4400 );
 PROVIDE ( HP_PERI_PMS       = 0x500A5000 );
 PROVIDE ( LP2HP_PERI_PMS    = 0x500A5800 );
 PROVIDE ( DMA_PMS           = 0x500A6000 );
-PROVIDE ( AXI_PERF_MON      = 0x500A8000 );
 PROVIDE ( LEDC              = 0x500D3000 );
-PROVIDE ( LEDC_GAMMA_RAM    = 0x500D3400 );
+PROVIDE ( LEDC_GAMMA_RAM  = 0x500D3400 );
 PROVIDE ( TIMERG0           = 0x500C2000 );
 PROVIDE ( TIMERG1           = 0x500C3000 );
 PROVIDE ( SYSTIMER          = 0x500E2000 );
@@ -39,7 +38,6 @@ PROVIDE ( TWAI2             = 0x500D9000 );
 PROVIDE ( ADC               = 0x500DE000 );
 PROVIDE ( USB_SERIAL_JTAG   = 0x500D2000 );
 PROVIDE ( SDMMC             = 0x50083000 );
-PROVIDE ( BITSCRAMBLER      = 0x500A3000 );
 
 PROVIDE ( INTMTX        = 0x500D6000 );
 PROVIDE ( PCNT          = 0x500C9000 );
@@ -77,13 +75,11 @@ PROVIDE ( LP_AON_CLKRST = 0x50111000 );
 PROVIDE ( EFUSE         = 0x5012D000 );
 PROVIDE ( LPPERI        = 0x50120000 );
 PROVIDE ( LP_TIMER      = 0x50112000 );
-PROVIDE ( LP_MAILBOX    = 0x50118000 );
 PROVIDE ( LP_UART       = 0x50121000 );
 PROVIDE ( LP_I2C        = 0x50122000 );
 PROVIDE ( LP_SPI        = 0x50123000 );
 PROVIDE ( LP_WDT        = 0x50116000 );
 PROVIDE ( LP_I2S        = 0x50125000 );
-PROVIDE ( LP_TRNG       = 0x50126000 );
 PROVIDE ( LP_ADC        = 0x50127000 );
 PROVIDE ( LP_TOUCH      = 0x50128000 );
 PROVIDE ( LP_GPIO         = 0x5012A000 );
@@ -120,7 +116,6 @@ PROVIDE ( USB_DWC_FS         = 0x50040000 );
 PROVIDE ( USB_UTMI           = 0x5009C000 );
 
 PROVIDE ( EMAC_MAC           = 0x50098000 );
-PROVIDE ( EMAC_PTP           = 0x50098700 );
 PROVIDE ( EMAC_DMA           = 0x50099000 );
 
 PROVIDE ( CACHE              = 0x3FF10000);

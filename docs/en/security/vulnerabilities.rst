@@ -7,66 +7,8 @@ This page briefly lists all of the vulnerabilities that are discovered and fixed
 .. note::
    Please refer to ``latest`` version of this documentation guide for up-to-date information.
 
-CVE-2025
---------
-
-CVE-2025-65092
-~~~~~~~~~~~~~~
-
-ESP32-P4 JPEG Decoder Header Parsing Vulnerability
-
-* Espressif Advisory: NA (Published on GitHub)
-* Impact: Applicable for ESP-IDF (ESP32-P4 SoC only)
-* Resolution: Please see advisory for details
-* Advisory pointer: `GHSA-vcw6-jc3p-4gj8`_
-
-
-CVE-2025-64342
-~~~~~~~~~~~~~~
-
-ESP32 Bluetooth Controller Invalid Access Address Vulnerability
-
-* Espressif Advisory: NA (Published on GitHub)
-* Impact: Applicable for ESP-IDF (ESP32 SoC only)
-* Resolution: Please see advisory for details
-* Advisory pointer: `GHSA-8mg7-9qpg-p92v`_
-
-
-CVE-2025-55297
-~~~~~~~~~~~~~~
-
-BluFi Example Memory Overflow Vulnerability
-
-* Espressif Advisory: NA (Published on GitHub)
-* Impact: Applicable for ESP-IDF
-* Resolution: Please see advisory for details
-* Advisory pointer: `GHSA-9w88-r2vm-qfc4`_
-
-
-CVE-2025-52471
-~~~~~~~~~~~~~~
-
-ESP-NOW Integer Underflow Vulnerability Advisory
-
-* Espressif Advisory: NA (Published on GitHub)
-* Impact: Applicable for ESP-IDF
-* Resolution: Please see advisory for details
-* Advisory pointer: `GHSA-hqhh-cp47-fv5g`_
-
-
 CVE-2024
 --------
-
-CVE-2024-53845
-~~~~~~~~~~~~~~
-
-AES/CBC Constant IV Vulnerability in ESPTouch v2
-
-* Espressif Advisory: NA (Published on GitHub)
-* Impact: Applicable for ESP-IDF
-* Resolution: Please see advisory for details
-* Advisory pointer: `GHSA-wm57-466g-mhrr`_
-
 
 CVE-2024-30949
 ~~~~~~~~~~~~~~
@@ -231,6 +173,7 @@ Security Advisory Concerning Wi-Fi Authentication Bypass
 * Impact: Applicable for ESP-IDF
 * Resolution: Please see advisory for details
 
+
 .. _`AR2020-002`: https://www.espressif.com/sites/default/files/advisory_downloads/AR2020-002%20Security%20Advisory%20Concerning%20Wi-Fi%20Authentication%20Bypass%20V1.1%20EN.pdf
 .. _`AR2021-004`: https://www.espressif.com/sites/default/files/advisory_downloads/AR2021-004%20Bluetooth%20Security%20Advisory.pdf
 .. _`AR2021-005`: https://www.espressif.com/sites/default/files/advisory_downloads/AR2021-005%20Security%20Advisory%20on%20BadAlloc%20Vulnerabilities.pdf
@@ -240,8 +183,3 @@ Security Advisory Concerning Wi-Fi Authentication Bypass
 .. _`AR2024-003`: https://www.espressif.com/sites/default/files/advisory_downloads/AR2024-003%20Security%20Advisory%20for%20PEAP%20Phase-2%20authentication%20EN.pdf
 .. _`GHSA-22x6-3756-pfp8` : https://github.com/espressif/esp-idf/security/advisories/GHSA-22x6-3756-pfp8
 .. _`GHSA-7f7f-jj2q-28wm` : https://github.com/espressif/esp-idf/security/advisories/GHSA-7f7f-jj2q-28wm
-.. _`GHSA-wm57-466g-mhrr` : https://github.com/espressif/esp-idf/security/advisories/GHSA-wm57-466g-mhrr
-.. _`GHSA-hqhh-cp47-fv5g` : https://github.com/espressif/esp-idf/security/advisories/GHSA-hqhh-cp47-fv5g
-.. _`GHSA-9w88-r2vm-qfc4` : https://github.com/espressif/esp-idf/security/advisories/GHSA-9w88-r2vm-qfc4
-.. _`GHSA-8mg7-9qpg-p92v` : https://github.com/espressif/esp-idf/security/advisories/GHSA-8mg7-9qpg-p92v
-.. _`GHSA-vcw6-jc3p-4gj8` : https://github.com/espressif/esp-idf/security/advisories/GHSA-vcw6-jc3p-4gj8

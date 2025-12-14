@@ -1,7 +1,5 @@
 idf_build_get_property(idf_target IDF_TARGET)
 
-set(srcs "")
-
 if(${idf_target} STREQUAL "linux")
     return() # This component is not supported by the POSIX/Linux simulator
 endif()
@@ -29,7 +27,7 @@ endif()
 
 idf_component_register(SRCS "${srcs}"
                     INCLUDE_DIRS "include"
-                    PRIV_REQUIRES esp_timer esp_driver_gpio
+                    PRIV_REQUIRES esp_timer driver esp_event
                     LDFRAGMENTS "${ldfragments}")
 
 if(CONFIG_ESP_COEX_ENABLED)
@@ -45,7 +43,7 @@ if(CONFIG_ESP_COEX_ENABLED)
                                     REQUIRES ${COMPONENT_NAME})
             target_link_libraries(${COMPONENT_LIB} PUBLIC ${blob})
             if(CONFIG_IDF_TARGET_ESP32)
-                target_link_libraries(${COMPONENT_LIB} PRIVATE bt_btdm_app)
+                target_link_libraries(${COMPONENT_LIB} PRIVATE btdm_app)
             endif()
         endif()
 

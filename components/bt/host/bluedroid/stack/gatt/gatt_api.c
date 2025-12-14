@@ -1453,8 +1453,7 @@ void GATT_StartIf (tGATT_IF gatt_if)
 **
 *******************************************************************************/
 BOOLEAN GATT_Connect (tGATT_IF gatt_if, BD_ADDR bd_addr, tBLE_ADDR_TYPE bd_addr_type,
-                              BOOLEAN is_direct, tBT_TRANSPORT transport, BOOLEAN is_aux,
-                              BOOLEAN is_pawr_synced, UINT8 adv_handle, UINT8 subevent)
+                              BOOLEAN is_direct, tBT_TRANSPORT transport, BOOLEAN is_aux)
 {
     tGATT_REG    *p_reg;
     BOOLEAN status = FALSE;
@@ -1468,7 +1467,7 @@ BOOLEAN GATT_Connect (tGATT_IF gatt_if, BD_ADDR bd_addr, tBLE_ADDR_TYPE bd_addr_
     }
 
     if (is_direct) {
-        status = gatt_act_connect (p_reg, bd_addr, bd_addr_type, transport, is_aux, is_pawr_synced, adv_handle, subevent);
+        status = gatt_act_connect (p_reg, bd_addr, bd_addr_type, transport, is_aux);
     } else {
 #if (tGATT_BG_CONN_DEV == TRUE)
         if (transport == BT_TRANSPORT_LE) {

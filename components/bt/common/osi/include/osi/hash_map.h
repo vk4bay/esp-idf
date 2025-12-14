@@ -20,7 +20,6 @@
 #define _HASH_MAP_H_
 
 #include <stdbool.h>
-#include <stddef.h>
 #include <stdint.h>
 
 struct hash_map_t;

@@ -215,13 +215,13 @@ float IRAM_ATTR test_fp_benchmark_fp_divide(int counts, unsigned *cycles)
 {
     float f = MAXFLOAT;
     uint32_t before, after;
-    RSR(XT_REG_CCOUNT, before);
+    RSR(CCOUNT, before);
 
     for (int i = 0; i < counts; i++) {
         f /= 1.000432f;
     }
 
-    RSR(XT_REG_CCOUNT, after);
+    RSR(CCOUNT, after);
     *cycles = (after - before) / counts;
 
     return f;
@@ -254,13 +254,13 @@ float IRAM_ATTR test_fp_benchmark_fp_sqrt(int counts, unsigned *cycles)
 {
     float f = MAXFLOAT;
     uint32_t before, after;
-    RSR(XT_REG_CCOUNT, before);
+    RSR(CCOUNT, before);
 
     for (int i = 0; i < counts; i++) {
         f = sqrtf(f);
     }
 
-    RSR(XT_REG_CCOUNT, after);
+    RSR(CCOUNT, after);
     *cycles = (after - before) / counts;
 
     return f;

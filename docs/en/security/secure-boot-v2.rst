@@ -5,27 +5,21 @@ Secure Boot v2
 
 :link_to_translation:`zh_CN:[中文]`
 
-{IDF_TARGET_SBV2_SCHEME:default="RSA-PSS", esp32c2, esp32c61="ECDSA", esp32c6, esp32h2, esp32p4, esp32c5, esp32h21="RSA-PSS or ECDSA"}
+{IDF_TARGET_SBV2_SCHEME:default="RSA-PSS", esp32c2="ECDSA", esp32c6="RSA-PSS or ECDSA", esp32h2="RSA-PSS or ECDSA", esp32p4="RSA-PSS or ECDSA", esp32c5="RSA-PSS or ECDSA", esp32c61="ECDSA"}
 
-{IDF_TARGET_SBV2_KEY:default="RSA-3072", esp32c2, esp32c61="ECDSA-256 or ECDSA-192", esp32c6, esp32h2, esp32p4, esp32h21="RSA-3072, ECDSA-256, or ECDSA-192", esp32c5="RSA-3072, ECDSA-384, ECDSA-256, or ECDSA-192"}
+{IDF_TARGET_SBV2_KEY:default="RSA-3072", esp32c2="ECDSA-256 or ECDSA-192", esp32c6="RSA-3072, ECDSA-256, or ECDSA-192", esp32h2="RSA-3072, ECDSA-256, or ECDSA-192", esp32p4="RSA-3072, ECDSA-256, or ECDSA-192", esp32c5="RSA-3072, ECDSA-256, or ECDSA-192", esp32c61="ECDSA-256 or ECDSA-192"}
 
-{IDF_TARGET_SECURE_BOOT_OPTION_TEXT:default="", esp32c6, esp32h2, esp32p4, esp32h21="RSA is recommended for faster verification. You can choose either the RSA or ECDSA scheme from the menu.", esp32c5="ECDSA is recommended for faster verification. You can choose either the RSA or ECDSA scheme from the menu."}
-
-{IDF_TARGET_SBV2_SCHEME_RECOMMENDATION:default="RSA is recommended for use cases where fast boot-up time is required whereas ECDSA is recommended for use cases where shorter key length is required.", esp32c5="ECDSA is recommended for use cases where fast boot-up time and shorter key length is required."}
+{IDF_TARGET_SECURE_BOOT_OPTION_TEXT:default="", esp32c6="RSA is recommended because of faster verification time. You can choose between RSA and ECDSA scheme from the menu.", esp32h2="RSA is recommended because of faster verification time. You can choose between RSA and ECDSA scheme from the menu.", esp32p4="RSA is recommended because of faster verification time. You can choose between RSA and ECDSA scheme from the menu."}
 
 {IDF_TARGET_ECO_VERSION:default="", esp32="(v3.0 onwards)", esp32c3="(v0.3 onwards)"}
 
-{IDF_TARGET_RSA_TIME:default="", esp32c5="about 12.1 ms", esp32c6="about 10.2 ms", esp32h2="about 18.3 ms", esp32p4="about 14.8 ms"}
+{IDF_TARGET_RSA_TIME:default="", esp32c6="about 2.7 ms", esp32h2="about 4.5 ms", esp32p4="about 2.4 ms"}
 
-{IDF_TARGET_ECDSA_P256_TIME:default="", esp32c5="about 5.6 ms", esp32c6="about 83.9 ms", esp32h2="about 76.2 ms", esp32p4="about 61.1 ms"}
+{IDF_TARGET_ECDSA_TIME:default="", esp32c6="about 21.5 ms", esp32h2="about 36 ms", esp32p4="about 10.3 ms"}
 
-{IDF_TARGET_ECDSA_P384_TIME:default="", esp32c5="about 20.6 ms"}
+{IDF_TARGET_CPU_FREQ:default="", esp32c6="160 MHz", esp32h2="96 MHz", esp32p4="360 MHz"}
 
-{IDF_TARGET_ROM_CPU_FREQ:default="", esp32c5="48 MHz", esp32c6="40 MHz", esp32h2="32 MHz", esp32p4="40 MHz"}
-
-{IDF_TARGET_CPU_FREQ:default="", esp32c5="240 MHz", esp32c6="160 MHz", esp32h2="96 MHz", esp32p4="360 MHz"}
-
-{IDF_TARGET_SBV2_DEFAULT_SCHEME:default="RSA", esp32c2, esp32c61, esp32c5="ECDSA (v2)"}
+{IDF_TARGET_SBV2_DEFAULT_SCHEME:default="RSA", esp32c2="ECDSA (v2)", esp32c5="ECDSA (v2)", esp32c61="ECDSA (v2)"}
 
 {IDF_TARGET_EFUSE_WR_DIS_RD_DIS:default="ESP_EFUSE_WR_DIS_RD_DIS", esp32="ESP_EFUSE_WR_DIS_EFUSE_RD_DISABLE"}
 
@@ -50,7 +44,7 @@ Secure Boot v2
 
 .. note::
 
-    In this guide, most used commands are in the form of ``idf.py secure-<command>``, which is a wrapper around corresponding ``espsecure <command>``. The ``idf.py`` based commands provides more user-friendly experience, although may lack some of the advanced functionality of their ``espsecure`` based counterparts.
+    In this guide, most used commands are in the form of ``idf.py secure-<command>``, which is a wrapper around corresponding ``espsecure.py <command>``. The ``idf.py`` based commands provides more user-friendly experience, although may lack some of the advanced functionality of their ``espsecure.py`` based counterparts.
 
 Background
 ----------
@@ -75,9 +69,6 @@ The Secure Boot process on {IDF_TARGET_NAME} involves the following steps:
 
 2. When the second stage bootloader loads a particular application image, the application's {IDF_TARGET_SBV2_SCHEME} signature is verified. If the verification is successful, the application image is executed.
 
-.. only:: SOC_ECDSA_P192_CURVE_DEFAULT_DISABLED
-
-    The ECDSA-P192 curve is disabled by default on {IDF_TARGET_NAME}. If the provided secure boot signing key uses the ECDSA-P192 curve, the system attempts to enable support for ECDSA-P192 curve mode to proceed with secure boot. However, if the curve mode has already been locked, enabling ECDSA-P192 is not possible. In such cases, secure boot cannot be configured using an ECDSA-P192 key. The user must instead provide a signing key based on the ECDSA-P256 curve or RSA based signing key.
 
 Advantages
 ----------
@@ -94,8 +85,8 @@ Advantages
 
     - {IDF_TARGET_NAME} provides the facility to permanently revoke individual public keys. This can be configured conservatively or aggressively.
 
-        - Conservatively: The old key is revoked after the bootloader and application have successfully migrated to a new key.
-        - Aggressively: The key is revoked as soon as verification with this key fails.
+      - Conservatively: The old key is revoked after the bootloader and application have successfully migrated to a new key.
+      - Aggressively: The key is revoked as soon as verification with this key fails.
 
 - The same image format and signature verification method is applied for applications and the second stage bootloader.
 
@@ -142,65 +133,40 @@ The Secure Boot v2 process follows these steps:
 7. The bootloader executes the verified application image.
 
 
-.. only:: SOC_SECURE_BOOT_V2_RSA and SOC_SECURE_BOOT_V2_ECC
-
-   .. _secure-boot-v2-scheme-selection:
-
-   Secure Boot v2 Scheme Selection
-   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-   {IDF_TARGET_NAME} has a provision to choose between the RSA scheme and the ECDSA scheme. Only one scheme can be used per device.
-
-   ECDSA provides similar security strength, compared to RSA, with shorter key lengths. Current estimates are that ECDSA with curve P-256 has an approximate equivalent strength to RSA with 3072-bit keys. However, ECDSA signature verification takes considerably more amount of time as compared to RSA signature verification.
-
-   {IDF_TARGET_SBV2_SCHEME_RECOMMENDATION}
-
-   .. only:: SOC_ECDSA_SUPPORT_CURVE_P384
-
-      {IDF_TARGET_NAME} also supports Secure Boot v2 with the ECDSA signature scheme using the P-384 curve. This provides stronger security than both ECDSA-P256 and RSA-3072, but at the cost of increased signature verification time. Therefore, for use cases that require higher security strength, Secure Boot v2 should be enabled with the ECDSA P-384 signature scheme.
-
-      .. list-table:: Comparison Between Signature Verification Time
-          :widths: 10 10 20
-          :header-rows: 1
-
-          * - **Verification Scheme**
-            - **Time**
-            - **CPU Frequency**
-          * - RSA-3072
-            - {IDF_TARGET_RSA_TIME}
-            - {IDF_TARGET_ROM_CPU_FREQ}
-          * - ECDSA-P256
-            - {IDF_TARGET_ECDSA_P256_TIME}
-            - {IDF_TARGET_ROM_CPU_FREQ}
-          * - ECDSA-P384
-            - {IDF_TARGET_ECDSA_P384_TIME}
-            - {IDF_TARGET_ROM_CPU_FREQ}
-
-   .. only:: not SOC_ECDSA_SUPPORT_CURVE_P384
-
-      .. list-table:: Comparison Between Signature Verification Time
-          :widths: 10 10 20
-          :header-rows: 1
-
-          * - **Verification Scheme**
-            - **Time**
-            - **CPU Frequency**
-          * - RSA-3072
-            - {IDF_TARGET_RSA_TIME}
-            - {IDF_TARGET_ROM_CPU_FREQ}
-          * - ECDSA-P256
-            - {IDF_TARGET_ECDSA_P256_TIME}
-            - {IDF_TARGET_ROM_CPU_FREQ}
-
-   The above table compares the time taken for the first stage (ROM) bootloader to just verify the signature of the bootloader image in a particular scheme. It does not indicate the boot-up time. Also, note that the CPU frequency is lower because it is the frequency of the CPU when the first stage (ROM) bootloader is running.
-
-
 .. _signature-block-format:
 
 Signature Block Format
 ----------------------
 
 The signature block starts on a 4 KB aligned boundary and has a flash sector of its own. The signature is calculated over all bytes in the image including the padding bytes, see :ref:`secure_padding`.
+
+.. only:: SOC_SECURE_BOOT_V2_RSA and SOC_SECURE_BOOT_V2_ECC
+
+    .. note::
+
+        {IDF_TARGET_NAME} has a provision to choose between the RSA scheme and the ECDSA scheme. Only one scheme can be used per device.
+
+        ECDSA provides similar security strength, compared to RSA, with shorter key lengths. Current estimates are that ECDSA with curve P-256 has an approximate equivalent strength to RSA with 3072-bit keys. However, ECDSA signature verification takes considerably more amount of time as compared to RSA signature verification.
+
+        RSA is recommended for use cases where fast boot-up time is required whereas ECDSA is recommended for use cases where shorter key length is required.
+
+        .. only:: not esp32p4 or not esp32c5
+
+            .. list-table:: Comparison between signature verification time
+                :widths: 10 10 20
+                :header-rows: 1
+
+                * - **Verification scheme**
+                  - **Time**
+                  - **CPU Frequency**
+                * - RSA-3072
+                  - {IDF_TARGET_RSA_TIME}
+                  - {IDF_TARGET_CPU_FREQ}
+                * - ECDSA-P256
+                  - {IDF_TARGET_ECDSA_TIME}
+                  - {IDF_TARGET_CPU_FREQ}
+
+          The above table compares the time taken to verify a signature in a particular scheme. It does not indicate the boot-up time.
 
 The content of each signature block is shown in the following table:
 
@@ -250,11 +216,11 @@ The content of each signature block is shown in the following table:
 
     .. note::
 
-        R and M' are used for hardware-assisted Montgomery Multiplication.
+      R and M' are used for hardware-assisted Montgomery Multiplication.
 
 .. only:: SOC_SECURE_BOOT_V2_ECC
 
-    .. list-table:: Content of an ECDSA-256 / ECDSA-192 Signature Block
+    .. list-table:: Content of an ECDSA Signature Block
         :widths: 10 10 40
         :header-rows: 1
 
@@ -292,50 +258,6 @@ The content of each signature block is shown in the following table:
           - 16
           - Zero padding to length 1216 bytes.
 
-
-    .. only:: SOC_ECDSA_SUPPORT_CURVE_P384
-
-        .. list-table:: Content of an ECDSA-384 Signature Block
-            :widths: 10 10 40
-            :header-rows: 1
-
-            * - **Offset**
-              - **Size (bytes)**
-              - **Description**
-            * - 0
-              - 1
-              - Magic byte.
-            * - 1
-              - 1
-              - Version number byte, currently 0x03.
-            * - 2
-              - 1
-              - SHA Version used for digest calculation when generating the signature (1 for SHA-384)
-            * - 3
-              - 1
-              - Padding bytes. Reserved, should be zero.
-            * - 4
-              - 48
-              - SHA-384 hash of only the image content, not including the signature block.
-            * - 52
-              - 1
-              - Curve ID. 3 for NIST384p curve
-            * - 53
-              - 96
-              - ECDSA Public key: 48-byte X coordinate followed by 48-byte Y coordinate.
-            * - 149
-              - 96
-              - ECDSA Signature result (section 5.3.2 of RFC6090) of the image content: 48-byte R component followed by-48 byte S component.
-            * - 245
-              - 951
-              - Reserved.
-            * - 1196
-              - 4
-              - CRC32 of the preceding 1196 bytes.
-            * - 1200
-              - 16
-              - Zero padding to length 1216 bytes.
-
 The remainder of the signature sector is erased flash (0xFF) which allows writing other signature blocks after the previous signature block.
 
 
@@ -350,7 +272,7 @@ In the Secure Boot v2 scheme, the application image is padded to the flash MMU p
 
     - Default flash MMU page size is 64 KB
     :SOC_MMU_PAGE_SIZE_CONFIGURABLE: - {IDF_TARGET_NAME} supports configurable flash MMU page size, and ``CONFIG_MMU_PAGE_SIZE`` gets set based on the :ref:`CONFIG_ESPTOOLPY_FLASHSIZE`
-    - Secure padding is applied through the option ``--secure-pad-v2`` in the ``elf2image`` conversion using ``esptool``
+    - Secure padding is applied through the option ``--secure-pad-v2`` in the ``elf2image`` conversion using ``esptool.py``
 
 The following table explains the Secure Boot v2 signed image with secure padding and signature block appended:
 
@@ -433,15 +355,11 @@ eFuse Usage
 
     - SECURE_BOOT_EN - Enables Secure Boot protection on boot.
 
-.. only:: SOC_SECURE_BOOT_V2_ECC and SOC_ECDSA_SUPPORT_CURVE_P384
-
-    - SECURE_BOOT_SHA384_EN - Enables SHA-384 digest calculation for Secure Boot signature verification.
-
 .. only:: SOC_EFUSE_KEY_PURPOSE_FIELD
 
     - KEY_PURPOSE_X - Set the purpose of the key block on {IDF_TARGET_NAME} by programming SECURE_BOOT_DIGESTX (X = 0, 1, 2) into KEY_PURPOSE_X (X = 0, 1, 2, 3, 4, 5). Example: If KEY_PURPOSE_2 is set to SECURE_BOOT_DIGEST1, then BLOCK_KEY2 will have the Secure Boot v2 public key digest. The write-protection bit must be set, and this field does not have a read-protection bit.
 
-    - BLOCK_KEYX - The block contains the data corresponding to its function programmed in KEY_PURPOSE_X and stores the SHA-256 digest of the public key. The digest is 32 bytes in size. This digest is calculated from the 776-byte signature block (offset 36 to 812, including the public key modulus, exponent, and the precomputed R and M' values), as specified in the :ref:`signature-block-format`. The write-protection bit must be set, but the read-protection bit must not be set.
+    - BLOCK_KEYX - The block contains the data corresponding to its purpose programmed in KEY_PURPOSE_X. Stores the SHA-256 digest of the public key is written to an eFuse key block. This digest is represented as 776 bytes, with offsets of 36 to 812, as per the :ref:`signature-block-format`. The write-protection bit must be set, but the read-protection bit must not.
 
     - KEY_REVOKEX - The revocation bits corresponding to each of the 3 key blocks. E.g., setting KEY_REVOKE2 revokes the key block whose key purpose is SECURE_BOOT_DIGEST2.
 
@@ -481,13 +399,13 @@ How To Enable Secure Boot v2
 
 .. important::
 
-    A signing key generated this way will use the best random number source available to the OS and its Python installation, which is `/dev/urandom` on OSX/Linux and `CryptGenRandom()` on Windows. If this random number source is weak, then the private key will be weak.
+   A signing key generated this way will use the best random number source available to the OS and its Python installation, which is `/dev/urandom` on OSX/Linux and `CryptGenRandom()` on Windows. If this random number source is weak, then the private key will be weak.
 
 .. important::
 
-    For production environments, we recommend generating the key pair using OpenSSL or another industry-standard encryption program. See :ref:`secure-boot-v2-generate-key` for more details.
+   For production environments, we recommend generating the key pair using OpenSSL or another industry-standard encryption program. See :ref:`secure-boot-v2-generate-key` for more details.
 
-7. Run ``idf.py bootloader`` to build a Secure Boot-enabled bootloader. The build output will include a prompt for a flashing command, using ``esptool write-flash``.
+7. Run ``idf.py bootloader`` to build a Secure Boot-enabled bootloader. The build output will include a prompt for a flashing command, using ``esptool.py write_flash``.
 
 8. When you are ready to flash the bootloader, run the specified command and then wait for flashing to complete. You have to enter it yourself, this step is not performed by the build system.
 
@@ -501,11 +419,11 @@ How To Enable Secure Boot v2
 
 .. note::
 
-    Secure Boot will not be enabled until after a valid partition table and app image have been flashed. This is to prevent accidents before the system is fully configured.
+  Secure Boot will not be enabled until after a valid partition table and app image have been flashed. This is to prevent accidents before the system is fully configured.
 
 .. note::
 
-    If the {IDF_TARGET_NAME} is reset or powered down during the first boot, it will start the process again on the next boot.
+  If the {IDF_TARGET_NAME} is reset or powered down during the first boot, it will start the process again on the next boot.
 
 11. On subsequent boots, the Secure Boot hardware will verify that the second stage bootloader has not changed, and the second stage bootloader will verify the signed app image using the validated public key portion of its appended signature block.
 
@@ -519,10 +437,6 @@ Restrictions After Secure Boot Is Enabled
 
 - After Secure Boot is enabled, further read-protection of eFuse keys is not possible. This is done to prevent an attacker from read-protecting the eFuse block that contains the Secure Boot public key digest, which could result in immediate denial of service and potentially enable a fault injection attack to bypass the signature verification. For further information on read-protected keys, see the details below.
 
-.. only:: SOC_ECDSA_P192_CURVE_DEFAULT_DISABLED
-
-    When Secure Boot is enabled, the ECDSA curve mode becomes write-protected. This means that if the curve mode was not previously set to use the ECDSA-P192 key before enabling Secure Boot, it will no longer be possible to configure or use the ECDSA-P192 curve on the ECDSA peripheral afterward.
-
 Burning read-protected keys
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -531,29 +445,29 @@ The following keys must be read-protected on the device, the respective hardware
 
 .. list::
 
-    :SOC_FLASH_ENC_SUPPORTED:* Flash encryption key
+  :SOC_FLASH_ENC_SUPPORTED:* Flash encryption key
 
-    :SOC_HMAC_SUPPORTED:* HMAC keys
+  :SOC_HMAC_SUPPORTED:* HMAC keys
 
-    :SOC_ECDSA_SUPPORTED:* ECDSA keys
+  :SOC_ECDSA_SUPPORTED:* ECDSA keys
 
-    :SOC_KEY_MANAGER_SUPPORTED:* Key Manager keys
+  :SOC_KEY_MANAGER_SUPPORTED:* Key Manager keys
 
 **Non-read protected keys**:
 The following keys must not be read-protected on the device as the software needs to access them (readable by software):
 
 .. list::
 
-    :SOC_SECURE_BOOT_SUPPORTED:* Secure boot public key digest
-    * User data
+  :SOC_SECURE_BOOT_SUPPORTED:* Secure boot public key digest
+  * User data
 
-When Secure Boot is enabled, it shall disable the ability to read-protect further eFuses by default. If you want keep the ability to read-protect an eFuse later in the application (e.g, a key mentioned in the above list of read-protected keys), then you need to enable the config :ref:`CONFIG_SECURE_BOOT_V2_ALLOW_EFUSE_RD_DIS` at the same time when you enable Secure Boot.
+When Secure Boot is enabled, it shall disable the ability to read-protect further eFuses by default. If you want keep the ability to read-protect an eFuse later in the application (e.g, a key mentioned in the above list of read-protected keys) then you need to enable the config :ref:`CONFIG_SECURE_BOOT_V2_ALLOW_EFUSE_RD_DIS` at the same time when you enable Secure Boot.
 
 Ideally, it is strongly recommended that all such keys must been burned before enabling secure boot. However, if you need to enable :ref:`CONFIG_SECURE_BOOT_V2_ALLOW_EFUSE_RD_DIS`, make sure that you burn the eFuse {IDF_TARGET_EFUSE_WR_DIS_RD_DIS}, using :cpp:func:`esp_efuse_write_field_bit`, once all the read-protected eFuse keys have been programmed.
 
 .. note::
 
-    If :doc:`/security/flash-encryption` is enabled by the second stage bootloader at the time of enabling Secure Boot, it ensures that the flash encryption key generated on the first boot shall already be read-protected.
+   If :doc:`/security/flash-encryption` is enabled by the 2nd stage bootloader at the time of enabling Secure Boot, it ensures that the flash encryption key generated on the first boot shall already be read-protected.
 
 .. _secure-boot-v2-generate-key:
 
@@ -564,17 +478,11 @@ The build system will prompt you with a command to generate a new signing key vi
 
 .. only:: esp32 or SOC_SECURE_BOOT_V2_RSA
 
-    The ``--version 2`` parameter will generate the RSA 3072 private key for Secure Boot v2. Additionally ``--scheme rsa3072`` can be passed as well to generate RSA 3072 private key.
+   The ``--version 2`` parameter will generate the RSA 3072 private key for Secure Boot v2. Additionally ``--scheme rsa3072`` can be passed as well to generate RSA 3072 private key.
 
 .. only:: SOC_SECURE_BOOT_V2_ECC
 
-  .. only:: SOC_ECDSA_SUPPORT_CURVE_P384
-
-    Select the ECDSA scheme by passing ``--version 2 --scheme ecdsa384``, ``--version 2 --scheme ecdsa256`` or ``--version 2 --scheme ecdsa192`` to generate corresponding ECDSA private key.
-
-  .. only:: not SOC_ECDSA_SUPPORT_CURVE_P384
-
-    Select the ECDSA scheme by passing ``--version 2 --scheme ecdsa256`` or ``--version 2 --scheme ecdsa192`` to generate corresponding ECDSA private key.
+   Select the ECDSA scheme by passing ``--version 2 --scheme ecdsa256`` or ``--version 2 --scheme ecdsa192`` to generate corresponding ECDSA private key.
 
 The strength of the signing key is proportional to (a) the random number source of the system, and (b) the correctness of the algorithm used. For production devices, we recommend generating signing keys from a system with a quality entropy source and using the best available {IDF_TARGET_SBV2_SCHEME} key generation utilities.
 
@@ -594,21 +502,13 @@ For example, to generate a signing key using the OpenSSL command line:
 
     .. code-block::
 
-        openssl ecparam -name prime192v1 -genkey -noout -out my_secure_boot_signing_key.pem
+      openssl ecparam -name prime192v1 -genkey -noout -out my_secure_boot_signing_key.pem
 
     For the ECC NIST256p curve
 
     .. code-block::
 
-        openssl ecparam -name prime256v1 -genkey -noout -out my_secure_boot_signing_key.pem
-
-    .. only:: SOC_ECDSA_SUPPORT_CURVE_P384
-
-        For the ECC NIST384p curve
-
-        .. code-block::
-
-            openssl ecparam -name secp384r1 -genkey -noout -out my_secure_boot_signing_key.pem
+      openssl ecparam -name prime256v1 -genkey -noout -out my_secure_boot_signing_key.pem
 
 Remember that the strength of the Secure Boot system depends on keeping the signing key private.
 
@@ -621,7 +521,7 @@ Remote Signing of Images
 Signing Using ``idf.py``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-For production builds, it can be good practice to use a remote signing server rather than have the signing key on the build machine (which is the default ESP-IDF Secure Boot configuration). The ``espsecure`` command line program can be used to sign app images and partition table data for Secure Boot, on a remote system.
+For production builds, it can be good practice to use a remote signing server rather than have the signing key on the build machine (which is the default ESP-IDF Secure Boot configuration). The ``espsecure.py`` command line program can be used to sign app images and partition table data for Secure Boot, on a remote system.
 
 To use remote signing, disable the option :ref:`CONFIG_SECURE_BOOT_BUILD_SIGNED_BINARIES` and build the firmware. The private signing key does not need to be present on the build system.
 
@@ -629,13 +529,13 @@ After the app image and partition table are built, the build system will print s
 
 .. code-block::
 
-    idf.py secure-sign-data BINARY_FILE --keyfile PRIVATE_SIGNING_KEY
+  idf.py secure-sign-data BINARY_FILE --keyfile PRIVATE_SIGNING_KEY
 
 The above command appends the image signature to the existing binary. You can use the `--output` argument to write the signed binary to a separate file:
 
 .. code-block::
 
-    idf.py secure-sign-data --keyfile PRIVATE_SIGNING_KEY --output SIGNED_BINARY_FILE BINARY_FILE
+  idf.py secure-sign-data --keyfile PRIVATE_SIGNING_KEY --output SIGNED_BINARY_FILE BINARY_FILE
 
 
 Signing Using Pre-calculated Signatures
@@ -647,7 +547,7 @@ In such cases, the firmware image should be built by disabling the option :ref:`
 
 .. code-block::
 
-    idf.py secure-sign-data --pub-key PUBLIC_SIGNING_KEY --signature SIGNATURE_FILE --output SIGNED_BINARY_FILE BINARY_FILE
+  idf.py secure-sign-data --pub-key PUBLIC_SIGNING_KEY --signature SIGNATURE_FILE --output SIGNED_BINARY_FILE BINARY_FILE
 
 The above command verifies the signature, generates a signature block (refer to :ref:`signature-block-format`), and appends it to the binary file.
 
@@ -663,13 +563,13 @@ In such cases, disable the option :ref:`CONFIG_SECURE_BOOT_BUILD_SIGNED_BINARIES
 
     .. note::
 
-        For all the above three remote signing workflows, the signed binary is written to the filename provided to the ``--output`` argument, and the option ``--append-signatures`` allows us to append multiple signatures (up to 3) to the image.
+      For all the above three remote signing workflows, the signed binary is written to the filename provided to the ``--output`` argument, and the option ``--append_signatures`` allows us to append multiple signatures (up to 3) to the image.
 
 .. only:: not SOC_EFUSE_REVOKE_BOOT_KEY_DIGESTS
 
     .. note::
 
-        For all the above three remote signing workflows, the signed binary is written to the filename provided to the ``--output`` argument.
+      For all the above three remote signing workflows, the signed binary is written to the filename provided to the ``--output`` argument.
 
 
 Secure Boot Best Practices
@@ -689,7 +589,7 @@ Secure Boot Best Practices
     * Between 1 and 3 {IDF_TARGET_SBV2_KEY} public key pairs (Keys #0, #1, #2) should be computed independently and stored separately.
     * The KEY_DIGEST eFuses should be write-protected after being programmed.
     * The unused KEY_DIGEST slots must have their corresponding KEY_REVOKE eFuse burned to permanently disable them. This must happen before the device leaves the factory.
-    * The eFuses can either be written by the second stage bootloader during first boot after enabling ``Secure Boot v2`` from menuconfig or can be done using ``espefuse`` which communicates with the serial bootloader program in ROM.
+    * The eFuses can either be written by the second stage bootloader during first boot after enabling ``Secure Boot v2`` from menuconfig or can be done using ``espefuse.py`` which communicates with the serial bootloader program in ROM.
     * The KEY_DIGESTs should be numbered sequentially beginning at key digest #0. If key digest #1 is used, key digest #0 should be used. If key digest #2 is used, key digest #0 & #1 must be used.
     * The second stage bootloader is non-OTA upgradeable, and is signed using at least one, possibly all three, private keys and flashed in the factory.
     * Apps should only be signed with a single private key, with the others being stored securely elsewhere. However, they may be signed with multiple private keys if some are being revoked, see :ref:`secure-boot-v2-key-revocation` below.
@@ -700,24 +600,18 @@ Secure Boot Best Practices
 
     * The bootloader should be signed with all the private key(s) that are needed for the life of the device, before it is flashed.
     * The build system can sign with at most one private key, user has to run manual commands to append more signatures if necessary.
-    * You can use the append functionality of ``idf.py secure-sign-data``, this command would also printed at the end of the Secure Boot v2 enabled bootloader compilation.
+    * You can use the append functionality of ``idf.py secure-sign-data``, this command would also printed at the end of the Secure Boot V2 enabled bootloader compilation.
 
     .. code-block::
 
-        idf.py secure-sign-data -k secure_boot_signing_key2.pem --append-signatures -o signed_bootloader.bin build/bootloader/bootloader.bin
+        idf.py secure-sign-data -k secure_boot_signing_key2.pem --append_signatures -o signed_bootloader.bin build/bootloader/bootloader.bin
 
     * While signing with multiple private keys, it is recommended that the private keys be signed independently, if possible on different servers and stored separately.
     * You can check the signatures attached to a binary using:
 
     .. code-block::
 
-        espsecure signature-info-v2 datafile.bin
-
-    .. only:: SOC_ECDSA_SUPPORT_CURVE_P384
-
-      .. note::
-
-        If Secure Boot v2 is configured using the ECDSA P-384 signature scheme, all signing keys used must be ECDSA-P384 keys. Using keys with different elliptic curves (e.g., P-192 or P-256) alongside P-384 is not supported and will cause signature verification to fail during boot.
+        espsecure.py signature_info_v2 datafile.bin
 
     .. _secure-boot-v2-key-revocation:
 
@@ -780,12 +674,12 @@ Secure Boot is integrated into the ESP-IDF build system, so ``idf.py build`` wil
 
 However, it is possible to use the ``idf.py`` or the ``openssl`` tool to generate standalone signatures and verify them. Using ``idf.py`` is recommended, but in case you need to generate or verify signatures in non-ESP-IDF environments, you could also use the ``openssl`` commands as the Secure Boot v2 signature generation is compliant with the standard signing algorithms.
 
-Generating and Verifying Signatures Using ``idf.py``
+Generating and Verifying signatures using ``idf.py``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 1. To sign a binary image:
 
-.. code-block::
+  .. code-block::
 
     idf.py secure-sign-data --keyfile ./my_signing_key.pem --output ./image_signed.bin image-unsigned.bin
 
@@ -793,11 +687,11 @@ Keyfile is the PEM file containing an {IDF_TARGET_SBV2_KEY} private signing key.
 
 2. To verify a signed binary image:
 
-.. code-block::
+  .. code-block::
 
     idf.py secure-verify-signature --keyfile ./my_signing_key.pem image_signed.bin
 
-Keyfile is the PEM file containing an {IDF_TARGET_SBV2_KEY} public/private signing key.
+Keyfile is the PEM file containing an {IDF_TARGET_SBV2_KEY} public/\private signing key.
 
 Generating and Verifying signatures using OpenSSL
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -809,14 +703,6 @@ It is preferred to use the ``idf.py`` tool to generate and verify signatures, bu
     .. code-block:: bash
 
         openssl dgst -sha256 -binary BINARY_FILE  > DIGEST_BINARY_FILE
-
-    .. only:: SOC_ECDSA_SUPPORT_CURVE_P384
-
-        In case of ECDSA-P384 signature scheme, SHA-384 must be used to calculate the digest of the image.
-
-        .. code-block:: bash
-
-            openssl dgst -sha384 -binary BINARY_FILE  > DIGEST_BINARY_FILE
 
 2. Generate signature of the image using the above calculated digest.
 
@@ -884,7 +770,7 @@ If Secure Boot is used without :doc:`flash-encryption`, it is possible to launch
 
     .. important::
 
-        {IDF_TARGET_NAME} has only one eFuse key block, which is used for both keys: Secure Boot and Flash Encryption. The eFuse key block can only be burned once. Therefore these keys should be burned together at the same time. Please note that ``Secure Boot`` and ``Flash Encryption`` can not be enabled separately as subsequent writes to the eFuse key block shall return an error.
+       {IDF_TARGET_NAME} has only one eFuse key block, which is used for both keys: Secure Boot and Flash Encryption. The eFuse key block can only be burned once. Therefore these keys should be burned together at the same time. Please note that ``Secure Boot`` and ``Flash Encryption`` can not be enabled separately as subsequent writes to the eFuse key block shall return an error.
 
 
 .. _signed-app-verify-v2:

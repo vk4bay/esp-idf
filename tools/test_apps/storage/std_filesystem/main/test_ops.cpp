@@ -140,7 +140,8 @@ public:
         }
         std::filesystem::copy_file("/test/file", "/test/file_size");
         CHECK(std::filesystem::file_size("/test/file_size") == 11);
-        std::filesystem::resize_file("/test/file_size", 20);
+        // Not supported: libstdc++ has to be built with _GLIBCXX_HAVE_TRUNCATE
+        CHECK_THROWS(std::filesystem::resize_file("/test/file_size", 20));
         CHECK(std::filesystem::remove("/test/file_size"));
     }
 

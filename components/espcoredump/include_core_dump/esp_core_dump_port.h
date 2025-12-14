@@ -20,6 +20,7 @@
 #include "freertos/FreeRTOS.h"
 #include "esp_app_format.h"
 #include "esp_core_dump_types.h"
+#include "esp_core_dump_port_impl.h"
 #include "esp_core_dump.h"
 
 #ifdef __cplusplus
@@ -105,10 +106,10 @@ uint32_t esp_core_dump_get_stack(core_dump_task_header_t* task_snapshot,
  * @note The goal of this function is to check whether the task passed is the
  *       task that crashed or not. If this is the case and if it didn't crash
  *       within an ISR, its stack pointer will be set to the panic frame,
- *       containing all the registers values when the error occurred. This
+ *       containing all the registers values when the error occured. This
  *       function also checks if the TCB address is sane or not.
  *
- * @param task Pointer to the frame exception generated when the panic occurred.
+ * @param task Pointer to the frame exception generated when the panic occured.
  *
  * @return True if the TCB is sane, false else.
  */
@@ -119,7 +120,7 @@ bool esp_core_dump_check_task(core_dump_task_header_t *task);
  *
  * @note In practice, this function is used to fill the ELF file with the
  *       PR_STATUS sections for all the existing tasks. This structure
- *       contains the CPU registers value when the exception occurred.
+ *       contains the CPU registers value when the exception occured.
  *
  * @param task     Task to dump the registers from.
  * @param reg_dump Pointer that will be filled with the registers dump.
@@ -151,7 +152,7 @@ void esp_core_dump_port_set_crashed_tcb(uint32_t handle);
  */
 uint32_t esp_core_dump_get_extra_info(void **info);
 
-#if CONFIG_ESP_COREDUMP_ENABLE_TO_FLASH
+#if CONFIG_ESP_COREDUMP_ENABLE_TO_FLASH && CONFIG_ESP_COREDUMP_DATA_FORMAT_ELF
 
 /**
  * @brief Parse extra information into summary
@@ -179,17 +180,7 @@ void esp_core_dump_summary_parse_exc_regs(esp_core_dump_summary_t *summary, void
  */
 void esp_core_dump_summary_parse_backtrace_info(esp_core_dump_bt_info_t *bt_info, const void *vaddr,
                                                 const void *paddr, uint32_t stack_size);
-#endif /* CONFIG_ESP_COREDUMP_ENABLE_TO_FLASH */
-
-/**
- * @brief Stack switching implemented in C for RISC-V, Assembly for Xtensa
- *
- * This function switches to the coredump stack, writes the ELF core dump,
- * reports stack usage, and restores the original stack.
- * @param new_stack new stack buffer address
- * @param new_sp aligned stack pointer address
- */
-void esp_core_dump_port_write(uint32_t new_stack, uint32_t new_sp);
+#endif /* CONFIG_ESP_COREDUMP_ENABLE_TO_FLASH && CONFIG_ESP_COREDUMP_DATA_FORMAT_ELF */
 
 #ifdef __cplusplus
 }

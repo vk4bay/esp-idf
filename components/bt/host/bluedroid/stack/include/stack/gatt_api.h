@@ -151,11 +151,7 @@ typedef UINT16 tGATT_DISCONN_REASON;
 #define GATT_INVALID_CONN_ID                0xFFFF
 
 #ifndef GATT_CL_MAX_LCB
-#if (GATT_MAX_PHY_CHANNEL > 12)
-#define GATT_CL_MAX_LCB                     GATT_MAX_PHY_CHANNEL
-#else
-#define GATT_CL_MAX_LCB                     12
-#endif
+#define GATT_CL_MAX_LCB                     12 // 22
 #endif
 
 #ifndef GATT_MAX_SCCB
@@ -1140,8 +1136,7 @@ extern  void GATT_StartIf (tGATT_IF gatt_if);
 **
 *******************************************************************************/
 extern BOOLEAN GATT_Connect (tGATT_IF gatt_if, BD_ADDR bd_addr, tBLE_ADDR_TYPE bd_addr_type,
-                             BOOLEAN is_direct, tBT_TRANSPORT transport, BOOLEAN is_aux,
-                             BOOLEAN is_pawr_synced, UINT8 adv_handle, UINT8 subevent);
+                             BOOLEAN is_direct, tBT_TRANSPORT transport, BOOLEAN is_aux);
 
 
 /*******************************************************************************

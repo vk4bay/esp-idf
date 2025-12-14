@@ -12,11 +12,11 @@
 
 /* If memory protection interrupts are meant to trigger a panic, attach them to panic handler,
  * else, attach them to the interrupt handler. */
-#if CONFIG_ESP_SYSTEM_MEMPROT && CONFIG_ESP_SYSTEM_MEMPROT_PMS
+#if CONFIG_ESP_SYSTEM_MEMPROT_FEATURE
     #define MEMPROT_ISR _panic_handler
 #else
     #define MEMPROT_ISR _interrupt_handler
-#endif // CONFIG_ESP_SYSTEM_MEMPROT && CONFIG_ESP_SYSTEM_MEMPROT_PMS
+#endif // CONFIG_ESP_SYSTEM_MEMPROT_FEATURE
 
 /* Same goes for the assist debug interrupt */
 #if CONFIG_ESP_SYSTEM_HW_STACK_GUARD

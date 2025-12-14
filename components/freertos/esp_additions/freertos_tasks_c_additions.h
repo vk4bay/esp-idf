@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2015-2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2015-2024 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -9,7 +9,9 @@
 #include "esp_heap_caps.h"
 #include "esp_compiler.h"
 #include "freertos/idf_additions.h"
-#include "freertos/freertos_debug.h"
+#if CONFIG_FREERTOS_ENABLE_TASK_SNAPSHOT
+    #include "esp_private/freertos_debug.h"
+#endif /* CONFIG_FREERTOS_ENABLE_TASK_SNAPSHOT */
 #include "esp_private/freertos_idf_additions_priv.h"
 
 /**
@@ -545,18 +547,15 @@ BaseType_t xTaskGetCoreID( TaskHandle_t xTask )
 #endif /* ( !CONFIG_FREERTOS_SMP && ( configGENERATE_RUN_TIME_STATS == 1 ) && ( INCLUDE_xTaskGetIdleTaskHandle == 1 ) ) */
 /*-----------------------------------------------------------*/
 
-StackType_t * xTaskGetStackStart( TaskHandle_t xTask )
-{
-    TCB_t * pxTCB;
-
-    pxTCB = prvGetTCBFromHandle( xTask );
-    return pxTCB->pxStack;
-}
-/*----------------------------------------------------------*/
-
 uint8_t * pxTaskGetStackStart( TaskHandle_t xTask )
 {
-    return (uint8_t *)xTaskGetStackStart( xTask );
+    TCB_t * pxTCB;
+    uint8_t * uxReturn;
+
+    pxTCB = prvGetTCBFromHandle( xTask );
+    uxReturn = ( uint8_t * ) pxTCB->pxStack;
+
+    return uxReturn;
 }
 /*----------------------------------------------------------*/
 
@@ -1117,14 +1116,6 @@ void * pvTaskGetCurrentTCBForCore( BaseType_t xCoreID )
         ESP_FREERTOS_DEBUG_UX_TOP_USED_PIORITY,
         ESP_FREERTOS_DEBUG_PX_TOP_OF_STACK,
         ESP_FREERTOS_DEBUG_PC_TASK_NAME,
-        ESP_FREERTOS_DEBUG_LIST_SIZE,
-        ESP_FREERTOS_DEBUG_LIST_NUM_ITEMS,
-        ESP_FREERTOS_DEBUG_LIST_END,
-        ESP_FREERTOS_DEBUG_LIST_END_PREV,
-        ESP_FREERTOS_DEBUG_LIST_ITEM_PREV,
-        ESP_FREERTOS_DEBUG_LIST_ITEM_OWNER,
-        ESP_FREERTOS_DEBUG_TASK_COUNT_WIDTH,
-        ESP_FREERTOS_DEBUG_PTR_WIDTH,
         /* New entries must be inserted here */
         ESP_FREERTOS_DEBUG_TABLE_END,
     };
@@ -1136,17 +1127,9 @@ void * pvTaskGetCurrentTCBForCore( BaseType_t xCoreID )
         tskKERNEL_VERSION_MAJOR,
         tskKERNEL_VERSION_MINOR,
         tskKERNEL_VERSION_BUILD,
-        configMAX_PRIORITIES - 1,                   /* uxTopUsedPriority */
-        offsetof( TCB_t, pxTopOfStack ),            /* thread_stack_offset; */
-        offsetof( TCB_t, pcTaskName ),              /* thread_name_offset; */
-        sizeof( List_t ),                           /* list_width */
-        offsetof( List_t, uxNumberOfItems ),        /* list_item_num */
-        offsetof( List_t, xListEnd ),               /* list_end_offset */
-        offsetof( List_t, xListEnd.pxPrevious ),    /* list_next_offset */
-        offsetof( ListItem_t, pxPrevious ),         /* list_elem_next_offset */
-        offsetof( ListItem_t, pvOwner ),            /* list_elem_content_offset */
-        sizeof( UBaseType_t ),                      /* task_count_width */
-        sizeof( void * )                            /* ptr_width */
+        configMAX_PRIORITIES - 1,        /* uxTopUsedPriority */
+        offsetof( TCB_t, pxTopOfStack ), /* thread_stack_offset; */
+        offsetof( TCB_t, pcTaskName ),   /* thread_name_offset; */
     };
 
 #endif /* CONFIG_FREERTOS_DEBUG_OCDAWARE */

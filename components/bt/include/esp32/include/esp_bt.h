@@ -607,6 +607,21 @@ esp_err_t esp_ble_tx_power_set(esp_ble_power_type_t power_type, esp_power_level_
  */
 esp_power_level_t esp_ble_tx_power_get(esp_ble_power_type_t power_type);
 
+
+/**
+ * @brief  Set BLE TX power
+ *
+ * @note Connection TX power should only be set after the connection is established.
+ *
+ * @param[in]  power_type The type of TX power. It could be Advertising, Connection, Default, etc.
+ * @param[in]  power_level Power level (index) corresponding to the absolute value (dBm)
+ *
+ * @return
+ *      - ESP_OK:   Success
+ *      - ESP_ERR_INVALID_ARG: Invalid argument
+ */
+esp_err_t esp_ble_tx_power_set(esp_ble_power_type_t power_type, esp_power_level_t power_level);
+
 /**
  * @brief Manually clear the BLE scan duplicate list
  *
@@ -675,36 +690,36 @@ esp_err_t esp_bredr_sco_datapath_set(esp_sco_data_path_t data_path);
  * @brief Virtual HCI (VHCI) callback functions to notify the Host on the next operation
  */
 typedef struct esp_vhci_host_callback {
-    void (*notify_host_send_available)(void);               /*!< Callback to notify the Host that the Controller is ready to receive the HCI data */
-    int (*notify_host_recv)(uint8_t *data, uint16_t len);   /*!< Callback to notify the Host that the Controller has the HCI data to send */
+    void (*notify_host_send_available)(void);               /*!< Callback to notify the Host that the Controller is ready to receive the packet */
+    int (*notify_host_recv)(uint8_t *data, uint16_t len);   /*!< Callback to notify the Host that the Controller has a packet to send */
 } esp_vhci_host_callback_t;
 
 /**
- * @brief Check whether the Controller is ready to receive the HCI data from the Host
+ * @brief Check whether the Controller is ready to receive the packet
  *
- * If the return value is True, the Host can send the HCI data to the Controller.
+ * If the return value is True, the Host can send the packet to the Controller.
  *
  * @note This function should be called before each `esp_vhci_host_send_packet()`.
  *
  * @return
- *       True if the Controller is ready to receive the HCI data; false otherwise
+ *       True if the Controller is ready to receive packets; false otherwise
  */
 bool esp_vhci_host_check_send_available(void);
 
 /**
- * @brief Send the HCI data to the Controller
+ * @brief Send the packet to the Controller
  *
  * @note
  *      1. This function shall not be called within a critical section or when the scheduler is suspended.
  *      2. This function should be called only if `esp_vhci_host_check_send_available()` returns True.
  *
- * @param[in] data Pointer to the HCI data
- * @param[in] len The HCI data length
+ * @param[in] data Pointer to the packet data
+ * @param[in] len The packet length
  */
 void esp_vhci_host_send_packet(uint8_t *data, uint16_t len);
 
 /**
- * @brief Register the VHCI callback functions defined in `esp_vhci_host_callback` structure
+ * @brief Register the VHCI callback funations defined in `esp_vhci_host_callback` structure.
  *
  * @param[in] callback `esp_vhci_host_callback` type variable
  *

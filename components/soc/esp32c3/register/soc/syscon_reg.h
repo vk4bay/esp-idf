@@ -1,7 +1,7 @@
 /**
- * SPDX-FileCopyrightText: 2021-2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2021-2022 Espressif Systems (Shanghai) CO LTD
  *
- *  SPDX-License-Identifier: Apache-2.0 OR MIT
+ *  SPDX-License-Identifier: Apache-2.0
  */
 #ifndef _SOC_SYSCON_REG_H_
 #define _SOC_SYSCON_REG_H_
@@ -496,8 +496,6 @@ extern "C" {
 #define SYSCON_RND_DATA_M  ((SYSCON_RND_DATA_V)<<(SYSCON_RND_DATA_S))
 #define SYSCON_RND_DATA_V  0xFFFFFFFF
 #define SYSCON_RND_DATA_S  0
-
-#define RNG_DATA_REG SYSCON_RND_DATA_REG
 
 #define SYSCON_PERI_BACKUP_CONFIG_REG          (DR_REG_SYSCON_BASE + 0x0B4)
 /* SYSCON_PERI_BACKUP_ENA : R/W ;bitpos:[31] ;default: 1'b0 ; */

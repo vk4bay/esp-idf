@@ -6,7 +6,7 @@ if(${target} STREQUAL "linux")
 endif()
 
 set(srcs "")
-set(priv_requires esp_hw_support hal efuse)
+set(priv_requires "")
 set(priv_includes "")
 
 if(NOT non_os_build)
@@ -29,25 +29,8 @@ if(NOT non_os_build)
         list(APPEND srcs "src/esp_dpa_protection.c")
     endif()
 
-    list(APPEND srcs "src/esp_crypto_lock.c" "src/esp_crypto_periph_clk.c")
-    list(APPEND priv_requires esp_system esp_timer)
-elseif(esp_tee_build)
-    list(APPEND srcs "src/esp_crypto_lock.c" "src/esp_crypto_periph_clk.c")
-    list(APPEND includes "src/${IDF_TARGET}")
-
-    if(CONFIG_SOC_HMAC_SUPPORTED)
-        list(APPEND srcs "src/esp_hmac.c")
-    endif()
-
-    if(CONFIG_SOC_DIG_SIGN_SUPPORTED)
-        list(APPEND srcs "src/esp_ds.c")
-    endif()
-else()  # BOOTLOADER_BUILD
-    list(APPEND srcs "src/esp_crypto_lock.c" "src/esp_crypto_periph_clk.c")
-
-    if(CONFIG_SOC_KEY_MANAGER_FE_KEY_DEPLOY)
-        list(APPEND srcs "src/esp_key_mgr.c")
-    endif()
+    list(APPEND srcs "src/esp_crypto_lock.c")
+    list(APPEND priv_requires efuse esp_hw_support esp_system esp_timer)
 endif()
 
 idf_component_register(SRCS ${srcs}
@@ -57,6 +40,4 @@ idf_component_register(SRCS ${srcs}
 
 if(NOT non_os_build)
     target_link_libraries(${COMPONENT_LIB} PRIVATE "-u esp_security_init_include_impl")
-elseif(esp_tee_build)
-    target_link_libraries(${COMPONENT_LIB} PRIVATE idf::efuse)
 endif()

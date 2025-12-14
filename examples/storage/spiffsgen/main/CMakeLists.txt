@@ -1,6 +1,5 @@
 idf_component_register(SRCS "spiffsgen_example_main.c"
-                       PRIV_REQUIRES spiffs mbedtls
-                       INCLUDE_DIRS ".")
+                    INCLUDE_DIRS ".")
 
 # Create a SPIFFS image from the contents of the 'spiffs_image' directory
 # that fits the partition named 'storage'. FLASH_IN_PROJECT indicates that

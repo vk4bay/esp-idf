@@ -18,7 +18,6 @@
 #include "esp_private/gdma.h"
 #include "esp_private/gdma_link.h"
 #include "esp_private/esp_dma_utils.h"
-#include "esp_private/critical_section.h"
 #include "esp_memory_utils.h"
 #include "esp_cache.h"
 #include "esp_async_memcpy.h"
@@ -27,7 +26,7 @@
 #include "hal/cache_ll.h"
 #include "hal/gdma_ll.h"
 
-ESP_LOG_ATTR_TAG(TAG, "async_mcp.gdma");
+static const char *TAG = "async_mcp.gdma";
 
 #define MCP_DMA_DESCRIPTOR_BUFFER_MAX_SIZE 4095
 
@@ -146,12 +145,6 @@ static esp_err_t esp_async_memcpy_install_gdma_template(const async_memcpy_confi
     gdma_apply_strategy(mcp_gdma->tx_channel, &strategy_cfg);
     gdma_apply_strategy(mcp_gdma->rx_channel, &strategy_cfg);
 
-#if SOC_GDMA_SUPPORT_WEIGHTED_ARBITRATION
-    if(config->weight){
-        ESP_GOTO_ON_ERROR(gdma_set_weight(mcp_gdma->rx_channel, config->weight), err, TAG, "Set GDMA rx channel weight failed");
-        ESP_GOTO_ON_ERROR(gdma_set_weight(mcp_gdma->tx_channel, config->weight), err, TAG, "Set GDMA tx channel weight failed");
-    }
-#endif
     gdma_transfer_config_t transfer_cfg = {
         .max_data_burst_size = config->dma_burst_size,
         .access_ext_mem = true, // allow to do memory copy from/to external memory
@@ -199,25 +192,25 @@ err:
     return ret;
 }
 
-#if SOC_HAS(AHB_GDMA)
+#if SOC_AHB_GDMA_SUPPORTED
 esp_err_t esp_async_memcpy_install_gdma_ahb(const async_memcpy_config_t *config, async_memcpy_handle_t *mcp)
 {
     return esp_async_memcpy_install_gdma_template(config, mcp, gdma_new_ahb_channel, SOC_GDMA_BUS_AHB);
 }
-#endif // SOC_HAS(AHB_GDMA)
+#endif // SOC_AHB_GDMA_SUPPORTED
 
-#if SOC_HAS(AXI_GDMA)
+#if SOC_AXI_GDMA_SUPPORTED
 esp_err_t esp_async_memcpy_install_gdma_axi(const async_memcpy_config_t *config, async_memcpy_handle_t *mcp)
 {
     return esp_async_memcpy_install_gdma_template(config, mcp, gdma_new_axi_channel, SOC_GDMA_BUS_AXI);
 }
-#endif // SOC_HAS(AXI_GDMA)
+#endif // SOC_AXI_GDMA_SUPPORTED
 
-#if SOC_HAS(AHB_GDMA)
+#if SOC_AHB_GDMA_SUPPORTED
 /// default installation falls back to use the AHB GDMA
 esp_err_t esp_async_memcpy_install(const async_memcpy_config_t *config, async_memcpy_handle_t *asmcp)
 __attribute__((alias("esp_async_memcpy_install_gdma_ahb")));
-#elif SOC_HAS(AXI_GDMA)
+#elif SOC_AXI_GDMA_SUPPORTED
 /// default installation falls back to use the AXI GDMA
 esp_err_t esp_async_memcpy_install(const async_memcpy_config_t *config, async_memcpy_handle_t *asmcp)
 __attribute__((alias("esp_async_memcpy_install_gdma_axi")));
@@ -238,12 +231,12 @@ static esp_err_t mcp_gdma_del(async_memcpy_context_t *ctx)
 static async_memcpy_transaction_t *try_pop_trans_from_ready_queue(async_memcpy_gdma_context_t *mcp_gdma)
 {
     async_memcpy_transaction_t *trans = NULL;
-    esp_os_enter_critical_safe(&mcp_gdma->spin_lock);
+    portENTER_CRITICAL_SAFE(&mcp_gdma->spin_lock);
     trans = STAILQ_FIRST(&mcp_gdma->ready_queue_head);
     if (trans) {
         STAILQ_REMOVE_HEAD(&mcp_gdma->ready_queue_head, ready_queue_entry);
     }
-    esp_os_exit_critical_safe(&mcp_gdma->spin_lock);
+    portEXIT_CRITICAL_SAFE(&mcp_gdma->spin_lock);
     return trans;
 }
 
@@ -271,12 +264,12 @@ static void try_start_pending_transaction(async_memcpy_gdma_context_t *mcp_gdma)
 static async_memcpy_transaction_t *try_pop_trans_from_idle_queue(async_memcpy_gdma_context_t *mcp_gdma)
 {
     async_memcpy_transaction_t *trans = NULL;
-    esp_os_enter_critical_safe(&mcp_gdma->spin_lock);
+    portENTER_CRITICAL_SAFE(&mcp_gdma->spin_lock);
     trans = STAILQ_FIRST(&mcp_gdma->idle_queue_head);
     if (trans) {
         STAILQ_REMOVE_HEAD(&mcp_gdma->idle_queue_head, idle_queue_entry);
     }
-    esp_os_exit_critical_safe(&mcp_gdma->spin_lock);
+    portEXIT_CRITICAL_SAFE(&mcp_gdma->spin_lock);
     return trans;
 }
 
@@ -310,22 +303,22 @@ static esp_err_t mcp_gdma_memcpy(async_memcpy_context_t *ctx, void *dst, void *s
     async_memcpy_gdma_context_t *mcp_gdma = __containerof(ctx, async_memcpy_gdma_context_t, parent);
     size_t dma_link_item_alignment = 4;
     // buffer location check
-#if SOC_HAS(AHB_GDMA)
+#if SOC_AHB_GDMA_SUPPORTED
     if (mcp_gdma->gdma_bus_id == SOC_GDMA_BUS_AHB) {
-#if !GDMA_LL_GET(AHB_PSRAM_CAPABLE)
+#if !SOC_AHB_GDMA_SUPPORT_PSRAM
         ESP_RETURN_ON_FALSE(esp_ptr_internal(src) && esp_ptr_internal(dst), ESP_ERR_INVALID_ARG, TAG, "AHB GDMA can only access SRAM");
-#endif // !GDMA_LL_GET(AHB_PSRAM_CAPABLE)
+#endif // !SOC_AHB_GDMA_SUPPORT_PSRAM
         dma_link_item_alignment = GDMA_LL_AHB_DESC_ALIGNMENT;
     }
-#endif // SOC_HAS(AHB_GDMA)
-#if SOC_HAS(AXI_GDMA)
+#endif // SOC_AHB_GDMA_SUPPORTED
+#if SOC_AXI_GDMA_SUPPORTED
     if (mcp_gdma->gdma_bus_id == SOC_GDMA_BUS_AXI) {
-#if !GDMA_LL_GET(AXI_PSRAM_CAPABLE)
+#if !SOC_AXI_GDMA_SUPPORT_PSRAM
         ESP_RETURN_ON_FALSE(esp_ptr_internal(src) && esp_ptr_internal(dst), ESP_ERR_INVALID_ARG, TAG, "AXI GDMA can only access SRAM");
-#endif // !GDMA_LL_GET(AXI_PSRAM_CAPABLE)
+#endif // !SOC_AXI_GDMA_SUPPORT_PSRAM
         dma_link_item_alignment = GDMA_LL_AXI_DESC_ALIGNMENT;
     }
-#endif // SOC_HAS(AXI_GDMA)
+#endif // SOC_AXI_GDMA_SUPPORTED
     // alignment check
     ESP_RETURN_ON_FALSE(check_buffer_alignment(mcp_gdma, src, dst, n), ESP_ERR_INVALID_ARG, TAG, "address|size not aligned: %p -> %p, sz=%zu", src, dst, n);
 
@@ -356,6 +349,7 @@ static esp_err_t mcp_gdma_memcpy(async_memcpy_context_t *ctx, void *dst, void *s
     buffer_alignment = esp_ptr_internal(src) ? mcp_gdma->tx_int_mem_alignment : mcp_gdma->tx_ext_mem_alignment;
     num_dma_nodes = esp_dma_calculate_node_count(n, buffer_alignment, MCP_DMA_DESCRIPTOR_BUFFER_MAX_SIZE);
     gdma_link_list_config_t tx_link_cfg = {
+        .buffer_alignment = buffer_alignment,
         .item_alignment = dma_link_item_alignment,
         .num_items = num_dma_nodes,
         .flags = {
@@ -368,11 +362,10 @@ static esp_err_t mcp_gdma_memcpy(async_memcpy_context_t *ctx, void *dst, void *s
     gdma_buffer_mount_config_t tx_buf_mount_config[1] = {
         [0] = {
             .buffer = src,
-            .buffer_alignment = buffer_alignment,
             .length = n,
             .flags = {
                 .mark_eof = true,   // mark the last item as EOF, so the RX channel can also received an EOF list item
-                .mark_final = GDMA_FINAL_LINK_TO_NULL, // using singly list, so terminate the link here
+                .mark_final = true, // using singly list, so terminate the link here
             }
         }
     };
@@ -380,8 +373,15 @@ static esp_err_t mcp_gdma_memcpy(async_memcpy_context_t *ctx, void *dst, void *s
 
     // read the cache line size of internal and external memory, we use this information to check if a given memory is behind the cache
     // write back the source data if it's behind the cache
-    size_t cache_line_size = esp_cache_get_line_size_by_addr(src);
-    if (cache_line_size > 0) {
+    size_t int_mem_cache_line_size = cache_hal_get_cache_line_size(CACHE_LL_LEVEL_INT_MEM, CACHE_TYPE_DATA);
+    size_t ext_mem_cache_line_size = cache_hal_get_cache_line_size(CACHE_LL_LEVEL_EXT_MEM, CACHE_TYPE_DATA);
+    bool need_write_back = false;
+    if (esp_ptr_external_ram(src)) {
+        need_write_back = ext_mem_cache_line_size > 0;
+    } else if (esp_ptr_internal(src)) {
+        need_write_back = int_mem_cache_line_size > 0;
+    }
+    if (need_write_back) {
         esp_cache_msync(src, n, ESP_CACHE_MSYNC_FLAG_DIR_C2M | ESP_CACHE_MSYNC_FLAG_UNALIGNED);
     }
 
@@ -389,6 +389,7 @@ static esp_err_t mcp_gdma_memcpy(async_memcpy_context_t *ctx, void *dst, void *s
     buffer_alignment = esp_ptr_internal(dst) ? mcp_gdma->rx_int_mem_alignment : mcp_gdma->rx_ext_mem_alignment;
     num_dma_nodes = esp_dma_calculate_node_count(n, buffer_alignment, MCP_DMA_DESCRIPTOR_BUFFER_MAX_SIZE);
     gdma_link_list_config_t rx_link_cfg = {
+        .buffer_alignment = buffer_alignment,
         .item_alignment = dma_link_item_alignment,
         .num_items = num_dma_nodes + 3, // add 3 extra items for the cache aligned buffers
         .flags = {
@@ -405,7 +406,6 @@ static esp_err_t mcp_gdma_memcpy(async_memcpy_context_t *ctx, void *dst, void *s
     gdma_buffer_mount_config_t rx_buf_mount_config[3] = {0};
     for (int i = 0; i < 3; i++) {
         rx_buf_mount_config[i].buffer = trans->rx_buf_array.aligned_buffer[i].aligned_buffer;
-        rx_buf_mount_config[i].buffer_alignment = buffer_alignment;
         rx_buf_mount_config[i].length = trans->rx_buf_array.aligned_buffer[i].length;
     }
     gdma_link_mount_buffers(trans->rx_link_list, 0, rx_buf_mount_config, 3, NULL);
@@ -414,10 +414,10 @@ static esp_err_t mcp_gdma_memcpy(async_memcpy_context_t *ctx, void *dst, void *s
     trans->cb = cb_isr;
     trans->cb_args = cb_args;
 
-    esp_os_enter_critical(&mcp_gdma->spin_lock);
+    portENTER_CRITICAL(&mcp_gdma->spin_lock);
     // insert the trans to ready queue
     STAILQ_INSERT_TAIL(&mcp_gdma->ready_queue_head, trans, ready_queue_entry);
-    esp_os_exit_critical(&mcp_gdma->spin_lock);
+    portEXIT_CRITICAL(&mcp_gdma->spin_lock);
 
     // check driver state, if there's no running transaction, start a new one
     try_start_pending_transaction(mcp_gdma);
@@ -427,9 +427,9 @@ static esp_err_t mcp_gdma_memcpy(async_memcpy_context_t *ctx, void *dst, void *s
 err:
     if (trans) {
         // return back the trans to idle queue
-        esp_os_enter_critical(&mcp_gdma->spin_lock);
+        portENTER_CRITICAL(&mcp_gdma->spin_lock);
         STAILQ_INSERT_TAIL(&mcp_gdma->idle_queue_head, trans, idle_queue_entry);
-        esp_os_exit_critical(&mcp_gdma->spin_lock);
+        portEXIT_CRITICAL(&mcp_gdma->spin_lock);
     }
     return ret;
 }
@@ -457,10 +457,10 @@ static bool mcp_gdma_rx_eof_callback(gdma_channel_handle_t dma_chan, gdma_event_
         }
         trans->cb = NULL;
 
-        esp_os_enter_critical_isr(&mcp_gdma->spin_lock);
+        portENTER_CRITICAL_ISR(&mcp_gdma->spin_lock);
         // insert the trans object to the idle queue
         STAILQ_INSERT_TAIL(&mcp_gdma->idle_queue_head, trans, idle_queue_entry);
-        esp_os_exit_critical_isr(&mcp_gdma->spin_lock);
+        portEXIT_CRITICAL_ISR(&mcp_gdma->spin_lock);
 
         atomic_store(&mcp_gdma->fsm, MCP_FSM_IDLE);
     }

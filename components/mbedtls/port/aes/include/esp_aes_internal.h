@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2023-2024 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2023-2025 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -11,6 +11,7 @@
 #include "soc/soc_caps.h"
 #include "hal/aes_hal.h"
 #include "esp_crypto_dma.h"
+#include "sdkconfig.h"
 
 #ifdef __cplusplus
 extern "C" {

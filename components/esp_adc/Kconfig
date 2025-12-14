@@ -2,7 +2,6 @@ menu "ADC and ADC Calibration"
 
     config ADC_ONESHOT_CTRL_FUNC_IN_IRAM
         bool "Place ISR version ADC oneshot mode read function into IRAM"
-        select ESP_PERIPH_CTRL_FUNC_IN_IRAM
         default n
         help
             Place ISR version ADC oneshot mode read function into IRAM.
@@ -58,7 +57,7 @@ menu "ADC and ADC Calibration"
 
     config ADC_CONTINUOUS_FORCE_USE_ADC2_ON_C3_S3
         depends on IDF_TARGET_ESP32C3 || IDF_TARGET_ESP32S3
-        bool "Force use ADC2 continuous mode on ESP32S3 or ESP32C3"
+        bool "Force use ADC2 continumous mode on ESP32S3 or ESP32C3"
         default n
         help
             On ESP32C3 and ESP32S3, ADC2 Digital Controller is not stable. Therefore,
@@ -84,4 +83,6 @@ menu "ADC and ADC Calibration"
         help
             whether to enable the debug log message for ADC driver.
             Note that this option only controls the ADC driver log, will not affect other drivers.
+
+            note: This cannot be used in the ADC legacy driver.
 endmenu

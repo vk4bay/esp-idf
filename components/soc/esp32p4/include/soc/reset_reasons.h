@@ -1,7 +1,7 @@
 /*
- * SPDX-FileCopyrightText: 2022-2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2022-2024 Espressif Systems (Shanghai) CO LTD
  *
- * SPDX-License-Identifier: Apache-2.0 OR MIT
+ * SPDX-License-Identifier: Apache-2.0
  */
 
 #pragma once
@@ -47,6 +47,7 @@ typedef enum {
     RESET_REASON_CPU_JTAG          = 0x18, // Triggered when a reset command from JTAG is received
     RESET_REASON_CPU_LOCKUP        = 0x1A, // Triggered when the CPU enters lockup (exception inside the exception handler would cause this)
 } soc_reset_reason_t;
+
 
 #ifdef __cplusplus
 }

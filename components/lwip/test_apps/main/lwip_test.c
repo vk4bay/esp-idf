@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2022-2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2022-2024 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -24,11 +24,6 @@
 #include "dhcpserver/dhcpserver.h"
 #include "dhcpserver/dhcpserver_options.h"
 #include "esp_sntp.h"
-#include "lwip/dhcp.h"
-#include "lwip/acd.h"
-#include "lwip/prot/dhcp.h"
-#include "lwip/prot/acd.h"
-#include "lwip/prot/etharp.h"
 
 #define ETH_PING_END_BIT BIT(1)
 #define ETH_PING_DURATION_MS (5000)
@@ -149,24 +144,10 @@ TEST(lwip, dhcp_server_init_deinit)
     dhcps_delete(dhcps);
 }
 
-typedef enum
-{
-    DNS_CALLBACK_TYPE_GET = 0, /**< DNS main server address*/
-    DNS_CALLBACK_TYPE_SET,   /**< DNS backup server address (Wi-Fi STA and Ethernet only) */
-} dns_callback_type_t;
-
-typedef struct dhcps_dns_options_ {
-    dns_callback_type_t cb_type;
-    ip_addr_t *dnsserver;
-    dns_type_t type;
-} dhcps_dns_options_t;
-
 struct dhcps_api {
     EventGroupHandle_t event;
-    dhcps_t *dhcps;
     ip4_addr_t netmask;
     ip4_addr_t ip;
-    dhcps_dns_options_t dns_options;
     err_t ret_start;
     err_t ret_stop;
 };
@@ -239,151 +220,6 @@ TEST(lwip, dhcp_server_start_stop_localhost)
     dhcps_test_net_classes(0xC0A8C808, 0xFFFFFFF8, false);
 }
 
-static void dhcps_test_dns_options_api(void* ctx)
-{
-    struct netif *netif;
-    struct dhcps_api *api = ctx;
-
-    NETIF_FOREACH(netif) {
-        if (netif->name[0] == 'l' && netif->name[1] == 'o') {
-            break;
-        }
-    }
-    TEST_ASSERT_NOT_NULL(netif);
-
-    if (api->dns_options.cb_type == DNS_CALLBACK_TYPE_GET) {
-        api->ret_start = dhcps_dns_getserver_by_type(api->dhcps,
-                                                    ip_2_ip4(api->dns_options.dnsserver),
-                                                    api->dns_options.type);
-    } else {
-        api->ret_start = dhcps_dns_setserver_by_type(api->dhcps,
-                                                    api->dns_options.dnsserver,
-                                                    api->dns_options.type);
-    }
-    xEventGroupSetBits(api->event, 1);
-}
-
-static void dhcps_test_dns_options(dns_callback_type_t cb_type,
-                                    dhcps_t *dhcps, ip_addr_t *dnsserver,
-                                    dns_type_t type, bool pass)
-{
-    struct dhcps_api api = {
-            .dhcps = dhcps,
-            .dns_options.cb_type = cb_type,
-            .dns_options.dnsserver = dnsserver,
-            .dns_options.type = type,
-            .ret_start = ERR_IF,
-            .event = xEventGroupCreate()
-    };
-
-    tcpip_callback(dhcps_test_dns_options_api, &api);
-    xEventGroupWaitBits(api.event, 1, true, true, pdMS_TO_TICKS(5000));
-    vEventGroupDelete(api.event);
-
-    TEST_ASSERT((api.ret_start == ERR_OK) == pass);
-}
-
-typedef struct {
-    EventGroupHandle_t event;
-    int self_mac_cb_calls;
-    int other_mac_cb_calls;
-} acd_test_ctx_t;
-
-static acd_test_ctx_t g_acd_ctx;
-
-static void acd_test_cb(struct netif *netif, acd_callback_enum_t state)
-{
-    (void)netif;
-    (void)state;
-    /* We only need to know that a callback was triggered (decline/restart). */
-    g_acd_ctx.other_mac_cb_calls++;
-}
-
-static void dhcp_acd_arp_check_api(void *arg)
-{
-    acd_test_ctx_t *ctx = (acd_test_ctx_t *)arg;
-    struct netif *netif = NULL;
-    NETIF_FOREACH(netif) {
-        if (netif->name[0] == 'l' && netif->name[1] == 'o') {
-            break;
-        }
-    }
-    TEST_ASSERT_NOT_NULL(netif);
-
-    /* Set our interface MAC to a known value */
-    const struct eth_addr self = { .addr = { 0x08, 0x3a, 0x8d, 0x41, 0x13, 0x14 } };
-    netif->hwaddr_len = ETH_HWADDR_LEN;
-    SMEMCPY(netif->hwaddr, self.addr, ETH_HWADDR_LEN);
-
-    /* Attach a DHCP client struct with CHECKING state and PROBING ACD state */
-    static struct dhcp dhcp;
-    memset(&dhcp, 0, sizeof(dhcp));
-    netif_set_client_data(netif, LWIP_NETIF_CLIENT_DATA_INDEX_DHCP, &dhcp);
-    IP4_ADDR(&dhcp.offered_ip_addr, 192, 168, 88, 4);
-    dhcp.state = DHCP_STATE_CHECKING;
-    dhcp.acd.state = ACD_STATE_PROBING;
-    dhcp.acd.acd_conflict_callback = acd_test_cb;
-
-    /* Case 1: ARP reply from our offered IP but with our own MAC -> NO conflict */
-    struct etharp_hdr hdr = {0};
-    hdr.opcode = PP_HTONS(ARP_REPLY);
-    IPADDR_WORDALIGNED_COPY_FROM_IP4_ADDR_T(&hdr.sipaddr, &dhcp.offered_ip_addr);
-    SMEMCPY(hdr.shwaddr.addr, self.addr, ETH_HWADDR_LEN);
-    ctx->self_mac_cb_calls = 0;
-    g_acd_ctx.other_mac_cb_calls = 0;
-    acd_arp_reply(netif, &hdr);
-    /* No callback should be invoked for self-MAC */
-    TEST_ASSERT_EQUAL_INT(0, g_acd_ctx.other_mac_cb_calls);
-
-    /* Case 2: ARP reply from offered IP with a different MAC -> conflict expected */
-    const struct eth_addr other = { .addr = { 0x08, 0x3a, 0x8d, 0x41, 0x13, 0x15 } };
-    SMEMCPY(hdr.shwaddr.addr, other.addr, ETH_HWADDR_LEN);
-    g_acd_ctx.other_mac_cb_calls = 0;
-    acd_arp_reply(netif, &hdr);
-    /* Our callback should be called (DECLINE/RESTART) at least once */
-    TEST_ASSERT(g_acd_ctx.other_mac_cb_calls > 0);
-
-    xEventGroupSetBits(ctx->event, 1);
-}
-
-TEST(lwip, dhcp_arp_probe_self_mac_is_ok)
-{
-    test_case_uses_tcpip();
-    g_acd_ctx.event = xEventGroupCreate();
-    TEST_ASSERT_NOT_NULL(g_acd_ctx.event);
-    g_acd_ctx.self_mac_cb_calls = 0;
-    g_acd_ctx.other_mac_cb_calls = 0;
-
-    tcpip_callback(dhcp_acd_arp_check_api, &g_acd_ctx);
-    xEventGroupWaitBits(g_acd_ctx.event, 1, true, true, pdMS_TO_TICKS(5000));
-    vEventGroupDelete(g_acd_ctx.event);
-}
-
-TEST(lwip, dhcp_server_dns_options)
-{
-    test_case_uses_tcpip();
-
-    // Class C: IP: 192.168.4.1
-    ip_addr_t ip = IPADDR4_INIT_BYTES(192, 168, 4, 1);
-
-    dhcps_test_dns_options(DNS_CALLBACK_TYPE_SET, NULL, &ip, DNS_TYPE_MAIN, false);
-    dhcps_test_dns_options(DNS_CALLBACK_TYPE_GET, NULL, &ip, DNS_TYPE_MAIN, false);
-
-    dhcps_t *dhcps = dhcps_new();
-    dhcps_test_dns_options(DNS_CALLBACK_TYPE_SET, dhcps, NULL, DNS_TYPE_MAIN, true);
-    dhcps_test_dns_options(DNS_CALLBACK_TYPE_GET, dhcps, NULL, DNS_TYPE_MAIN, false);
-
-    dhcps_test_dns_options(DNS_CALLBACK_TYPE_SET, dhcps, &ip, DNS_TYPE_MAX, false);
-    dhcps_test_dns_options(DNS_CALLBACK_TYPE_GET, dhcps, &ip, DNS_TYPE_MAX, false);
-
-    dhcps_test_dns_options(DNS_CALLBACK_TYPE_SET, dhcps, &ip, DNS_TYPE_MAIN, true);
-    dhcps_test_dns_options(DNS_CALLBACK_TYPE_GET, dhcps, &ip, DNS_TYPE_MAIN, true);
-
-    dhcps_test_dns_options(DNS_CALLBACK_TYPE_SET, dhcps, &ip, DNS_TYPE_BACKUP, true);
-    dhcps_test_dns_options(DNS_CALLBACK_TYPE_GET, dhcps, &ip, DNS_TYPE_BACKUP, true);
-
-    dhcps_delete(dhcps);
-}
 
 int test_sntp_server_create(void)
 {
@@ -488,10 +324,8 @@ TEST_GROUP_RUNNER(lwip)
     RUN_TEST_CASE(lwip, localhost_ping_test)
     RUN_TEST_CASE(lwip, dhcp_server_init_deinit)
     RUN_TEST_CASE(lwip, dhcp_server_start_stop_localhost)
-    RUN_TEST_CASE(lwip, dhcp_server_dns_options)
     RUN_TEST_CASE(lwip, sntp_client_time_2015)
     RUN_TEST_CASE(lwip, sntp_client_time_2048)
-    RUN_TEST_CASE(lwip, dhcp_arp_probe_self_mac_is_ok)
 }
 
 void app_main(void)

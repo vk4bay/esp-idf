@@ -5,10 +5,6 @@ set(public_include "include")
 
 if(CONFIG_SOC_LEDC_SUPPORTED)
     list(APPEND srcs "src/ledc.c")
-
-    if(CONFIG_SOC_ETM_SUPPORTED AND CONFIG_SOC_LEDC_SUPPORT_ETM)
-        list(APPEND srcs "src/ledc_etm.c")
-    endif()
 endif()
 
 if(${target} STREQUAL "linux")

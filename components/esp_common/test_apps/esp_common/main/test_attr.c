@@ -19,7 +19,7 @@
 
 #define ALIGN_UP(num, align)    (((num) + ((align) - 1)) & ~((align) - 1))
 
-ESP_LOG_ATTR_TAG(TAG, "attr_test");
+static const char *TAG = "attr_test";
 
 extern int _rtc_noinit_start;
 extern int _rtc_noinit_end;

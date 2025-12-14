@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2023-2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2023 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -44,10 +44,7 @@ static inline void _hmac_ll_enable_bus_clock(bool enable)
 
 /// use a macro to wrap the function, force the caller to use it in a critical section
 /// the critical section needs to declare the __DECLARE_RCC_ATOMIC_ENV variable in advance
-#define hmac_ll_enable_bus_clock(...) do { \
-        (void)__DECLARE_RCC_ATOMIC_ENV; \
-        _hmac_ll_enable_bus_clock(__VA_ARGS__); \
-    } while(0)
+#define hmac_ll_enable_bus_clock(...) (void)__DECLARE_RCC_ATOMIC_ENV; _hmac_ll_enable_bus_clock(__VA_ARGS__)
 
 /**
  * @brief Reset the HMAC peripheral module
@@ -63,10 +60,7 @@ static inline void hmac_ll_reset_register(void)
 
 /// use a macro to wrap the function, force the caller to use it in a critical section
 /// the critical section needs to declare the __DECLARE_RCC_ATOMIC_ENV variable in advance
-#define hmac_ll_reset_register(...) do { \
-        (void)__DECLARE_RCC_ATOMIC_ENV; \
-        hmac_ll_reset_register(__VA_ARGS__); \
-    } while(0)
+#define hmac_ll_reset_register(...) (void)__DECLARE_RCC_ATOMIC_ENV; hmac_ll_reset_register(__VA_ARGS__)
 
 /**
  * Makes the peripheral ready for use, after enabling it.

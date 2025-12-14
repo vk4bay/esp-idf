@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2018-2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2018-2024 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -13,6 +13,7 @@
 #include "esp_rom_efuse.h"
 #include "esp32/rom/spi_flash.h"
 #include "esp32/rom/cache.h"
+#include "soc/gpio_periph.h"
 #include "soc/efuse_reg.h"
 #include "soc/spi_reg.h"
 #include "soc/dport_reg.h"
@@ -21,7 +22,6 @@
 #include "soc/chip_revision.h"
 #include "hal/efuse_hal.h"
 #include "hal/gpio_hal.h"
-#include "hal/mmu_hal.h"
 #include "flash_qio_mode.h"
 #include "bootloader_common.h"
 #include "bootloader_flash_config.h"
@@ -93,7 +93,7 @@ void IRAM_ATTR bootloader_flash_gpio_config(const esp_image_header_t* pfhdr)
         pkg_ver == EFUSE_RD_CHIP_VER_PKG_ESP32PICOV302) {
         // For ESP32D2WD or ESP32-PICO series,the SPI pins are already configured
         // flash clock signal should come from IO MUX.
-        gpio_ll_func_sel(&GPIO, FLASH_CLK_IO, MSPI_FUNC_NUM);
+        gpio_hal_iomux_func_sel(PERIPHS_IO_MUX_SD_CLK_U, FUNC_SD_CLK_SPICLK);
         SET_PERI_REG_BITS(PERIPHS_IO_MUX_SD_CLK_U, FUN_DRV, drv, FUN_DRV_S);
     } else {
         const uint32_t spiconfig = esp_rom_efuse_get_flash_gpio_info();
@@ -108,14 +108,14 @@ void IRAM_ATTR bootloader_flash_gpio_config(const esp_image_header_t* pfhdr)
             esp_rom_gpio_connect_out_signal(FLASH_SPIHD_IO, SPIHD_OUT_IDX, 0, 0);
             esp_rom_gpio_connect_in_signal(FLASH_SPIHD_IO, SPIHD_IN_IDX, 0);
             //select pin function gpio
-            gpio_ll_func_sel(&GPIO, FLASH_SPIQ_IO, PIN_FUNC_GPIO);
-            gpio_ll_func_sel(&GPIO, FLASH_SPID_IO, PIN_FUNC_GPIO);
-            gpio_ll_func_sel(&GPIO, FLASH_SPIHD_IO, PIN_FUNC_GPIO);
-            gpio_ll_func_sel(&GPIO, FLASH_SPIWP_IO, PIN_FUNC_GPIO);
-            gpio_ll_func_sel(&GPIO, FLASH_CS_IO, PIN_FUNC_GPIO);
+            gpio_hal_iomux_func_sel(PERIPHS_IO_MUX_SD_DATA0_U, PIN_FUNC_GPIO);
+            gpio_hal_iomux_func_sel(PERIPHS_IO_MUX_SD_DATA1_U, PIN_FUNC_GPIO);
+            gpio_hal_iomux_func_sel(PERIPHS_IO_MUX_SD_DATA2_U, PIN_FUNC_GPIO);
+            gpio_hal_iomux_func_sel(PERIPHS_IO_MUX_SD_DATA3_U, PIN_FUNC_GPIO);
+            gpio_hal_iomux_func_sel(PERIPHS_IO_MUX_SD_CMD_U, PIN_FUNC_GPIO);
             // flash clock signal should come from IO MUX.
-            gpio_ll_func_sel(&GPIO, FLASH_CLK_IO, MSPI_FUNC_NUM);
             // set drive ability for clock
+            gpio_hal_iomux_func_sel(PERIPHS_IO_MUX_SD_CLK_U, FUNC_SD_CLK_SPICLK);
             SET_PERI_REG_BITS(PERIPHS_IO_MUX_SD_CLK_U, FUN_DRV, drv, FUN_DRV_S);
 
             uint32_t flash_id = g_rom_flashchip.device_id;
@@ -190,12 +190,12 @@ int bootloader_flash_get_wp_pin(void)
     case EFUSE_RD_CHIP_VER_PKG_ESP32PICOV302:
         return ESP32_PICO_V3_GPIO;
     default:
-        return FLASH_SPIWP_IO;
+        return MSPI_IOMUX_PIN_NUM_WP;
     }
 #endif
 }
 
-ESP_LOG_ATTR_TAG(TAG, "boot.esp32");
+static const char *TAG = "boot.esp32";
 
 void bootloader_configure_spi_pins(int drv)
 {
@@ -207,7 +207,7 @@ void bootloader_configure_spi_pins(int drv)
         pkg_ver == EFUSE_RD_CHIP_VER_PKG_ESP32PICOV302) {
         // For ESP32D2WD or ESP32-PICO series,the SPI pins are already configured
         // flash clock signal should come from IO MUX.
-        gpio_ll_func_sel(&GPIO, FLASH_CLK_IO, MSPI_FUNC_NUM);
+        gpio_hal_iomux_func_sel(PERIPHS_IO_MUX_SD_CLK_U, FUNC_SD_CLK_SPICLK);
         SET_PERI_REG_BITS(PERIPHS_IO_MUX_SD_CLK_U, FUN_DRV, drv, FUN_DRV_S);
     } else {
         const uint32_t spiconfig = esp_rom_efuse_get_flash_gpio_info();
@@ -222,14 +222,14 @@ void bootloader_configure_spi_pins(int drv)
             esp_rom_gpio_connect_out_signal(FLASH_SPIHD_IO, SPIHD_OUT_IDX, 0, 0);
             esp_rom_gpio_connect_in_signal(FLASH_SPIHD_IO, SPIHD_IN_IDX, 0);
             //select pin function gpio
-            gpio_ll_func_sel(&GPIO, FLASH_SPIQ_IO, PIN_FUNC_GPIO);
-            gpio_ll_func_sel(&GPIO, FLASH_SPID_IO, PIN_FUNC_GPIO);
-            gpio_ll_func_sel(&GPIO, FLASH_SPIHD_IO, PIN_FUNC_GPIO);
-            gpio_ll_func_sel(&GPIO, FLASH_SPIWP_IO, PIN_FUNC_GPIO);
-            gpio_ll_func_sel(&GPIO, FLASH_CS_IO, PIN_FUNC_GPIO);
+            gpio_hal_iomux_func_sel(PERIPHS_IO_MUX_SD_DATA0_U, PIN_FUNC_GPIO);
+            gpio_hal_iomux_func_sel(PERIPHS_IO_MUX_SD_DATA1_U, PIN_FUNC_GPIO);
+            gpio_hal_iomux_func_sel(PERIPHS_IO_MUX_SD_DATA2_U, PIN_FUNC_GPIO);
+            gpio_hal_iomux_func_sel(PERIPHS_IO_MUX_SD_DATA3_U, PIN_FUNC_GPIO);
+            gpio_hal_iomux_func_sel(PERIPHS_IO_MUX_SD_CMD_U, PIN_FUNC_GPIO);
             // flash clock signal should come from IO MUX.
-            gpio_ll_func_sel(&GPIO, FLASH_CLK_IO, MSPI_FUNC_NUM);
             // set drive ability for clock
+            gpio_hal_iomux_func_sel(PERIPHS_IO_MUX_SD_CLK_U, FUNC_SD_CLK_SPICLK);
             SET_PERI_REG_BITS(PERIPHS_IO_MUX_SD_CLK_U, FUN_DRV, drv, FUN_DRV_S);
 
 #if CONFIG_SPIRAM_TYPE_ESPPSRAM32 || CONFIG_SPIRAM_TYPE_ESPPSRAM64
@@ -267,15 +267,6 @@ static void update_flash_config(const esp_image_header_t *bootloader_hdr)
     case ESP_IMAGE_FLASH_SIZE_16MB:
         size = 16;
         break;
-    case ESP_IMAGE_FLASH_SIZE_32MB:
-        size = 32;
-        break;
-    case ESP_IMAGE_FLASH_SIZE_64MB:
-        size = 64;
-        break;
-    case ESP_IMAGE_FLASH_SIZE_128MB:
-        size = 128;
-        break;
     default:
         size = 2;
     }
@@ -296,19 +287,19 @@ static void print_flash_info(const esp_image_header_t *bootloader_hdr)
     const char *str;
     switch (bootloader_hdr->spi_speed) {
     case ESP_IMAGE_SPI_SPEED_DIV_2:
-        str = ESP_LOG_ATTR_STR("40MHz");
+        str = "40MHz";
         break;
     case ESP_IMAGE_SPI_SPEED_DIV_3:
-        str = ESP_LOG_ATTR_STR("26.7MHz");
+        str = "26.7MHz";
         break;
     case ESP_IMAGE_SPI_SPEED_DIV_4:
-        str = ESP_LOG_ATTR_STR("20MHz");
+        str = "20MHz";
         break;
     case ESP_IMAGE_SPI_SPEED_DIV_1:
-        str = ESP_LOG_ATTR_STR("80MHz");
+        str = "80MHz";
         break;
     default:
-        str = ESP_LOG_ATTR_STR("20MHz");
+        str = "20MHz";
         break;
     }
     ESP_EARLY_LOGI(TAG, "SPI Speed      : %s", str);
@@ -318,53 +309,44 @@ static void print_flash_info(const esp_image_header_t *bootloader_hdr)
     esp_rom_spiflash_read_mode_t spi_mode = bootloader_flash_get_spi_mode();
     switch (spi_mode) {
     case ESP_ROM_SPIFLASH_QIO_MODE:
-        str = ESP_LOG_ATTR_STR("QIO");
+        str = "QIO";
         break;
     case ESP_ROM_SPIFLASH_QOUT_MODE:
-        str = ESP_LOG_ATTR_STR("QOUT");
+        str = "QOUT";
         break;
     case ESP_ROM_SPIFLASH_DIO_MODE:
-        str = ESP_LOG_ATTR_STR("DIO");
+        str = "DIO";
         break;
     case ESP_ROM_SPIFLASH_DOUT_MODE:
-        str = ESP_LOG_ATTR_STR("DOUT");
+        str = "DOUT";
         break;
     case ESP_ROM_SPIFLASH_FASTRD_MODE:
-        str = ESP_LOG_ATTR_STR("FAST READ");
+        str = "FAST READ";
         break;
     default:
-        str = ESP_LOG_ATTR_STR("SLOW READ");
+        str = "SLOW READ";
         break;
     }
     ESP_EARLY_LOGI(TAG, "SPI Mode       : %s", str);
 
     switch (bootloader_hdr->spi_size) {
     case ESP_IMAGE_FLASH_SIZE_1MB:
-        str = ESP_LOG_ATTR_STR("1MB");
+        str = "1MB";
         break;
     case ESP_IMAGE_FLASH_SIZE_2MB:
-        str = ESP_LOG_ATTR_STR("2MB");
+        str = "2MB";
         break;
     case ESP_IMAGE_FLASH_SIZE_4MB:
-        str = ESP_LOG_ATTR_STR("4MB");
+        str = "4MB";
         break;
     case ESP_IMAGE_FLASH_SIZE_8MB:
-        str = ESP_LOG_ATTR_STR("8MB");
+        str = "8MB";
         break;
     case ESP_IMAGE_FLASH_SIZE_16MB:
-        str = ESP_LOG_ATTR_STR("16MB");
-        break;
-    case ESP_IMAGE_FLASH_SIZE_32MB:
-        str = ESP_LOG_ATTR_STR("32MB");
-        break;
-    case ESP_IMAGE_FLASH_SIZE_64MB:
-        str = ESP_LOG_ATTR_STR("64MB");
-        break;
-    case ESP_IMAGE_FLASH_SIZE_128MB:
-        str = ESP_LOG_ATTR_STR("128MB");
+        str = "16MB";
         break;
     default:
-        str = ESP_LOG_ATTR_STR("2MB");
+        str = "2MB";
         break;
     }
     ESP_EARLY_LOGI(TAG, "SPI Flash Size : %s", str);
@@ -381,10 +363,13 @@ static void IRAM_ATTR bootloader_init_flash_configure(void)
 esp_err_t bootloader_init_spi_flash(void)
 {
     bootloader_init_flash_configure();
-
-    if ((void*)bootloader_flash_unlock != (void*)bootloader_flash_unlock_default) {
-        ESP_EARLY_LOGD(TAG, "Using overridden bootloader_flash_unlock");
+#ifndef CONFIG_SPI_FLASH_ROM_DRIVER_PATCH
+    const uint32_t spiconfig = esp_rom_efuse_get_flash_gpio_info();
+    if (spiconfig != ESP_ROM_EFUSE_FLASH_DEFAULT_SPI && spiconfig != ESP_ROM_EFUSE_FLASH_DEFAULT_HSPI) {
+        ESP_EARLY_LOGE(TAG, "SPI flash pins are overridden. Enable CONFIG_SPI_FLASH_ROM_DRIVER_PATCH in menuconfig");
+        return ESP_FAIL;
     }
+#endif
 
     bootloader_flash_unlock();
 
@@ -446,14 +431,6 @@ void bootloader_flash_hardware_init(void)
     Cache_Flush(1);
 #endif
     mmu_init(0);
-    mmu_hal_config_t mmu_config = {
-#if CONFIG_ESP_SYSTEM_SINGLE_CORE_MODE
-        .core_nums = 1,
-#else
-        .core_nums = SOC_CPU_CORES_NUM,
-#endif
-    };
-    mmu_hal_ctx_init(&mmu_config);
 #if !CONFIG_FREERTOS_UNICORE
     /* The lines which manipulate DPORT_APP_CACHE_MMU_IA_CLR bit are
         necessary to work around a hardware bug. */

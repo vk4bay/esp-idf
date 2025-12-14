@@ -108,16 +108,18 @@ TEST_CASE("static initialization guards work as expected", "[misc]")
     TEST_ASSERT_NOT_NULL(s_slow_init_sem);
     int task_count = 0;
     // four tasks competing for static initialization of one object
-    for (int i = 0; i < CONFIG_FREERTOS_NUMBER_OF_CORES; i++) {
-        task_count += start_slow_init_task<1>(i, i);
-    }
+    task_count += start_slow_init_task<1>(0, PRO_CPU_NUM);
+#if CONFIG_FREERTOS_NUMBER_OF_CORES == 2
+    task_count += start_slow_init_task<1>(1, APP_CPU_NUM);
+#endif
     task_count += start_slow_init_task<1>(2, PRO_CPU_NUM);
     task_count += start_slow_init_task<1>(3, tskNO_AFFINITY);
 
     // four tasks competing for static initialization of another object
-    for (int i = 0; i < CONFIG_FREERTOS_NUMBER_OF_CORES; i++) {
-        task_count += start_slow_init_task<2>(i, i);
-    }
+    task_count += start_slow_init_task<2>(0, PRO_CPU_NUM);
+#if CONFIG_FREERTOS_NUMBER_OF_CORES == 2
+    task_count += start_slow_init_task<2>(1, APP_CPU_NUM);
+#endif
     task_count += start_slow_init_task<2>(2, PRO_CPU_NUM);
     task_count += start_slow_init_task<2>(3, tskNO_AFFINITY);
 
@@ -268,7 +270,7 @@ TEST_CASE("call destructors for thread_local classes CXX", "[misc]")
     is_tls_class_destructor_called = false;
     s_slow_init_sem = xSemaphoreCreateCounting(1, 0);
     xTaskCreate(test_thread_local_destructors, "test_thread_local_destructors", 2048, NULL, 10, NULL);
-    vTaskDelay(10); /* Triggers IDLE task to call prvCheckTasksWaitingTermination() which cleans task-specific data */
+    vTaskDelay(1); /* Triggers IDLE task to call prvCheckTasksWaitingTermination() which cleans task-specific data */
     TEST_ASSERT_TRUE(xSemaphoreTake(s_slow_init_sem, 500 / portTICK_PERIOD_MS));
     vSemaphoreDelete(s_slow_init_sem);
     TEST_ASSERT_TRUE(is_tls_class_destructor_called);

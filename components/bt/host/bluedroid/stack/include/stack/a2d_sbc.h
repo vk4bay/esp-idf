@@ -30,12 +30,7 @@
 /* the length of the SBC Media Payload header. */
 #define A2D_SBC_MPL_HDR_LEN         1
 
-/* CIE offset in the info byte sequence */
-#define A2D_SBC_CIE_OFF             3
-/* CIE length in the info byte sequence */
-#define A2D_SBC_CIE_LEN             4
-
-/* the LOSC of SBC media codec capability */
+/* the LOSC of SBC media codec capabilitiy */
 #define A2D_SBC_INFO_LEN            6
 
 /* for Codec Specific Information Element */

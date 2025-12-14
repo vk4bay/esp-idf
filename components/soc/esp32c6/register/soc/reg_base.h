@@ -1,14 +1,13 @@
 /*
- * SPDX-FileCopyrightText: 2022-2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2022-2023 Espressif Systems (Shanghai) CO LTD
  *
- * SPDX-License-Identifier: Apache-2.0 OR MIT
+ * SPDX-License-Identifier: Apache-2.0
  */
 
 #define DR_REG_PLIC_MX_BASE                     0x20001000
 #define DR_REG_PLIC_UX_BASE                     0x20001400
 #define DR_REG_CLINT_M_BASE                     0x20001800
 #define DR_REG_CLINT_U_BASE                     0x20001C00
-#define DR_REG_CLINT_U_END                      0x20002000
 
 #define DR_REG_UART_BASE                        0x60000000
 #define DR_REG_UART1_BASE                       0x60001000
@@ -26,7 +25,7 @@
 #define DR_REG_TWAI1_BASE                       0x6000D000
 #define DR_REG_APB_SARADC_BASE                  0x6000E000
 #define DR_REG_USB_SERIAL_JTAG_BASE             0x6000F000
-#define DR_REG_INTMTX_BASE                      0x60010000
+#define DR_REG_INTERRUPT_MATRIX_BASE            0x60010000
 #define DR_REG_ATOMIC_BASE                      0x60011000
 #define DR_REG_PCNT_BASE                        0x60012000
 #define DR_REG_SOC_ETM_BASE                     0x60013000

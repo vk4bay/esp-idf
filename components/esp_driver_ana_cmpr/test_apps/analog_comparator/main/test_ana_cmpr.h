@@ -44,14 +44,18 @@ bool test_ana_cmpr_on_cross_callback(ana_cmpr_handle_t cmpr, const ana_cmpr_cros
 /**
  * @brief Initialize Analog Comparator source channel GPIO
  *
- * @param unit_id   Analog Comparator unit ID
- * @param init_level  Initial level of the GPIO
- *
  * @return
  *      - int   Source channel GPIO number
  */
-int test_init_src_chan_gpio(int unit_id, int init_level);
+int test_init_src_chan_gpio(int unit_id);
 
+/**
+ * @brief Simulate source channel signal
+ *
+ * @param src_chan  Source channel GPIO number
+ * @param val       0 to set low, others to set high
+ */
+void test_simulate_src_signal(int src_chan, uint32_t val);
 #ifdef __cplusplus
 }
 #endif

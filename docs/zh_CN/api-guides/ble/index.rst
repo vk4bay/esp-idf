@@ -13,7 +13,6 @@
    overview
    ble-feature-support-status
    ble-qualification
-   低功耗模式介绍 <../low-power-mode/low-power-mode-ble>
 
 **********
 快速入门
@@ -26,15 +25,6 @@
    get-started/ble-device-discovery
    get-started/ble-connection
    get-started/ble-data-exchange
-
-***************
-安全
-***************
-
-.. toctree::
-   :maxdepth: 2
-
-   smp
 
 **********
 蓝牙规范

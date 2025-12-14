@@ -20,7 +20,7 @@
 #include "soc/soc.h"
 #include "soc/timer_group_reg.h"
 #include "soc/rtc.h"
-#include "hal/lact_ll.h"
+#include "hal/timer_ll.h"
 #include "freertos/FreeRTOS.h"
 
 /**
@@ -69,7 +69,7 @@ typedef struct {
     };
 } timer_64b_reg_t;
 
-ESP_LOG_ATTR_TAG(TAG, "esp_timer_impl");
+static const char* TAG = "esp_timer_impl";
 
 #define NOT_USED 0xBAD00FAD
 
@@ -92,7 +92,7 @@ extern portMUX_TYPE s_time_update_lock;
 /* Alarm values to generate interrupt on match */
 extern uint64_t timestamp_id[2];
 
-uint64_t ESP_TIMER_IRAM_ATTR esp_timer_impl_get_counter_reg(void)
+uint64_t IRAM_ATTR esp_timer_impl_get_counter_reg(void)
 {
     uint32_t lo, hi;
     uint32_t lo_start = REG_READ(COUNT_LO_REG);
@@ -123,14 +123,14 @@ uint64_t ESP_TIMER_IRAM_ATTR esp_timer_impl_get_counter_reg(void)
     return result.val;
 }
 
-int64_t ESP_TIMER_IRAM_ATTR esp_timer_impl_get_time(void)
+int64_t IRAM_ATTR esp_timer_impl_get_time(void)
 {
     return esp_timer_impl_get_counter_reg() / LACT_TICKS_PER_US;
 }
 
 int64_t esp_timer_get_time(void) __attribute__((alias("esp_timer_impl_get_time")));
 
-void ESP_TIMER_IRAM_ATTR esp_timer_impl_set_alarm_id(uint64_t timestamp, unsigned alarm_id)
+void IRAM_ATTR esp_timer_impl_set_alarm_id(uint64_t timestamp, unsigned alarm_id)
 {
     assert(alarm_id < sizeof(timestamp_id) / sizeof(timestamp_id[0]));
     portENTER_CRITICAL_SAFE(&s_time_update_lock);
@@ -160,7 +160,7 @@ void ESP_TIMER_IRAM_ATTR esp_timer_impl_set_alarm_id(uint64_t timestamp, unsigne
     portEXIT_CRITICAL_SAFE(&s_time_update_lock);
 }
 
-static void ESP_TIMER_IRAM_ATTR timer_alarm_isr(void *arg)
+static void IRAM_ATTR timer_alarm_isr(void *arg)
 {
 #if ISR_HANDLERS == 1
     /* Clear interrupt status */
@@ -226,8 +226,8 @@ esp_err_t esp_timer_impl_early_init(void)
 {
     PERIPH_RCC_ACQUIRE_ATOMIC(PERIPH_LACT, ref_count) {
         if (ref_count == 0) {
-            timg_ll_enable_bus_clock(LACT_MODULE, true);
-            timg_ll_reset_register(LACT_MODULE);
+            timer_ll_enable_bus_clock(LACT_MODULE, true);
+            timer_ll_reset_register(LACT_MODULE);
         }
     }
 
@@ -255,10 +255,7 @@ esp_err_t esp_timer_impl_init(intr_handler_t alarm_handler)
 
     int isr_flags = ESP_INTR_FLAG_INTRDISABLED
                     | ((1 << CONFIG_ESP_TIMER_INTERRUPT_LEVEL) & ESP_INTR_FLAG_LEVELMASK)
-#if CONFIG_ESP_TIMER_IN_IRAM
-                    | ESP_INTR_FLAG_IRAM
-#endif
-                    ;
+                    | ESP_INTR_FLAG_IRAM;
 
     esp_err_t err = esp_intr_alloc(INTR_SOURCE_LACT, isr_flags,
                                    &timer_alarm_isr, NULL,
@@ -277,7 +274,7 @@ esp_err_t esp_timer_impl_init(intr_handler_t alarm_handler)
         */
         REG_SET_BIT(INT_ENA_REG, TIMG_LACT_INT_ENA);
         portENTER_CRITICAL_SAFE(&s_time_update_lock);
-        lact_ll_set_clock_prescale(LACT_LL_GET_HW(LACT_MODULE), esp_clk_apb_freq() / MHZ / LACT_TICKS_PER_US);
+        timer_ll_set_lact_clock_prescale(TIMER_LL_GET_HW(LACT_MODULE), esp_clk_apb_freq() / MHZ / LACT_TICKS_PER_US);
         portEXIT_CRITICAL_SAFE(&s_time_update_lock);
         // Set the step for the sleep mode when the timer will work
         // from a slow_clk frequency instead of the APB frequency.
@@ -308,7 +305,7 @@ void esp_timer_impl_deinit(void)
     s_alarm_handler = NULL;
     PERIPH_RCC_RELEASE_ATOMIC(PERIPH_LACT, ref_count) {
         if (ref_count == 0) {
-            timg_ll_enable_bus_clock(LACT_MODULE, false);
+            timer_ll_enable_bus_clock(LACT_MODULE, false);
         }
     }
 }

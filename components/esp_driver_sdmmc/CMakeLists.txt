@@ -2,22 +2,20 @@ idf_build_get_property(target IDF_TARGET)
 
 set(srcs)
 
-set(public_include "include" "legacy/include")
+set(public_include "include")
 
 # SDMMC related source files
 if(CONFIG_SOC_SDMMC_HOST_SUPPORTED)
-    list(APPEND srcs "legacy/src/sdmmc_transaction.c"
-                     "legacy/src/sdmmc_host.c"
-                     "src/sd_host_sdmmc.c"
-                     "src/sd_trans_sdmmc.c")
+    list(APPEND srcs "src/sdmmc_transaction.c"
+                     "src/sdmmc_host.c")
 endif()
 
 if(${target} STREQUAL "linux")
     set(requires "")
     set(priv_requires esp_timer)
 else()
-    set(requires esp_driver_sd_intf sdmmc)
-    set(priv_requires esp_timer esp_pm esp_mm esp_driver_gpio)
+    set(requires sdmmc esp_driver_gpio)
+    set(priv_requires esp_timer esp_pm esp_mm)
 endif()
 
 idf_component_register(SRCS ${srcs}

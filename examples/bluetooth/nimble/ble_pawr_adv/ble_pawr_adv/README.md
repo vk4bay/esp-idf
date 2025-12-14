@@ -1,5 +1,9 @@
-| Supported Targets | ESP32-C5 | ESP32-C6 | ESP32-C61 | ESP32-H2 |
-| ----------------- | -------- | -------- | --------- | -------- |
+| Supported Targets | ESP32-C6 |
+| ----------------- | -------- |
+
+
+# Important Note
+*This example currently requires an external Bluetooth controller supporting PAwR functionality, as the ESP chips listed above do not have native controller support for PAwR features and under development phase*
 
 # BLE Periodic Advertiser With Response (PAwR) Advertiser Example
 
@@ -10,7 +14,7 @@
 
 This example starts PAwR  advertising with configurable subevents and response slots.
 
-It uses Bluetooth controller and NimBLE stack based BLE host.
+It uses external Bluetooth controller and NimBLE stack based BLE host.
 
 This example aims at understanding PAwR advertisement and related NimBLE APIs.
 

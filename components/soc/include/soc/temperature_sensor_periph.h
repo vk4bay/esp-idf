@@ -1,7 +1,7 @@
 /*
- * SPDX-FileCopyrightText: 2020-2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2020-2024 Espressif Systems (Shanghai) CO LTD
  *
- * SPDX-License-Identifier: Apache-2.0 OR MIT
+ * SPDX-License-Identifier: Apache-2.0
  */
 
 #pragma once
@@ -25,7 +25,7 @@ typedef struct {
     int error_max;
 } temperature_sensor_attribute_t;
 
-extern const temperature_sensor_attribute_t temperature_sensor_attributes[TEMPERATURE_SENSOR_ATTR_RANGE_NUM];
+extern temperature_sensor_attribute_t temperature_sensor_attributes[TEMPERATURE_SENSOR_ATTR_RANGE_NUM];
 
 #if SOC_TEMPERATURE_SENSOR_SUPPORT_SLEEP_RETENTION
 typedef struct {

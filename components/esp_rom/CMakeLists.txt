@@ -19,7 +19,7 @@ if(target STREQUAL "linux")
                         "${target}/esp_rom_efuse.c")
 else()
     list(APPEND sources "patches/esp_rom_crc.c"
-                        "patches/esp_rom_serial_output.c"
+                        "patches/esp_rom_uart.c"
                         "patches/esp_rom_spiflash.c"
                         "patches/esp_rom_efuse.c"
                         "patches/esp_rom_gpio.c")
@@ -55,6 +55,10 @@ if(CONFIG_SOC_SYSTIMER_SUPPORTED)
     list(APPEND sources "patches/esp_rom_systimer.c")
 endif()
 
+if(CONFIG_HAL_WDT_USE_ROM_IMPL)
+    list(APPEND sources "patches/esp_rom_wdt.c")
+endif()
+
 if(CONFIG_ESP_ROM_CLIC_INT_TYPE_PATCH)
     list(APPEND sources "patches/esp_rom_clic.c")
 endif()
@@ -63,16 +67,12 @@ if(CONFIG_ESP_ROM_HAS_FLASH_COUNT_PAGES_BUG OR CONFIG_ESP_ROM_HAS_CACHE_WRITEBAC
     list(APPEND sources "patches/esp_rom_cache_esp32s2_esp32s3.c")
 endif()
 
+if(CONFIG_ESP_ROM_CACHE_WB_INVLD_LOW_RANGE)
+    list(APPEND sources "patches/esp_rom_cache_esp32c61.c")
+endif()
+
 if(CONFIG_ESP_ROM_HAS_CACHE_WRITEBACK_BUG)
     list(APPEND sources "patches/esp_rom_cache_writeback_esp32s3.S")
-endif()
-
-if(CONFIG_ESP_ROM_NO_USB_SERIAL_OUTPUT_API)
-    list(APPEND sources "patches/esp_rom_usb_serial.c")
-endif()
-
-if(CONFIG_SECURE_ENABLE_TEE AND CONFIG_IDF_TARGET_ESP32C5 AND NOT ESP_TEE_BUILD)
-    list(APPEND sources "patches/esp_rom_cache_esp32c5.c")
 endif()
 
 idf_component_register(SRCS ${sources}
@@ -97,14 +97,7 @@ if(target STREQUAL "linux")
         target_compile_options(${COMPONENT_LIB} PRIVATE -Wno-integer-overflow -Wno-shift-count-overflow)
     endif()
 else()
-    # TODO: IDF-13410. Update to (CONFIG_ESP32P4_REV_MIN_FULL GREATER_EQUAL 200) when chip efuse is correct.
-    if(CONFIG_ESP32P4_REV_MIN_300)
-        target_linker_script(${COMPONENT_LIB} INTERFACE "${target_folder}/${ld_folder}/${target}.rom.eco5.ld")
-    elseif(CONFIG_IDF_TARGET_ESP32H4 AND NOT CONFIG_ESP32H4_SELECTS_REV_MP) # TODO: ESP32H4 IDF-13835
-        target_linker_script(${COMPONENT_LIB} INTERFACE "${target_folder}/${ld_folder}/${target}.rom.beta5.ld")
-    else()
-        target_linker_script(${COMPONENT_LIB} INTERFACE "${target_folder}/${ld_folder}/${target}.rom.ld")
-    endif()
+    target_linker_script(${COMPONENT_LIB} INTERFACE "${target_folder}/${ld_folder}/${target}.rom.ld")
     rom_linker_script("api")
     if(NOT CONFIG_BT_CTRL_RUN_IN_FLASH_ONLY)
         if(target STREQUAL "esp32s3" OR target STREQUAL "esp32c3")
@@ -113,49 +106,31 @@ else()
     endif()
 
     if(CONFIG_COMPILER_FLOAT_LIB_FROM_GCCLIB)
-        if(CONFIG_ESP32P4_REV_MIN_300) # TODO: IDF-13410
-            rom_linker_script("eco5.libgcc")
-        elseif(CONFIG_IDF_TARGET_ESP32H4 AND NOT CONFIG_ESP32H4_SELECTS_REV_MP) # TODO: ESP32H4 IDF-13835
-            rom_linker_script("beta5.libgcc")
-        else()
-            rom_linker_script("libgcc")
-        endif()
+        rom_linker_script("libgcc")
     else()
-        if(CONFIG_ESP32P4_REV_MIN_300) # TODO: IDF-13410.
-            rom_linker_script("eco5.rvfp")
-        else()
-            rom_linker_script("rvfp")
-        endif()
+        rom_linker_script("rvfp")
     endif()
 endif()
 
 # Common API which is linked both for bootloader and app builds
 
+if(CONFIG_HAL_WDT_USE_ROM_IMPL)
+    rom_linker_script("wdt")
+endif()
+
 if(CONFIG_HAL_SYSTIMER_USE_ROM_IMPL)
-    if(CONFIG_IDF_TARGET_ESP32H4 AND NOT CONFIG_ESP32H4_SELECTS_REV_MP) # TODO: ESP32H4 IDF-13835
-        rom_linker_script("beta5.systimer")
-    else()
-        rom_linker_script("systimer")
-    endif()
+    rom_linker_script("systimer")
 endif()
 
 if(CONFIG_ESP_ROM_HAS_VERSION)
     rom_linker_script("version")
 endif()
 
-if(ESP_TEE_BUILD)
-    rom_linker_script("heap")
-    if(CONFIG_ESP_ROM_HAS_NEWLIB_NANO_FORMAT)
-        rom_linker_script("newlib-nano")
-    endif()
-    rom_linker_script("libc")
-    if(CONFIG_ESP_ROM_HAS_SUBOPTIMAL_NEWLIB_ON_MISALIGNED_MEMORY)
-        rom_linker_script("libc-suboptimal_for_misaligned_mem")
-    endif()
-endif()
-
 if(BOOTLOADER_BUILD)
     if(target STREQUAL "esp32")
+        if(NOT CONFIG_SPI_FLASH_ROM_DRIVER_PATCH)
+            rom_linker_script("spiflash_legacy")
+        endif()
         if(CONFIG_ESP32_REV_MIN_FULL GREATER_EQUAL 300)
             rom_linker_script("eco3")
         endif()
@@ -166,53 +141,27 @@ if(BOOTLOADER_BUILD)
 
     if(CONFIG_ESP_ROM_HAS_NEWLIB)
         if(target STREQUAL "esp32" OR target STREQUAL "esp32s2")
-            rom_linker_script("libc-funcs")
+            rom_linker_script("newlib-funcs")
         else()
-            if(CONFIG_ESP32P4_REV_MIN_300) # TODO: IDF-13410
-                rom_linker_script("eco5.libc")
-            elseif(CONFIG_IDF_TARGET_ESP32H4 AND NOT CONFIG_ESP32H4_SELECTS_REV_MP) # TODO: ESP32H4 IDF-13835
-                rom_linker_script("beta5.libc")
-            else()
-                rom_linker_script("libc")
-            endif()
-            if(CONFIG_ESP_ROM_HAS_SUBOPTIMAL_NEWLIB_ON_MISALIGNED_MEMORY)
-                # For bootloader use only ROM functions due to 'relocation truncated to fit' error
-                rom_linker_script("libc-suboptimal_for_misaligned_mem")
-            endif()
-            if(CONFIG_LIBC_NEWLIB)
-                if(CONFIG_ESP32P4_REV_MIN_300) # TODO: IDF-13410
-                    rom_linker_script("eco5.newlib")
-                elseif(CONFIG_IDF_TARGET_ESP32H4 AND NOT CONFIG_ESP32H4_SELECTS_REV_MP) # TODO: ESP32H4 IDF-13835
-                    rom_linker_script("beta5.newlib")
-                else()
-                    rom_linker_script("newlib")
-                endif()
-            endif()
+            rom_linker_script("newlib")
         endif()
     endif()
 
-    if(CONFIG_MBEDTLS_USE_CRYPTO_ROM_IMPL_BOOTLOADER)
-        rom_linker_script("mbedtls")
-        # For ESP32C2(ECO4), mbedTLS in ROM has been updated to v3.6.0-LTS
-        if(CONFIG_ESP32C2_REV_MIN_FULL GREATER_EQUAL 200)
-            rom_linker_script("mbedtls.eco4")
-        endif()
-    endif()
 
 else() # Regular app build
     if(target STREQUAL "esp32")
-        if(CONFIG_LIBC_NEWLIB)
-            rom_linker_script("newlib-data")
-            rom_linker_script("syscalls")
-        endif()
+        rom_linker_script("newlib-data")
+        rom_linker_script("syscalls")
 
         if(NOT CONFIG_SPIRAM_CACHE_WORKAROUND)
             # ESP32 only: these ROM functions may only be used if PSRAM cache workaround is disabled.
             # Otherwise we need to link to a multilib version of libc compiled with PSRAM workaround.
-            rom_linker_script("libc-funcs")
-            if(CONFIG_LIBC_NEWLIB)
-                rom_linker_script("newlib-reent-funcs")
-            endif()
+            rom_linker_script("newlib-funcs")
+        endif()
+
+        if(NOT CONFIG_SPI_FLASH_ROM_DRIVER_PATCH)
+            # For ESP32, inclusion of ROM driver do not depend on CONFIG_SPI_FLASH_ROM_IMPL
+            rom_linker_script("spiflash_legacy")
         endif()
 
         if(CONFIG_ESP32_REV_MIN_FULL GREATER_EQUAL 300)
@@ -220,11 +169,8 @@ else() # Regular app build
         endif()
 
     elseif(target STREQUAL "esp32s2")
-        rom_linker_script("libc-funcs")
-        if(CONFIG_LIBC_NEWLIB)
-            rom_linker_script("newlib-reent-funcs")
-            rom_linker_script("newlib-data")
-        endif()
+        rom_linker_script("newlib-funcs")
+        rom_linker_script("newlib-data")
 
         # For ESP32S2, inclusion of ROM driver do not depend on CONFIG_SPI_FLASH_ROM_IMPL
         rom_linker_script("spiflash_legacy")
@@ -334,39 +280,17 @@ else() # Regular app build
 
     if(CONFIG_ESP_ROM_HAS_NEWLIB AND NOT target STREQUAL "esp32" AND NOT target STREQUAL "esp32s2")
         # ESP32 and S2 are a bit different, keep them as special cases in the target specific include section
-        if(CONFIG_ESP32P4_REV_MIN_300) # TODO: IDF-13410
-            rom_linker_script("eco5.libc")
-        elseif(CONFIG_IDF_TARGET_ESP32H4 AND NOT CONFIG_ESP32H4_SELECTS_REV_MP) # TODO: ESP32H4 IDF-13835
-            rom_linker_script("beta5.libc")
-        else()
-            rom_linker_script("libc")
-        endif()
-        if(CONFIG_ESP_ROM_HAS_SUBOPTIMAL_NEWLIB_ON_MISALIGNED_MEMORY AND NOT CONFIG_LIBC_OPTIMIZED_MISALIGNED_ACCESS)
-            rom_linker_script("libc-suboptimal_for_misaligned_mem")
-        endif()
-        if(CONFIG_LIBC_NEWLIB)
-            if(CONFIG_ESP32P4_REV_MIN_300) # TODO: IDF-13410
-                rom_linker_script("eco5.newlib")
-            elseif(CONFIG_IDF_TARGET_ESP32H4 AND NOT CONFIG_ESP32H4_SELECTS_REV_MP) # TODO: ESP32H4 IDF-13835
-                rom_linker_script("beta5.newlib")
-            else()
-                rom_linker_script("newlib")
-            endif()
-        endif()
+        rom_linker_script("newlib")
 
-        if(CONFIG_ESP_ROM_HAS_NEWLIB_NANO_FORMAT AND CONFIG_LIBC_NEWLIB AND CONFIG_LIBC_NEWLIB_NANO_FORMAT)
+        if(CONFIG_ESP_ROM_HAS_NEWLIB_NANO_FORMAT AND CONFIG_NEWLIB_NANO_FORMAT)
             if(NOT CONFIG_ESP_ROM_HAS_NEWLIB_32BIT_TIME AND NOT CONFIG_ESP_ROM_HAS_NEWLIB_NANO_PRINTF_FLOAT_BUG)
                 # Newlib-nano functions contains time_t related functions
                 # and cannot be used if they were compiled with 32 bit time_t
-                if(CONFIG_IDF_TARGET_ESP32H4 AND NOT CONFIG_ESP32H4_SELECTS_REV_MP) # TODO: ESP32H4 IDF-13835
-                    rom_linker_script("beta5.newlib-nano")
-                else()
-                    rom_linker_script("newlib-nano")
-                endif()
+                rom_linker_script("newlib-nano")
             endif()
         endif()
 
-        if(CONFIG_ESP_ROM_HAS_NEWLIB_NORMAL_FORMAT AND CONFIG_LIBC_NEWLIB AND NOT CONFIG_LIBC_NEWLIB_NANO_FORMAT)
+        if(CONFIG_ESP_ROM_HAS_NEWLIB_NORMAL_FORMAT AND NOT CONFIG_NEWLIB_NANO_FORMAT)
             rom_linker_script("newlib-normal")
         endif()
     endif()
@@ -384,21 +308,13 @@ else() # Regular app build
             target_link_libraries(${COMPONENT_LIB} PRIVATE "-u esp_rom_include_multi_heap_patch")
         endif()
 
-        if(CONFIG_IDF_TARGET_ESP32H4 AND NOT CONFIG_ESP32H4_SELECTS_REV_MP) # TODO: ESP32H4 IDF-13835
-            rom_linker_script("beta5.heap")
-        else()
-            rom_linker_script("heap")
-        endif()
+        rom_linker_script("heap")
     endif()
 
     if(CONFIG_SPI_FLASH_ROM_IMPL)
         # Older targets do not have a separate ld file for spiflash
         if(NOT target STREQUAL "esp32c3" AND NOT target STREQUAL "esp32s3" AND NOT target STREQUAL "esp32c2")
-            if(CONFIG_IDF_TARGET_ESP32H4 AND NOT CONFIG_ESP32H4_SELECTS_REV_MP) # TODO: ESP32H4 IDF-13835
-                rom_linker_script("beta5.spiflash")
-            else()
-                rom_linker_script("spiflash")
-            endif()
+            rom_linker_script("spiflash")
         endif()
     endif()
 
@@ -408,12 +324,6 @@ else() # Regular app build
         if(CONFIG_ESP32C2_REV_MIN_FULL GREATER_EQUAL 200)
             rom_linker_script("mbedtls.eco4")
         endif()
-    endif()
-
-    if(CONFIG_ESP_ROM_DELAY_US_PATCH AND CONFIG_SECURE_ENABLE_TEE AND
-        (CONFIG_ESP32C5_REV_MIN_FULL LESS_EQUAL 100 OR CONFIG_ESP32C61_REV_MIN_FULL LESS_EQUAL 100))
-        # Force the linker to include esp_rom_sys.c for ets_ops_set_rom_patches constructor
-        target_link_libraries(${COMPONENT_LIB} PRIVATE "-u ets_ops_set_rom_patches")
     endif()
 
     if(CONFIG_IDF_TARGET_ARCH_XTENSA)

@@ -1,6 +1,5 @@
 idf_build_get_property(target IDF_TARGET)
 idf_build_get_property(arch IDF_TARGET_ARCH)
-idf_build_get_property(esp_tee_build ESP_TEE_BUILD)
 
 if(NOT "${arch}" STREQUAL "riscv")
     return()
@@ -8,22 +7,12 @@ endif()
 
 
 if(BOOTLOADER_BUILD)
-    set(priv_requires soc hal)
-    set(srcs "rv_utils.c")
-elseif(esp_tee_build)
-    set(priv_requires soc hal)
-    set(srcs "rv_utils.c")
-    if(CONFIG_SOC_INT_PLIC_SUPPORTED)
-        list(APPEND srcs "interrupt_plic.c")
-    elseif(CONFIG_SOC_INT_CLIC_SUPPORTED)
-        list(APPEND srcs "interrupt_clic.c")
-    endif()
+    set(priv_requires soc)
 else()
-    set(priv_requires soc hal)
+    set(priv_requires soc)
     set(srcs
         "instruction_decode.c"
         "interrupt.c"
-        "rv_utils.c"
         "vectors.S")
 
     if(CONFIG_SOC_INT_CLIC_SUPPORTED)

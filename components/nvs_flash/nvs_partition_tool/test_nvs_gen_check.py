@@ -3,24 +3,28 @@
 # SPDX-License-Identifier: Apache-2.0
 import base64
 import json
-from collections.abc import Callable
 from importlib.metadata import version
 from io import BufferedRandom
 from io import BytesIO
 from pathlib import Path
 from typing import Any
+from typing import Callable
+from typing import Dict
+from typing import List
+from typing import Optional
+from typing import Union
 from zlib import crc32
 
 import esp_idf_nvs_partition_gen.nvs_partition_gen as nvs_partition_gen
 import nvs_check as nvs_check
 import pytest
 from esp_idf_nvs_partition_gen.nvs_partition_gen import NVS
-from nvs_logger import NVS_Logger
 from nvs_logger import nvs_log
+from nvs_logger import NVS_Logger
 from nvs_logger import print_minimal_json
+from nvs_parser import nvs_const
 from nvs_parser import NVS_Entry
 from nvs_parser import NVS_Partition
-from nvs_parser import nvs_const
 from packaging.version import Version
 
 NVS_PART_GEN_VERSION_SKIP = '0.1.9'
@@ -81,9 +85,9 @@ Name vehicula leo eu dolor pellentesque, ultrices tempus ex hendrerit.
 """
 
 
-def get_entry_type_bin(entry_type_str: str) -> int | None:
+def get_entry_type_bin(entry_type_str: str) -> Optional[int]:
     # Reverse `item_type` dict lookup
-    entry_type_bin: int | None = next(key for key, value in nvs_const.item_type.items() if value == entry_type_str)
+    entry_type_bin: Optional[int] = next(key for key, value in nvs_const.item_type.items() if value == entry_type_str)
     if entry_type_bin is None:
         logger.info(logger.yellow(f'Unknown entry type {entry_type_str}'))
     return entry_type_bin
@@ -114,8 +118,8 @@ def create_entry_data_bytearray(
 
 @pytest.fixture
 def generate_nvs() -> Callable:
-    def _execute_nvs_setup(nvs_setup_func: Callable, output: Path | None = None) -> NVS_Partition:
-        nvs_file: BytesIO | BufferedRandom | None = None
+    def _execute_nvs_setup(nvs_setup_func: Callable, output: Optional[Path] = None) -> NVS_Partition:
+        nvs_file: Optional[Union[BytesIO, BufferedRandom]] = None
         if output is None:
             nvs_file = BytesIO()
         else:
@@ -134,7 +138,7 @@ def generate_nvs() -> Callable:
 
 
 # Setup functions
-def setup_ok_primitive(nvs_file: BytesIO | BufferedRandom | None) -> NVS:
+def setup_ok_primitive(nvs_file: Optional[Union[BytesIO, BufferedRandom]]) -> NVS:
     size_fixed, read_only = nvs_partition_gen.check_size(str(0x4000))
     nvs_obj = nvs_partition_gen.nvs_open(
         result_obj=nvs_file,
@@ -153,7 +157,7 @@ def setup_ok_primitive(nvs_file: BytesIO | BufferedRandom | None) -> NVS:
     return nvs_obj
 
 
-def setup_ok_variable_len(nvs_file: BytesIO | BufferedRandom | None) -> NVS:
+def setup_ok_variable_len(nvs_file: Optional[Union[BytesIO, BufferedRandom]]) -> NVS:
     size_fixed, read_only = nvs_partition_gen.check_size(str(0x5000))
     nvs_obj = nvs_partition_gen.nvs_open(
         result_obj=nvs_file,
@@ -178,7 +182,7 @@ def setup_ok_variable_len(nvs_file: BytesIO | BufferedRandom | None) -> NVS:
     return nvs_obj
 
 
-def setup_ok_mixed(nvs_file: BytesIO | BufferedRandom | None) -> NVS:
+def setup_ok_mixed(nvs_file: Optional[Union[BytesIO, BufferedRandom]]) -> NVS:
     size_fixed, read_only = nvs_partition_gen.check_size(str(0x6000))
     nvs_obj = nvs_partition_gen.nvs_open(
         result_obj=nvs_file,
@@ -216,7 +220,7 @@ def setup_ok_mixed(nvs_file: BytesIO | BufferedRandom | None) -> NVS:
     return nvs_obj
 
 
-def setup_bad_mixed_same_key_different_page(nvs_file: BytesIO | BufferedRandom | None) -> NVS:
+def setup_bad_mixed_same_key_different_page(nvs_file: Optional[Union[BytesIO, BufferedRandom]]) -> NVS:
     size_fixed, read_only = nvs_partition_gen.check_size(str(0x6000))
     nvs_obj = nvs_partition_gen.nvs_open(
         result_obj=nvs_file,
@@ -280,7 +284,7 @@ def setup_bad_mixed_same_key_different_page(nvs_file: BytesIO | BufferedRandom |
     return nvs_obj
 
 
-def setup_bad_same_key_primitive(nvs_file: BytesIO | BufferedRandom | None) -> NVS:
+def setup_bad_same_key_primitive(nvs_file: Optional[Union[BytesIO, BufferedRandom]]) -> NVS:
     size_fixed, read_only = nvs_partition_gen.check_size(str(0x4000))
     nvs_obj = nvs_partition_gen.nvs_open(
         result_obj=nvs_file,
@@ -302,7 +306,7 @@ def setup_bad_same_key_primitive(nvs_file: BytesIO | BufferedRandom | None) -> N
     return nvs_obj
 
 
-def setup_bad_same_key_variable_len(nvs_file: BytesIO | BufferedRandom | None) -> NVS:
+def setup_bad_same_key_variable_len(nvs_file: Optional[Union[BytesIO, BufferedRandom]]) -> NVS:
     size_fixed, read_only = nvs_partition_gen.check_size(str(0x4000))
     nvs_obj = nvs_partition_gen.nvs_open(
         result_obj=nvs_file,
@@ -321,7 +325,7 @@ def setup_bad_same_key_variable_len(nvs_file: BytesIO | BufferedRandom | None) -
     return nvs_obj
 
 
-def setup_bad_same_key_blob_index(nvs_file: BytesIO | BufferedRandom | None) -> NVS:
+def setup_bad_same_key_blob_index(nvs_file: Optional[Union[BytesIO, BufferedRandom]]) -> NVS:
     size_fixed, read_only = nvs_partition_gen.check_size(str(0x6000))
     nvs_obj = nvs_partition_gen.nvs_open(
         result_obj=nvs_file,
@@ -346,7 +350,7 @@ def setup_bad_same_key_blob_index(nvs_file: BytesIO | BufferedRandom | None) -> 
     return nvs_obj
 
 
-def setup_read_only(nvs_file: BytesIO | BufferedRandom | None) -> NVS:
+def setup_read_only(nvs_file: Optional[Union[BytesIO, BufferedRandom]]) -> NVS:
     size_fixed, read_only = nvs_partition_gen.check_size(str(0x1000))
     nvs_obj = nvs_partition_gen.nvs_open(
         result_obj=nvs_file,
@@ -366,7 +370,7 @@ def setup_read_only(nvs_file: BytesIO | BufferedRandom | None) -> NVS:
     return nvs_obj
 
 
-def setup_minimal_json(nvs_file: BytesIO | BufferedRandom | None) -> NVS:
+def setup_minimal_json(nvs_file: Optional[Union[BytesIO, BufferedRandom]]) -> NVS:
     size_fixed, read_only = nvs_partition_gen.check_size(str(0x4000))
     nvs_obj = nvs_partition_gen.nvs_open(
         result_obj=nvs_file,
@@ -390,7 +394,7 @@ def setup_minimal_json(nvs_file: BytesIO | BufferedRandom | None) -> NVS:
     return nvs_obj
 
 
-def setup_ok_non_ascii_string(nvs_file: BytesIO | BufferedRandom | None) -> NVS:
+def setup_ok_non_ascii_string(nvs_file: Optional[Union[BytesIO, BufferedRandom]]) -> NVS:
     size_fixed, read_only = nvs_partition_gen.check_size(str(0x4000))
     nvs_obj = nvs_partition_gen.nvs_open(
         result_obj=nvs_file,
@@ -408,8 +412,8 @@ def setup_ok_non_ascii_string(nvs_file: BytesIO | BufferedRandom | None) -> NVS:
 
 
 # Helper functions
-def prepare_duplicate_list(nvs: NVS_Partition) -> dict[str, list[NVS_Entry]]:
-    seen_written_entires_all: dict[str, list[NVS_Entry]] = {}
+def prepare_duplicate_list(nvs: NVS_Partition) -> Dict[str, List[NVS_Entry]]:
+    seen_written_entires_all: Dict[str, List[NVS_Entry]] = {}
     for page in nvs.pages:
         # page: NVS_Page
         for entry in page.entries:
@@ -417,7 +421,7 @@ def prepare_duplicate_list(nvs: NVS_Partition) -> dict[str, list[NVS_Entry]]:
             # Duplicate entry check (1) - same key, different index - find duplicates
             seen_written_entires_all = nvs_check.identify_entry_duplicates(entry, seen_written_entires_all)
     # Duplicate entry check (2) - same key, different index
-    duplicates: dict[str, list[NVS_Entry]] = nvs_check.filter_entry_duplicates(seen_written_entires_all)
+    duplicates: Dict[str, List[NVS_Entry]] = nvs_check.filter_entry_duplicates(seen_written_entires_all)
     return duplicates
 
 

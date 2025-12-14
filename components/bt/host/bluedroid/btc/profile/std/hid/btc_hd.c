@@ -75,8 +75,6 @@ btc_hd_cb_t btc_hd_cb = {0};
 
 typedef void (bt_hid_copy_cb_t)(btc_msg_t *msg, void *p_dest, void *p_src);
 
-static void btc_hd_cb_arg_deep_free(btc_msg_t *msg);
-
 static inline void btc_hd_cb_to_app(esp_hidd_cb_event_t event, esp_hidd_cb_param_t *param)
 {
     esp_hd_cb_t btc_hd_cb = (esp_hd_cb_t)btc_profile_cb_get(BTC_PID_HD);
@@ -707,7 +705,7 @@ static void btc_hd_virtual_cable_unplug(void)
     }
 }
 
-void btc_hd_call_arg_deep_free(btc_msg_t *msg)
+static void btc_hd_call_arg_deep_free(btc_msg_t *msg)
 {
     btc_hidd_args_t *arg = (btc_hidd_args_t *)msg->arg;
 
@@ -723,9 +721,6 @@ void btc_hd_call_arg_deep_free(btc_msg_t *msg)
 void btc_hd_call_handler(btc_msg_t *msg)
 {
     btc_hidd_args_t *arg = (btc_hidd_args_t *)(msg->arg);
-
-    BTC_TRACE_DEBUG("%s act %d", __func__, msg->act);
-
     switch (msg->act) {
     case BTC_HD_INIT_EVT:
         btc_hd_init();
@@ -761,7 +756,7 @@ void btc_hd_call_handler(btc_msg_t *msg)
     btc_hd_call_arg_deep_free(msg);
 }
 
-static void btc_hd_cb_arg_deep_free(btc_msg_t *msg)
+void btc_hd_cb_arg_deep_free(btc_msg_t *msg)
 {
     tBTA_HD *arg = (tBTA_HD *)msg->arg;
 
@@ -783,8 +778,6 @@ void btc_hd_cb_handler(btc_msg_t *msg)
     tBTA_HD *p_data = (tBTA_HD *)msg->arg;
     esp_hidd_cb_param_t param = {0};
     BTC_TRACE_API("%s: event=%s", __func__, dump_hd_event(event));
-
-    BTC_TRACE_DEBUG("%s act %d", __func__, msg->act);
 
     switch (event) {
     case BTA_HD_ENABLE_EVT:

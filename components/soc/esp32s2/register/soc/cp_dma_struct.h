@@ -1,7 +1,7 @@
 /*
- * SPDX-FileCopyrightText: 2020-2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2020-2022 Espressif Systems (Shanghai) CO LTD
  *
- * SPDX-License-Identifier: Apache-2.0 OR MIT
+ * SPDX-License-Identifier: Apache-2.0
  */
 
 #pragma once
@@ -545,7 +545,7 @@ typedef union {
 } cp_dma_date_reg_t;
 
 
-typedef struct cp_dma_dev_t {
+typedef struct {
     volatile cp_dma_int_raw_reg_t dma_int_raw;
     volatile cp_dma_int_st_reg_t dma_int_st;
     volatile cp_dma_int_ena_reg_t dma_int_ena;

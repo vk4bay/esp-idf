@@ -1,4 +1,4 @@
 idf_component_register(SRCS "cmd_system.c"
                     INCLUDE_DIRS "."
-                    PRIV_REQUIRES esp_driver_uart esp_driver_gpio
+                    PRIV_REQUIRES driver
                     REQUIRES console spi_flash)

@@ -1,7 +1,7 @@
 /**
- * SPDX-FileCopyrightText: 2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2022 Espressif Systems (Shanghai) CO LTD
  *
- *  SPDX-License-Identifier: Apache-2.0 OR MIT
+ *  SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
 
@@ -525,7 +525,7 @@ typedef struct {
 } acceptance_filter_reg_t;
 
 
-typedef struct twai_dev_t {
+typedef struct twai_dev_s {
     volatile twai_mode_reg_t mode;
     volatile twai_cmd_reg_t cmd;
     volatile twai_status_reg_t status;

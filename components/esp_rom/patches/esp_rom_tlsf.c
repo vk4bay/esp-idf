@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2022-2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2022-2024 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -16,13 +16,16 @@
 #include <stdbool.h>
 #include <string.h>
 #include <stdio.h>
-#include <assert.h>
 
 #include "esp_rom_caps.h"
 #include "esp_rom_tlsf.h"
 
 #include "tlsf_block_functions.h"
 #include "tlsf_control_functions.h"
+
+/* Definition of types used in TLSF */
+typedef void* tlsf_t;
+typedef void* pool_t;
 
 static poison_check_pfunc_t s_poison_check_region = NULL;
 
@@ -38,6 +41,8 @@ typedef struct integrity_t
 	int prev_status;
 	int status;
 } integrity_t;
+
+typedef bool (*tlsf_walker)(void* ptr, size_t size, int used, void* user);
 
 static bool integrity_walker(void* ptr, size_t size, int used, void* user)
 {

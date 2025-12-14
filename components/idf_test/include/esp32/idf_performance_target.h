@@ -22,11 +22,11 @@
 #define IDF_PERFORMANCE_MAX_TIME_SHA512_32KB                                    4500
 
 #define IDF_PERFORMANCE_MAX_RSA_2048KEY_PUBLIC_OP                               19000
-#define IDF_PERFORMANCE_MAX_RSA_2048KEY_PRIVATE_OP                              750000
+#define IDF_PERFORMANCE_MAX_RSA_2048KEY_PRIVATE_OP                              450000
 #define IDF_PERFORMANCE_MAX_RSA_3072KEY_PUBLIC_OP                               33000
 #define IDF_PERFORMANCE_MAX_RSA_3072KEY_PRIVATE_OP                              950000
 #define IDF_PERFORMANCE_MAX_RSA_4096KEY_PUBLIC_OP                               90000
-#define IDF_PERFORMANCE_MAX_RSA_4096KEY_PRIVATE_OP                              3000000
+#define IDF_PERFORMANCE_MAX_RSA_4096KEY_PRIVATE_OP                              1900000
 
 // floating point instructions per divide and per sqrt (configured for worst-case with PSRAM workaround)
 #define IDF_PERFORMANCE_MAX_CYCLES_PER_DIV                                      70
@@ -42,7 +42,7 @@
 
 #if !CONFIG_FREERTOS_SMP // IDF-5224
 #ifndef IDF_PERFORMANCE_MIN_SDIO_THROUGHPUT_KBSEC_FRHOST_4BIT
-#define IDF_PERFORMANCE_MIN_SDIO_THROUGHPUT_KBSEC_FRHOST_4BIT                   11000
+#define IDF_PERFORMANCE_MIN_SDIO_THROUGHPUT_KBSEC_FRHOST_4BIT                   11000   // TODO: IDF-5490
 #endif
 #else
 #ifndef IDF_PERFORMANCE_MIN_SDIO_THROUGHPUT_KBSEC_FRHOST_4BIT

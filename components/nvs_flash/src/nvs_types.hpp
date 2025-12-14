@@ -1,9 +1,10 @@
 /*
- * SPDX-FileCopyrightText: 2015-2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2015-2024 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-#pragma once
+#ifndef nvs_types_h
+#define nvs_types_h
 
 #include <cstdint>
 #include <cstring>
@@ -13,7 +14,8 @@
 #include "nvs_handle.hpp"
 #include "compressed_enum_table.hpp"
 #include "string.h"
-#include "nvs_constants.h"
+
+using namespace std;
 
 namespace nvs
 {
@@ -91,11 +93,11 @@ public:
 
     uint32_t calculateCrc32() const;
     uint32_t calculateCrc32WithoutValue() const;
-    static uint32_t calculateCrc32(const uint8_t* data, size_t size, uint32_t* initial_crc32 = nullptr);
+    static uint32_t calculateCrc32(const uint8_t* data, size_t size);
 
     void getKey(char* dst, size_t dstSize)
     {
-        strncpy(dst, key, std::min(dstSize, sizeof(key)));
+        strncpy(dst, key, min(dstSize, sizeof(key)));
         dst[dstSize-1] = 0;
     }
 
@@ -116,7 +118,6 @@ public:
     bool checkHeaderConsistency(const uint8_t entryIndex) const;
 };
 
-// Safeguard for Item size
-static_assert(sizeof(Item) == NVS_CONST_ENTRY_SIZE, "Item size must be 32 bytes");
-
 } // namespace nvs
+
+#endif /* nvs_types_h */

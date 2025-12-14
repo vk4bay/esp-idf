@@ -16,6 +16,7 @@
 extern "C" {
 #endif
 
+//TODO: IDF-7512
 /**
  * @brief get chip version
  */

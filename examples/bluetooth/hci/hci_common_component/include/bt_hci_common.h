@@ -1,5 +1,5 @@
 /*
- * Basic macros and functions for Bluetooth Host Controller Interface Layer.
+ * Baisc macros and functions for Bluetooth Host Controller Interface Layer.
  *
  * SPDX-FileCopyrightText: 2021 Espressif Systems (Shanghai) CO LTD
  *
@@ -12,7 +12,6 @@
 extern "C" {
 #endif
 
-#include "stdint.h"
 #include "stdio.h"
 #include "string.h"
 

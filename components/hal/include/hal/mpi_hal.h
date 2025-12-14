@@ -16,7 +16,8 @@
 #include <stdint.h>
 #include <sys/param.h>
 #include "hal/mpi_types.h"
-#include "soc/soc_caps.h"
+#include "sdkconfig.h"
+
 
 #ifdef __cplusplus
 extern "C" {
@@ -31,7 +32,7 @@ extern "C" {
 size_t mpi_hal_calc_hardware_words(size_t words);
 
 /**
- * @brief Clear the MPI power control bit and initialise the MPI hardware.
+ * @brief Clear the MPI power control bit and intitialise the MPI hardware.
  *
  */
 void mpi_hal_enable_hardware_hw_op(void);
@@ -90,13 +91,13 @@ void mpi_hal_write_at_offset(mpi_param_t param, int offset, uint32_t value);
 void mpi_hal_write_m_prime(uint32_t Mprime);
 
 /**
- * @brief Write first word of the parameter Rinv.
+ * @brief Write first word of the parametr Rinv.
  *
  * @param rinv Value of first word of rinv.
  */
 void mpi_hal_write_rinv(uint32_t rinv);
 
-#if !SOC_IS(ESP32)
+#if !CONFIG_IDF_TARGET_ESP32
 /**
  * @brief Enable/Disable constant time acceleration option.
  *
@@ -117,7 +118,7 @@ void mpi_hal_enable_search(bool enable);
  * @param position Address to start search.
  */
 void mpi_hal_set_search_position(size_t position);
-#endif /* !SOC_IS(ESP32) */
+#endif /* !CONFIG_IDF_TARGET_ESP32 */
 
 /**
  * @brief Begin an MPI operation.

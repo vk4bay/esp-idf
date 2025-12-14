@@ -1,7 +1,7 @@
 /*
- * SPDX-FileCopyrightText: 2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2024 Espressif Systems (Shanghai) CO LTD
  *
- * SPDX-License-Identifier: Apache-2.0 OR MIT
+ * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
 
@@ -157,7 +157,7 @@ typedef volatile struct {
             uint32_t rst_coex                  :    1;
             uint32_t rst_i2c_mst               :    1;
             uint32_t rst_lp_timer              :    1;
-            uint32_t rst_dcmem                 :    1;
+            uint32_t reserved4                     :    1;
             uint32_t reserved5                     :    1;
             uint32_t reserved6                     :    1;
             uint32_t reserved7                     :    1;
@@ -231,10 +231,6 @@ typedef volatile struct {
         };
         uint32_t val;
     } apb_mem_sel;
-    uint32_t dcmem_valid_0;
-    uint32_t dcmem_valid_1;
-    uint32_t dcmem_valid_2;
-    uint32_t dcmem_valid_3;
     union {
         struct {
             uint32_t date                      :    28;
@@ -247,7 +243,7 @@ typedef volatile struct {
 extern modem_lpcon_dev_t MODEM_LPCON;
 
 #ifndef __cplusplus
-_Static_assert(sizeof(modem_lpcon_dev_t) == 0x50, "Invalid size of modem_lpcon_dev_t structure");
+_Static_assert(sizeof(modem_lpcon_dev_t) == 0x40, "Invalid size of modem_lpcon_dev_t structure");
 #endif
 
 #ifdef __cplusplus

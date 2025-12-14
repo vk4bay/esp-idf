@@ -33,7 +33,11 @@ sending a transaction. As soon as the transaction is done, the line gets set low
 //////////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////// Please update the following configuration according to your HardWare spec /////////////////
 //////////////////////////////////////////////////////////////////////////////////////////////////////////
+#ifdef CONFIG_IDF_TARGET_ESP32
+#define RCV_HOST    HSPI_HOST
+#else
 #define RCV_HOST    SPI2_HOST
+#endif
 
 #define GPIO_HANDSHAKE      2
 #define GPIO_MOSI           12
@@ -92,23 +96,6 @@ void app_main(void)
     gpio_set_pull_mode(GPIO_SCLK, GPIO_PULLUP_ONLY);
     gpio_set_pull_mode(GPIO_CS, GPIO_PULLUP_ONLY);
 
-    /**
-     * The default drive capability on esp32 is GPIO_DRIVE_CAP_2 (~20 mA).
-     * When connecting master devices that uses a source/sink current lower or higher than GPIO_DRIVER_CAP_DEFAULT.
-     * Using a drive strength that does not match the requirements of the connected device can cause issues
-     * such as unreliable switching, or damage to the GPIO pin or external device.
-     *
-     * - GPIO_DRIVE_CAP_0: ~5 mA
-     * - GPIO_DRIVE_CAP_1: ~10 mA
-     * - GPIO_DRIVE_CAP_2: ~20 mA
-     * - GPIO_DRIVE_CAP_3: ~40 mA
-
-    gpio_set_drive_capability(GPIO_MOSI, GPIO_DRIVE_CAP_3);
-    gpio_set_drive_capability(GPIO_SCLK, GPIO_DRIVE_CAP_3);
-    gpio_set_drive_capability(GPIO_CS, GPIO_DRIVE_CAP_3);
-
-    **/
-
     //Initialize SPI slave interface
     ret = spi_slave_initialize(RCV_HOST, &buscfg, &slvcfg, SPI_DMA_CH_AUTO);
     assert(ret == ESP_OK);
@@ -138,17 +125,7 @@ void app_main(void)
         //spi_slave_transmit does not return until the master has done a transmission, so by here we have sent our data and
         //received data from the master. Print it.
         printf("Received: %s\n", recvbuf);
-
-        //pause the slave to save power, transaction will also be paused
-        ret = spi_slave_disable(RCV_HOST);
-        if (ret == ESP_OK) {
-            printf("slave paused ...\n");
-        }
-        vTaskDelay(100);    //now is able to sleep or do something to save power, any following transaction will be ignored
-        ret = spi_slave_enable(RCV_HOST);
-        if (ret == ESP_OK) {
-            printf("slave ready !\n");
-        }
         n++;
     }
+
 }

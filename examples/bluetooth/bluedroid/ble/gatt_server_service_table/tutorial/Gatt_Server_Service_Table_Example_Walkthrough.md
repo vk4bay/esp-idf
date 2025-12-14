@@ -26,6 +26,7 @@ Let’s start by taking a look at the included headers in the [gatts_table_creat
 #include "esp_gatts_api.h"
 #include "esp_bt_defs.h"
 #include "esp_bt_main.h"
+#include "esp_bt_main.h"
 #include “gatts_table_creat_demo.h"
 ```
 These includes are required for the *FreeRTOS* and underlying system components to run, including logging functionality and a library to store data in non-volatile flash memory. We are interested in ``bt.h``, ``esp_bt_main.h``, ``esp_gap_ble_api.h`` and ``esp_gatts_api.h`` which expose the BLE APIs required to implement this example.
@@ -101,8 +102,7 @@ void app_main()
 
     ESP_LOGI(GATTS_TABLE_TAG, "%s init bluetooth", __func__);
 
-    esp_bluedroid_config_t cfg = BT_BLUEDROID_INIT_CONFIG_DEFAULT();
-    ret = esp_bluedroid_init_with_cfg(&cfg);
+    ret = esp_bluedroid_init();
     if (ret) {
         ESP_LOGE(GATTS_TABLE_TAG, "%s init bluetooth failed", __func__);
         return;

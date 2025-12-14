@@ -19,15 +19,12 @@ SECTIONS
     KEEP(*(.exception_vectors_table.text));
     KEEP(*(.exception_vectors.text));
 
+    ALIGNED_SYMBOL(4, _invalid_pc_placeholder)
+
     /* Code marked as running out of IRAM */
     _iram_text_start = ABSOLUTE(.);
 
     mapping[iram0_text]
-
-    /* mutable libs begin */
-    mutable[iram0_text]
-    FAST_REFLASHING_PADDING;
-    /* mutable libs end */
 
   } > iram0_0_seg
 
@@ -47,12 +44,7 @@ SECTIONS
  .dram0.bt.data :
   {
     _data_start = ABSOLUTE(.);
-
     mapping[dram0_bt_data]
-
-    /* mutable libs begin */
-    mutable[dram0_bt_data]
-    /* mutable libs end */
   } > dram0_0_seg
 
   .dram0.bt.bss (NOLOAD) :
@@ -60,10 +52,6 @@ SECTIONS
     ALIGNED_SYMBOL(8, _bss_bt_start)
 
     mapping[dram0_bt_bss]
-
-    /* mutable libs begin */
-    mutable[dram0_bt_bss]
-    /* mutable libs end */
 
     _bss_bt_end = ABSOLUTE(.);
   } > dram0_0_seg
@@ -80,11 +68,6 @@ SECTIONS
     *(.jcr)
 
     mapping[dram0_data]
-
-    /* mutable libs begin */
-    mutable[dram0_data]
-    FAST_REFLASHING_PADDING;
-    /* mutable libs end */
 
     _data_end = ABSOLUTE(.);
   } > dram0_0_seg
@@ -113,12 +96,7 @@ SECTIONS
      * ldgen places all bss-related data to mapping[dram0_bss]
      * (See components/esp_system/app.lf).
      */
-
     mapping[dram0_bss]
-
-    /* mutable libs begin */
-    mutable[dram0_bss]
-    /* mutable libs end */
 
     ALIGNED_SYMBOL(8, _bss_end)
   } > dram0_0_seg
@@ -137,11 +115,6 @@ SECTIONS
     _text_start = ABSOLUTE(.);
 
     mapping[flash_text]
-
-    /* mutable libs begin */
-    mutable[flash_text]
-    FAST_REFLASHING_PADDING;
-    /* mutable libs end */
 
     *(.stub)
     *(.gnu.linkonce.t.*)
@@ -226,12 +199,20 @@ SECTIONS
      * C++ constructor tables.
      *
      * Excluding crtbegin.o/crtend.o since IDF doesn't use the toolchain crt.
+     *
+     * RISC-V gcc is configured with --enable-initfini-array so it emits
+     * .init_array section instead. But the init_priority sections will be
+     * sorted for iteration in ascending order during startup.
+     * The rest of the init_array sections is sorted for iteration in descending
+     * order during startup, however. Hence a different section is generated for
+     * the init_priority functions which is iterated in ascending order during
+     * startup. The corresponding code can be found in startup.c.
      */
-    ALIGNED_SYMBOL(4, __preinit_array_start)
-    KEEP (*(.preinit_array))
-    __preinit_array_end = ABSOLUTE(.);
+    ALIGNED_SYMBOL(4, __init_priority_array_start)
+    KEEP (*(EXCLUDE_FILE (*crtend.* *crtbegin.*) .init_array.*))
+    __init_priority_array_end = ABSOLUTE(.);
+
     ALIGNED_SYMBOL(4, __init_array_start)
-    KEEP (*(SORT_BY_INIT_PRIORITY(EXCLUDE_FILE (*crtend.* *crtbegin.*) .init_array.*)))
     KEEP (*(EXCLUDE_FILE (*crtend.* *crtbegin.*) .init_array))
     __init_array_end = ABSOLUTE(.);
 
@@ -245,24 +226,20 @@ SECTIONS
     KEEP (*(SORT_BY_INIT_PRIORITY(.esp_system_init_fn.*)))
     _esp_system_init_fn_array_end = ABSOLUTE(.);
 
-    /* mutable libs begin */
-    mutable[flash_rodata]
-    FAST_REFLASHING_PADDING;
-    /* mutable libs end */
-
     _rodata_end = ABSOLUTE(.);
-    . = ALIGN(ALIGNOF(SECTION_AFTER_FLASH_RODATA));
+    . = ALIGN(ALIGNOF(.eh_frame_hdr));
   } > default_rodata_seg
-  ASSERT_SECTIONS_GAP(.flash.rodata, SECTION_AFTER_FLASH_RODATA)
+  ASSERT_SECTIONS_GAP(.flash.rodata, .eh_frame_hdr)
 
-#if EH_FRAME_LINKING_ENABLED
   .eh_frame_hdr :
   {
+#if CONFIG_COMPILER_CXX_EXCEPTIONS || CONFIG_ESP_SYSTEM_USE_EH_FRAME
     ALIGNED_SYMBOL(4, __eh_frame_hdr)
 
     KEEP (*(.eh_frame_hdr))
 
     __eh_frame_hdr_end = ABSOLUTE(.);
+#endif // CONFIG_COMPILER_CXX_EXCEPTIONS || CONFIG_ESP_SYSTEM_USE_EH_FRAME
 
     . = ALIGN(ALIGNOF(.eh_frame));
   } > default_rodata_seg
@@ -270,6 +247,7 @@ SECTIONS
 
   .eh_frame :
   {
+#if CONFIG_COMPILER_CXX_EXCEPTIONS || CONFIG_ESP_SYSTEM_USE_EH_FRAME
     ALIGNED_SYMBOL(4, __eh_frame)
 
     KEEP (*(.eh_frame))
@@ -280,11 +258,11 @@ SECTIONS
     LONG(0);
 
     __eh_frame_end = ABSOLUTE(.);
+#endif // CONFIG_COMPILER_CXX_EXCEPTIONS || CONFIG_ESP_SYSTEM_USE_EH_FRAME
 
     . = ALIGN(ALIGNOF(.flash.tdata));
   } > default_rodata_seg
   ASSERT_SECTIONS_GAP(.eh_frame, .flash.tdata)
-#endif // EH_FRAME_LINKING_ENABLED
 
   .flash.tdata :
   {
@@ -321,10 +299,6 @@ SECTIONS
     _rodata_reserved_end = ADDR(.flash.tbss);
 
     mapping[rodata_noload]
-
-    /* mutable libs begin */
-    mutable[rodata_noload]
-    /* mutable libs end */
   } > default_rodata_seg
 
   /* Marks the end of IRAM code segment */
@@ -339,10 +313,6 @@ SECTIONS
 
     mapping[iram0_data]
 
-    /* mutable libs begin */
-    mutable[iram0_data]
-    /* mutable libs end */
-
     _iram_data_end = ABSOLUTE(.);
   } > iram0_0_seg
 
@@ -351,10 +321,6 @@ SECTIONS
     ALIGNED_SYMBOL(16, _iram_bss_start)
 
     mapping[iram0_bss]
-
-    /* mutable libs begin */
-    mutable[iram0_bss]
-    /* mutable libs end */
 
     _iram_bss_end = ABSOLUTE(.);
   } > iram0_0_seg
@@ -369,10 +335,6 @@ SECTIONS
     ALIGNED_SYMBOL(16, _iram_bt_text_start)
 
     mapping[iram0_bt_text]
-
-    /* mutable libs begin */
-    mutable[iram0_bt_text]
-    /* mutable libs end */
 
     ALIGNED_SYMBOL(16, _iram_end)
   } > iram0_0_seg

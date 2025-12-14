@@ -196,19 +196,6 @@ struct bt_hci_vs_ble_set_vs_evts_mask {
     uint32_t evt_masks; /*!< BLE vendor events Mask */
 };
 
-/**
- * @brief Set peer sleep clock accuracy to a constant value (OCF: 0x0118)
- *
- * @note The init function is `winWiden_stack_enableSetConstPeerScaVsCmd(true)`
- */
-#define ESP_BT_VS_SET_CONST_PEER_SCA_OCF                            (0x0118)
-/**
-* @brief Peer constant SCA cmd parameters
-*/
-struct bt_hci_vs_ble_set_const_peer_sca {
-    uint16_t peer_sca;  /*!< Peer SCA */
-};
-
 // @brief HCI VS Events for Espressif's Bluetooth Host
 //
 // @note The following HCI VS events are exclusively for Espressif's Bluetooth Host (ESP-Bluedroid Host or ESP-NimBLE Host).
@@ -246,19 +233,6 @@ struct bt_hci_vs_le_chan_update_comp_evt {
     uint8_t status;     /*!< Controller error code */
     uint16_t handle;    /*!< Connection handle */
     uint8_t ch_map[5];  /*!< Updated channel map */
-};
-
-/**
- * @brief BLE Wakeup From Sleep event (EVTCODE: 0xFF, SUBCODE: 0xC3)
- *
- * @note The init function is `sleep_stack_enableWakeupVsEvent(true)`
- */
-#define ESP_BT_VS_LE_SLEEP_WAKEUP_EVT_SUBCODE                       (0xC3)
-/**
-* @brief BLE wakeup event parameters
-*/
-struct bt_hci_vs_le_sleep_wakeup_evt {
-    // no parameters
 };
 
 /**

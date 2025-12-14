@@ -1,10 +1,10 @@
 # SPDX-FileCopyrightText: 2022-2025 Espressif Systems (Shanghai) CO LTD
 # SPDX-License-Identifier: CC0-1.0
 import os.path
+from typing import Tuple
 
 import pytest
 from pytest_embedded_idf.dut import IdfDut
-from pytest_embedded_idf.utils import idf_parametrize
 
 # @pytest.mark.supported_targets
 # This test should support all targets, even between different target types
@@ -20,23 +20,21 @@ from pytest_embedded_idf.utils import idf_parametrize
 # )
 
 
-@pytest.mark.two_duts
+@pytest.mark.esp32
+@pytest.mark.esp32c3
+@pytest.mark.esp32s2
+@pytest.mark.esp32s3
+@pytest.mark.esp32c5
+@pytest.mark.esp32c6
+@pytest.mark.esp32c61
+@pytest.mark.wifi_two_dut
 @pytest.mark.parametrize(
-    'count, app_path',
-    [
-        (
-            2,
-            f'{os.path.join(os.path.dirname(__file__), "softAP")}|{os.path.join(os.path.dirname(__file__), "station")}',
-        ),
-    ],
-    indirect=True,
+    'count, app_path', [
+        (2,
+         f'{os.path.join(os.path.dirname(__file__), "softAP")}|{os.path.join(os.path.dirname(__file__), "station")}'),
+    ], indirect=True
 )
-@idf_parametrize(
-    'target',
-    ['esp32', 'esp32c3', 'esp32s2', 'esp32s3', 'esp32c5', 'esp32c6', 'esp32c61'],
-    indirect=['target'],
-)
-def test_wifi_getting_started(dut: tuple[IdfDut, IdfDut]) -> None:
+def test_wifi_getting_started(dut: Tuple[IdfDut, IdfDut]) -> None:
     softap = dut[0]
     station = dut[1]
 
@@ -51,22 +49,16 @@ def test_wifi_getting_started(dut: tuple[IdfDut, IdfDut]) -> None:
     softap.expect('station .+ join, AID=', timeout=60)
 
 
-@pytest.mark.two_duts
+@pytest.mark.esp32c2
+@pytest.mark.wifi_two_dut
 @pytest.mark.xtal_26mhz
 @pytest.mark.parametrize(
-    'count, config, baud, app_path',
-    [
-        (
-            2,
-            'esp32c2_xtal26m',
-            '74880',
-            f'{os.path.join(os.path.dirname(__file__), "softAP")}|{os.path.join(os.path.dirname(__file__), "station")}',
-        ),
-    ],
-    indirect=True,
+    'count, config, baud, app_path', [
+        (2, 'esp32c2_xtal26m', '74880',
+         f'{os.path.join(os.path.dirname(__file__), "softAP")}|{os.path.join(os.path.dirname(__file__), "station")}'),
+    ], indirect=True
 )
-@idf_parametrize('target', ['esp32c2'], indirect=['target'])
-def test_wifi_getting_started_esp32c2_xtal_26mhz(dut: tuple[IdfDut, IdfDut]) -> None:
+def test_wifi_getting_started_esp32c2_xtal_26mhz(dut: Tuple[IdfDut, IdfDut]) -> None:
     softap = dut[0]
     station = dut[1]
 
@@ -82,23 +74,23 @@ def test_wifi_getting_started_esp32c2_xtal_26mhz(dut: tuple[IdfDut, IdfDut]) -> 
     softap.expect('station .+ join, AID=', timeout=60)
 
 
-@pytest.mark.two_duts
+@pytest.mark.wifi_two_dut
 @pytest.mark.xtal_26mhz
 @pytest.mark.esp32c2eco4
 @pytest.mark.parametrize(
-    'count, config, baud, app_path',
+    'count, config, target, baud, app_path',
     [
         (
             2,
             'esp32c2eco4_xtal26m',
+            'esp32c2',
             '74880',
             f'{os.path.join(os.path.dirname(__file__), "softAP")}|{os.path.join(os.path.dirname(__file__), "station")}',
         ),
     ],
     indirect=True,
 )
-@idf_parametrize('target', ['esp32c2'], indirect=['target'])
-def test_wifi_getting_started_esp32c2eco4_xtal_26mhz(dut: tuple[IdfDut, IdfDut]) -> None:
+def test_wifi_getting_started_esp32c2eco4_xtal_26mhz(dut: Tuple[IdfDut, IdfDut]) -> None:
     softap = dut[0]
     station = dut[1]
 
@@ -114,21 +106,21 @@ def test_wifi_getting_started_esp32c2eco4_xtal_26mhz(dut: tuple[IdfDut, IdfDut])
     softap.expect('station .+ join, AID=', timeout=60)
 
 
-@pytest.mark.two_duts
+@pytest.mark.wifi_two_dut
 @pytest.mark.esp32c3eco7
 @pytest.mark.parametrize(
-    'count, config, app_path',
+    'count, config, target, app_path',
     [
         (
             2,
             'esp32c3eco7',
+            'esp32c3',
             f'{os.path.join(os.path.dirname(__file__), "softAP")}|{os.path.join(os.path.dirname(__file__), "station")}',
         ),
     ],
     indirect=True,
 )
-@idf_parametrize('target', ['esp32c3'], indirect=['target'])
-def test_wifi_getting_started_esp32c3eco7(dut: tuple[IdfDut, IdfDut]) -> None:
+def test_wifi_getting_started_esp32c3eco7(dut: Tuple[IdfDut, IdfDut]) -> None:
     softap = dut[0]
     station = dut[1]
 

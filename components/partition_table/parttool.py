@@ -14,9 +14,10 @@ import tempfile
 
 import gen_esp32part as gen
 
-__version__ = '2.2'
+__version__ = '2.1'
 
 COMPONENTS_PATH = os.path.expandvars(os.path.join('$IDF_PATH', 'components'))
+ESPTOOL_PY = os.path.join(COMPONENTS_PATH, 'esptool_py', 'esptool', 'esptool.py')
 
 PARTITION_TABLE_OFFSET = 0x8000
 
@@ -56,8 +57,6 @@ class ParttoolTarget:
         port=None,
         baud=None,
         partition_table_offset=PARTITION_TABLE_OFFSET,
-        primary_bootloader_offset=None,
-        recovery_bootloader_offset=None,
         partition_table_file=None,
         esptool_args=[],
         esptool_write_args=[],
@@ -68,8 +67,6 @@ class ParttoolTarget:
         self.baud = baud
 
         gen.offset_part_table = partition_table_offset
-        gen.primary_bootloader_offset = primary_bootloader_offset
-        gen.recovery_bootloader_offset = recovery_bootloader_offset
         gen.quiet = True
 
         def parse_esptool_args(esptool_args):
@@ -99,7 +96,7 @@ class ParttoolTarget:
 
             try:
                 self._call_esptool(
-                    ['read-flash', str(partition_table_offset), str(gen.MAX_PARTITION_LENGTH), temp_file.name]
+                    ['read_flash', str(partition_table_offset), str(gen.MAX_PARTITION_LENGTH), temp_file.name]
                 )
                 with open(temp_file.name, 'rb') as f:
                     partition_table = gen.PartitionTable.from_binary(f.read())
@@ -112,7 +109,7 @@ class ParttoolTarget:
     # otherwise set `out` to file descriptor
     # beware that the method does not close the file descriptor
     def _call_esptool(self, args, out=None):
-        esptool_args = [sys.executable, '-m', 'esptool'] + self.esptool_args
+        esptool_args = [sys.executable, ESPTOOL_PY] + self.esptool_args
 
         if self.port:
             esptool_args += ['--port', self.port]
@@ -122,7 +119,7 @@ class ParttoolTarget:
 
         esptool_args += args
 
-        print(f'Running {" ".join(esptool_args)}...')
+        print('Running %s...' % (' '.join(esptool_args)))
         try:
             subprocess.check_call(esptool_args, stdout=out, stderr=subprocess.STDOUT)
         except subprocess.CalledProcessError as e:
@@ -139,7 +136,7 @@ class ParttoolTarget:
             if not partition_id.part_list:
                 partition = partition[0]
         else:  # default boot partition
-            search = ['factory'] + [f'ota_{d}' for d in range(16)]
+            search = ['factory'] + ['ota_{}'.format(d) for d in range(16)]
             for subtype in search:
                 partition = next(self.partition_table.find_by_type('app', subtype), None)
                 if partition:
@@ -152,11 +149,11 @@ class ParttoolTarget:
 
     def erase_partition(self, partition_id):
         partition = self.get_partition_info(partition_id)
-        self._call_esptool(['erase-region', str(partition.offset), str(partition.size)] + self.esptool_erase_args)
+        self._call_esptool(['erase_region', str(partition.offset), str(partition.size)] + self.esptool_erase_args)
 
     def read_partition(self, partition_id, output):
         partition = self.get_partition_info(partition_id)
-        self._call_esptool(['read-flash', str(partition.offset), str(partition.size), output] + self.esptool_read_args)
+        self._call_esptool(['read_flash', str(partition.offset), str(partition.size), output] + self.esptool_read_args)
 
     def write_partition(self, partition_id, input, ignore_readonly=False):  # noqa: A002
         partition = self.get_partition_info(partition_id)
@@ -172,27 +169,29 @@ class ParttoolTarget:
             if content_len > partition.size:
                 raise Exception('Input file size exceeds partition size')
 
-        self._call_esptool(['write-flash', str(partition.offset), input] + self.esptool_write_args)
+        self._call_esptool(['write_flash', str(partition.offset), input] + self.esptool_write_args)
 
 
 def _write_partition(target, partition_id, input, ignore_readonly=False):  # noqa: A002
     target.write_partition(partition_id, input, ignore_readonly)
     partition = target.get_partition_info(partition_id)
-    status(f"Written contents of file '{input}' at offset 0x{partition.offset:x}")
+    status("Written contents of file '{}' at offset 0x{:x}".format(input, partition.offset))
 
 
 def _read_partition(target, partition_id, output):
     target.read_partition(partition_id, output)
     partition = target.get_partition_info(partition_id)
     status(
-        f"Read partition '{partition.name}' contents from device at offset 0x{partition.offset:x} to file '{output}'"
+        "Read partition '{}' contents from device at offset 0x{:x} to file '{}'".format(
+            partition.name, partition.offset, output
+        )
     )
 
 
 def _erase_partition(target, partition_id):
     target.erase_partition(partition_id)
     partition = target.get_partition_info(partition_id)
-    status(f"Erased partition '{partition.name}' at offset 0x{partition.offset:x}")
+    status("Erased partition '{}' at offset 0x{:x}".format(partition.name, partition.offset))
 
 
 def _get_partition_info(target, partition_id, info):
@@ -208,18 +207,18 @@ def _get_partition_info(target, partition_id, info):
     try:
         for p in partitions:
             info_dict = {
-                'name': f'{p.name}',
-                'type': f'{p.type}',
-                'subtype': f'{p.subtype}',
-                'offset': f'0x{p.offset:x}',
-                'size': f'0x{p.size:x}',
-                'encrypted': f'{p.encrypted}',
-                'readonly': f'{p.readonly}',
+                'name': '{}'.format(p.name),
+                'type': '{}'.format(p.type),
+                'subtype': '{}'.format(p.subtype),
+                'offset': '0x{:x}'.format(p.offset),
+                'size': '0x{:x}'.format(p.size),
+                'encrypted': '{}'.format(p.encrypted),
+                'readonly': '{}'.format(p.readonly),
             }
             for i in info:
                 infos += [info_dict[i]]
     except KeyError:
-        raise RuntimeError(f'Request for unknown partition info {i}')
+        raise RuntimeError('Request for unknown partition info {}'.format(i))
 
     print(' '.join(infos))
 
@@ -248,14 +247,8 @@ def main():
     parser.add_argument('--baud', '-b', help='baudrate to use', type=int)
 
     parser.add_argument('--partition-table-offset', '-o', help='offset to read the partition table from', type=str)
-    parser.add_argument('--primary-bootloader-offset', help='offset for primary bootloader', type=str)
-    parser.add_argument('--recovery-bootloader-offset', help='offset for recovery bootloader', type=str)
-    parser.add_argument(
-        '--partition-table-file',
-        '-f',
-        help='file (CSV/binary) to read the partition table from; '
-        'overrides device attached to specified port as the partition table source when defined',
-    )
+    parser.add_argument('--partition-table-file', '-f', help='file (CSV/binary) to read the partition table from; \
+                                                            overrides device attached to specified port as the partition table source when defined')
 
     partition_selection_parser = argparse.ArgumentParser(add_help=False)
 
@@ -352,12 +345,6 @@ def main():
 
     if args.partition_table_offset:
         target_args['partition_table_offset'] = int(args.partition_table_offset, 0)
-
-    if args.primary_bootloader_offset:
-        target_args['primary_bootloader_offset'] = int(args.primary_bootloader_offset, 0)
-
-    if args.recovery_bootloader_offset:
-        target_args['recovery_bootloader_offset'] = int(args.recovery_bootloader_offset, 0)
 
     if args.esptool_args:
         target_args['esptool_args'] = args.esptool_args

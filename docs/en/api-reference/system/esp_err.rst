@@ -9,8 +9,6 @@ For general information about error codes in ESP-IDF, see :doc:`Error Handling <
 
 For the full list of error codes defined in ESP-IDF, see :doc:`Error Codes Reference <../error-codes>`.
 
-.. _esp-check-api-ref:
-
 API Reference
 -------------
 

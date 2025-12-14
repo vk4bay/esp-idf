@@ -15,7 +15,6 @@
 extern "C" {
 #endif
 
-#if SOC_AES_SUPPORT_DMA
 /**
  * @brief Start the DMA engine
  *
@@ -42,7 +41,6 @@ bool esp_aes_dma_done(const crypto_dma_desc_t *output);
  */
 void esp_aes_intr_alloc(void);
 
-#endif /* SOC_AES_SUPPORT_DMA */
 #ifdef __cplusplus
 }
 #endif

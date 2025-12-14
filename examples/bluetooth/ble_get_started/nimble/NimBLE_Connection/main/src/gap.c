@@ -80,7 +80,7 @@ static void start_advertising(void) {
     adv_fields.le_role = BLE_GAP_LE_ROLE_PERIPHERAL;
     adv_fields.le_role_is_present = 1;
 
-    /* Set advertisement fields */
+    /* Set advertiement fields */
     rc = ble_gap_adv_set_fields(&adv_fields);
     if (rc != 0) {
         ESP_LOGE(TAG, "failed to set advertising data, error code: %d", rc);
@@ -107,7 +107,7 @@ static void start_advertising(void) {
         return;
     }
 
-    /* Set undirected connectable and general discoverable mode */
+    /* Set non-connetable and general discoverable mode to be a beacon */
     adv_params.conn_mode = BLE_GAP_CONN_MODE_UND;
     adv_params.disc_mode = BLE_GAP_DISC_MODE_GEN;
 
@@ -250,7 +250,6 @@ void adv_init(void) {
 int gap_init(void) {
     /* Local variables */
     int rc = 0;
-
 
     /* Initialize GAP service */
     ble_svc_gap_init();

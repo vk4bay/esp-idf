@@ -52,7 +52,7 @@ idf.py menuconfig
 ```
 In the `Component config` menu:
 
-* Select encrypted adv data from `Component config -> Bluetooth -> NimBLE Options -> Extra Features -> Encrypted Advertising Data`
+* Select encrypted adv data from `Component config -> Bluetooth -> NimBLE Options -> BT_NIMBLE_ENC_ADV_DATA`
 
 In the `Example Configuration` menu:
 

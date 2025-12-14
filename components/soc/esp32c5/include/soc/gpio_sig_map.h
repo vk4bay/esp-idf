@@ -1,7 +1,7 @@
 /*
- * SPDX-FileCopyrightText: 2024-2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2024 Espressif Systems (Shanghai) CO LTD
  *
- * SPDX-License-Identifier: Apache-2.0 OR MIT
+ * SPDX-License-Identifier: Apache-2.0
  */
 
 #pragma once
@@ -152,7 +152,6 @@
 #define PWM0_F2_IN_IDX                          85
 #define PWM0_OUT2B_IDX                          85
 #define PWM0_CAP0_IN_IDX                        86
-#define PARL_TX_CS_O_IDX                        86
 #define PWM0_CAP1_IN_IDX                        87
 #define PWM0_CAP2_IN_IDX                        88
 #define GPIO_EVENT_MATRIX_IN0_IDX               89
@@ -166,7 +165,6 @@
 #define CLK_OUT_OUT1_IDX                        93
 #define CLK_OUT_OUT2_IDX                        94
 #define CLK_OUT_OUT3_IDX                        95
-#define SDIO_TOHOST_INT_OUT_IDX                 96
 #define SIG_IN_FUNC_97_IDX                      97
 #define SIG_IN_FUNC97_IDX                       97
 #define SIG_IN_FUNC_98_IDX                      98
@@ -244,5 +242,5 @@
 #define ANT_SEL13_IDX                           151
 #define ANT_SEL14_IDX                           152
 #define ANT_SEL15_IDX                           153
-// version date 2311280
 #define SIG_GPIO_OUT_IDX                        256
+// version date 2311280

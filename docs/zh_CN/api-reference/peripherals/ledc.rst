@@ -1,7 +1,7 @@
 LED PWM 控制器
 ==============
 
-{IDF_TARGET_LEDC_MAX_FADE_RANGE_NUM: default="1", esp32c6="16", esp32h2="16", esp32p4="16", esp32c5="16", esp32c61="16", esp32h21="16"}
+{IDF_TARGET_LEDC_MAX_FADE_RANGE_NUM: default="1", esp32c6="16", esp32h2="16", esp32p4="16", esp32c5="16", esp32c61="16"}
 
 :link_to_translation:`en:[English]`
 
@@ -207,25 +207,6 @@ LED PWM 控制器可在无需 CPU 干预的情况下自动改变占空比，实�
          - 32 MHz
          - 支持动态调频 (DFS) 功能
 
-.. only:: esp32h21 or esp32h4
-
-    .. list-table:: Characteristics of {IDF_TARGET_NAME} LEDC source clocks
-       :widths: 15 15 30
-       :header-rows: 1
-
-       * - 时钟名称
-         - 时钟频率
-         - 时钟功能
-       * - PLL_96M_CLK
-         - 96 MHz
-         - /
-       * - RC_FAST_CLK
-         - ~ 20 MHz
-         - 支持动态调频 (DFS) 功能，支持 Light-sleep 模式
-       * - XTAL_CLK
-         - 32 MHz
-         - 支持动态调频 (DFS) 功能
-
 .. note::
 
     .. only:: SOC_CLK_RC_FAST_SUPPORT_CALIBRATION
@@ -298,10 +279,6 @@ LEDC 驱动提供了一个辅助函数 :cpp:func:`ledc_find_suitable_duty_resolu
 
         以上硬件限制仅在芯片版本低于 v1.2 的 ESP32H2 上存在。
 
-    .. only:: esp32p4
-
-        以上硬件限制仅在芯片版本低于 v3.0 的 ESP32P4 上存在。
-
 
 使用硬件改变 PWM 占空比
 """"""""""""""""""""""""""""""""""""
@@ -348,27 +325,21 @@ LED PWM 控制器 API 有多种方式即时改变 PWM 频率：
 
 有一些较独立的定时器特定函数可用于更改 PWM 输出：
 
+* :cpp:func:`ledc_timer_set`
 * :cpp:func:`ledc_timer_rst`
 * :cpp:func:`ledc_timer_pause`
 * :cpp:func:`ledc_timer_resume`
 
-第一个定时器复位函数在函数 :cpp:func:`ledc_timer_config` 内部完成所有定时器配置后会被调用一次。
+前两个功能可通过函数 :cpp:func:`ledc_timer_config` 在后台运行，在定时器配置后启动。
 
-.. only:: SOC_LEDC_SUPPORT_ETM and SOC_ETM_SUPPORTED
 
-    LEDC 的 ETM 事件和任务
-    ----------------------
+使用中断
+^^^^^^^^^^^^^^
 
-    LEDC 可以生成多种事件，这些事件可以连接到 :doc:`ETM </api-reference/peripherals/etm>` 模块。定时器支持的事件列在 :cpp:type:`ledc_timer_etm_event_type_t` 中，通道支持的事件列在 :cpp:type:`ledc_channel_etm_event_type_t` 中。用户可以分别通过调用 :cpp:func:`ledc_timer_new_etm_event` 或 :cpp:func:`ledc_channel_new_etm_event` 来创建 ``ETM event`` 句柄。
-    LEDC 还支持一些可由其他事件触发并自动执行的任务。定时器支持的任务列在 :cpp:type:`ledc_timer_etm_task_type_t` 中，通道支持的任务列在 :cpp:type:`ledc_channel_etm_task_type_t` 中。用户可以分别通过调用 :cpp:func:`ledc_timer_new_etm_task` 或 :cpp:func:`ledc_channel_new_etm_task` 来创建 ``ETM task`` 句柄。
+配置 LED PWM 控制器通道时，可在 :cpp:type:`ledc_channel_config_t` 中选取参数 :cpp:type:`ledc_intr_type_t` ，在渐变完成时触发中断。
 
-    一些使用 ETM 与 LEDC 结合的实用应用包括：
+要注册处理程序来处理中断，可调用函数 :cpp:func:`ledc_isr_register`。
 
-        * 生成一段特定脉冲数的 PWM 信号
-        * 同步 PWM 周期与外部信号
-        * 无需 CPU 干预即可开始 / 停止 PWM 信号输出或一次渐变
-
-    关于如何将 LEDC 事件和任务连接到 ETM 通道，请参考 :doc:`ETM </api-reference/peripherals/etm>` 文档。
 
 电源管理
 --------
@@ -389,7 +360,7 @@ LEDC 驱动不使用电源管理锁来防止系统进入 Light-sleep 。相反�
     LED PWM 控制器高速和低速模式
     ----------------------------------
 
-    高速模式的优点是可平稳地改变定时器设置。也就是说，高速模式下如定时器设置改变，此变更会自动应用于定时器的下一次溢出中断。而更新低速定时器时，设置变更应由软件显式触发。LED PWM 驱动的设置将在硬件层面被修改，比如在调用函数 :cpp:func:`ledc_timer_config` 时。
+    高速模式的优点是可平稳地改变定时器设置。也就是说，高速模式下如定时器设置改变，此变更会自动应用于定时器的下一次溢出中断。而更新低速定时器时，设置变更应由软件显式触发。LED PWM 驱动的设置将在硬件层面被修改，比如在调用函数 :cpp:func:`ledc_timer_config` 或 :cpp:func:`ledc_timer_set` 时。
 
     更多关于速度模式的详细信息请参阅 **{IDF_TARGET_NAME} 技术参考手册** > **LED PWM 控制器 (LEDC)** [`PDF <{IDF_TARGET_TRM_EN_URL}#ledpwm>`__]。
 
@@ -433,7 +404,6 @@ LED PWM 控制器 API 会在设定的频率和占空比分辨率超过 LED PWM �
     * :example:`peripherals/ledc/ledc_basic` 演示了如何使用 LEDC 生成低速模式的 PWM 信号。
     * :example:`peripherals/ledc/ledc_fade` 演示了如何使用 LEDC 实现 LED 亮度的渐变控制。
     :SOC_LEDC_GAMMA_CURVE_FADE_SUPPORTED: * :example:`peripherals/ledc/ledc_gamma_curve_fade` 演示了如何使用 LEDC 对 RGB LED 实现带伽马校正的颜色控制。
-    :SOC_LEDC_SUPPORT_ETM and SOC_ETM_SUPPORTED: * :example:`peripherals/ledc/ledc_dimmer` 演示了如何使用 LEDC 和 ETM 生成与交流电零交叉同步的 TRIAC 门触发脉冲。
 
 
 API 参考
@@ -441,7 +411,3 @@ API 参考
 
 .. include-build-file:: inc/ledc.inc
 .. include-build-file:: inc/ledc_types.inc
-
-.. only:: SOC_LEDC_SUPPORT_ETM and SOC_ETM_SUPPORTED
-
-    .. include-build-file:: inc/ledc_etm.inc

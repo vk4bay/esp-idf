@@ -41,7 +41,7 @@ extern "C" {
 #define PMU_HP_DBIAS_LIGHTSLEEP_0V6_DEFAULT 1
 #define PMU_LP_DBIAS_SLEEP_0V7_DEFAULT      6
 
-#define PMU_REGDMA_S2A_WORK_TIME_PD_TOP_US     480
+#define PMU_REGDMA_S2A_WORK_TIME_PD_TOP_US     0
 // The current value of this depends on the restoration time overhead of the longest chain in regdma
 #define PMU_REGDMA_S2A_WORK_TIME_PU_TOP_US     390
 
@@ -139,9 +139,7 @@ typedef union {
 
 typedef union {
     struct {
-        uint32_t reserved0 : 27;
-        uint32_t bod_source_sel : 1;
-        uint32_t vddbat_mode : 2;
+        uint32_t reserved0 : 30;
         uint32_t mem_dslp  : 1;
         uint32_t peri_pd_en: 1;
     };
@@ -312,21 +310,12 @@ typedef struct {
 
 typedef struct {
     pmu_hp_sys_cntl_reg_t   syscntl;
-    uint32_t                icg_func;
 } pmu_sleep_digital_config_t;
 
-#define PMU_SLEEP_DIGITAL_LSLP_CONFIG_DEFAULT(sleep_flags, clk_flags) { \
+#define PMU_SLEEP_DIGITAL_LSLP_CONFIG_DEFAULT(sleep_flags) {            \
     .syscntl = {                                                        \
         .dig_pad_slp_sel = ((sleep_flags) & PMU_SLEEP_PD_TOP) ? 0 : 1,  \
-    },                                                                  \
-    .icg_func = clk_flags                                               \
-}
-
-#define PMU_SLEEP_DIGITAL_DSLP_CONFIG_DEFAULT(sleep_flags, clk_flags) { \
-    .syscntl = {                                                        \
-        .dig_pad_slp_sel = 1,                                           \
-    },                                                                  \
-    .icg_func = 0                                                       \
+    }                                                                   \
 }
 
 typedef struct {

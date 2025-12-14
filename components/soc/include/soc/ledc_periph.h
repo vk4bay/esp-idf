@@ -1,7 +1,7 @@
 /*
- * SPDX-FileCopyrightText: 2019-2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2019-2024 Espressif Systems (Shanghai) CO LTD
  *
- * SPDX-License-Identifier: Apache-2.0 OR MIT
+ * SPDX-License-Identifier: Apache-2.0
  */
 
 #pragma once
@@ -31,7 +31,7 @@ extern const ledc_signal_conn_t ledc_periph_signal[2];
 extern const ledc_signal_conn_t ledc_periph_signal[1];
 #endif
 
-#if SOC_PAU_SUPPORTED && SOC_LEDC_SUPPORT_SLEEP_RETENTION
+#if SOC_PAU_SUPPORTED
 
 #if SOC_LIGHT_SLEEP_SUPPORTED
 #if SOC_PHY_SUPPORTED

@@ -1,10 +1,9 @@
 /*
- * SPDX-FileCopyrightText: 2022-2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2022 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Unlicense OR CC0-1.0
  */
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 #include <sys/queue.h>
 #include "plugins_api.h"
@@ -34,13 +33,12 @@ void example_plugin_register(const example_plugin_desc_t* plugin_desc)
     }
     memcpy(&record->plugin_desc, plugin_desc, sizeof(*plugin_desc));
 
-    static struct plugin_record *tail = NULL;
-    if (tail == NULL) {
+    struct plugin_record *head = LIST_FIRST(&s_plugins_list);
+    if (head == NULL) {
         LIST_INSERT_HEAD(&s_plugins_list, record, list_entry);
     } else {
-        LIST_INSERT_AFTER(tail, record, list_entry);
+        LIST_INSERT_BEFORE(head, record, list_entry);
     }
-    tail = record;
     printf("Successfully registered plugin '%s'\n", plugin_desc->name);
 }
 

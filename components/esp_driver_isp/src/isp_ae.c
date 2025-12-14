@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2024-2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2024 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -39,12 +39,12 @@ static esp_err_t s_isp_claim_ae_controller(isp_proc_handle_t isp_proc, isp_ae_ct
     assert(isp_proc && ae_ctlr);
 
     esp_err_t ret = ESP_ERR_NOT_FOUND;
-    esp_os_enter_critical(&isp_proc->spinlock);
+    portENTER_CRITICAL(&isp_proc->spinlock);
     if (!isp_proc->ae_ctlr) {
         isp_proc->ae_ctlr = ae_ctlr;
         ret = ESP_OK;
     }
-    esp_os_exit_critical(&isp_proc->spinlock);
+    portEXIT_CRITICAL(&isp_proc->spinlock);
 
     return ret;
 }
@@ -52,9 +52,9 @@ static esp_err_t s_isp_claim_ae_controller(isp_proc_handle_t isp_proc, isp_ae_ct
 static void s_isp_declaim_ae_controller(isp_ae_ctlr_t ae_ctlr)
 {
     if (ae_ctlr && ae_ctlr->isp_proc) {
-        esp_os_enter_critical(&ae_ctlr->isp_proc->spinlock);
+        portENTER_CRITICAL(&ae_ctlr->isp_proc->spinlock);
         ae_ctlr->isp_proc->ae_ctlr = NULL;
-        esp_os_exit_critical(&ae_ctlr->isp_proc->spinlock);
+        portEXIT_CRITICAL(&ae_ctlr->isp_proc->spinlock);
     }
 }
 
@@ -101,7 +101,6 @@ esp_err_t esp_isp_new_ae_controller(isp_proc_handle_t isp_proc, const esp_isp_ae
     ESP_GOTO_ON_ERROR(intr_priority != isp_proc->intr_priority, err2, TAG, "intr_priority error");
     ESP_GOTO_ON_ERROR(esp_isp_register_isr(ae_ctlr->isp_proc, ISP_SUBMODULE_AE), err2, TAG, "fail to register ISR");
 
-    isp_ll_ae_set_clk_ctrl_mode(isp_proc->hal.hw, ISP_LL_PIPELINE_CLK_CTRL_AUTO);
     isp_ll_ae_set_sample_point(isp_proc->hal.hw, ae_config->sample_point);
     isp_ll_ae_enable(isp_proc->hal.hw, false);
     isp_hal_ae_window_config(&isp_proc->hal, &ae_config->window);
@@ -142,6 +141,7 @@ esp_err_t esp_isp_ae_controller_enable(isp_ae_ctlr_t ae_ctlr)
     ESP_RETURN_ON_FALSE(atomic_compare_exchange_strong(&ae_ctlr->fsm, &expected_fsm, ISP_FSM_ENABLE),
                         ESP_ERR_INVALID_STATE, TAG, "controller not in init state");
 
+    isp_ll_ae_clk_enable(ae_ctlr->isp_proc->hal.hw, true);
     isp_ll_enable_intr(ae_ctlr->isp_proc->hal.hw, ISP_LL_EVENT_AE_MASK, true);
     isp_ll_ae_enable(ae_ctlr->isp_proc->hal.hw, true);
 
@@ -155,6 +155,7 @@ esp_err_t esp_isp_ae_controller_disable(isp_ae_ctlr_t ae_ctlr)
     ESP_RETURN_ON_FALSE(atomic_compare_exchange_strong(&ae_ctlr->fsm, &expected_fsm, ISP_FSM_INIT),
                         ESP_ERR_INVALID_STATE, TAG, "controller not in enable state");
 
+    isp_ll_ae_clk_enable(ae_ctlr->isp_proc->hal.hw, false);
     isp_ll_enable_intr(ae_ctlr->isp_proc->hal.hw, ISP_LL_EVENT_AE_MASK, false);
     isp_ll_ae_enable(ae_ctlr->isp_proc->hal.hw, false);
     esp_intr_disable(ae_ctlr->intr_handle);

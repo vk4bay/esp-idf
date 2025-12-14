@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2010-2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2010-2024 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -7,11 +7,9 @@
 #pragma once
 #include "sdkconfig.h"
 #include <stdint.h>
-#include <stdbool.h>
 #include <inttypes.h>
 #include <stdarg.h>
 #include "soc/reset_reasons.h"
-#include "soc/soc_caps.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -54,34 +52,6 @@ int esp_rom_printf(const char *fmt, ...);
  * @return int: Total number of characters written on success; A negative number on failure.
  */
 int esp_rom_vprintf(const char *fmt, va_list ap);
-
-/**
- * @brief Convert an unsigned integer value to a string representation in the specified radix.
- *
- * This function converts the given unsigned integer value to a string representation in the specified radix.
- * The resulting string is stored in the provided character buffer `buf`.
- *
- * @param[in] val    The unsigned integer value to be converted.
- * @param[in] radix  The base of the numeral system to be used for the conversion.
- *                   It determines the number of unique digits in the numeral system
- *                   (e.g., 2 for binary, 10 for decimal, 16 for hexadecimal).
- * @param[in] pad    The optional padding width (0 - unused) for the resulting string. It adds zero-padding.
- *                   (val=123, pad=6 -> result=000123).
- * @param[in] digits Pointer to a character array representing the digits of the
- *                   numeral system. The array must contain characters in the order of increasing
- *                   values, corresponding to the digits of the radix. For example, "0123456789ABCDEF"
- *                   or hexadecimal.
- * @param[out] buf   Pointer to the character buffer where the resulting string will
- *                   be stored. The buffer must have enough space to accommodate the entire converted
- *                   string, including the null-terminator.
- *
- * @return The length of the resulting string (excluding the null-terminator).
- *
- * @note The buffer `buf` must have sufficient space to hold the entire converted string, including the null-terminator.
- *       The caller is responsible for ensuring the buffer's size is large enough to prevent buffer overflow.
- * @note The provided `digits` array must have enough elements to cover the entire radix used for conversion. Otherwise, undefined behavior may occur.
- */
-int esp_rom_cvt(unsigned long long val, long radix, int pad, const char *digits, char *buf);
 
 /**
  * @brief Pauses execution for us microseconds
@@ -152,17 +122,6 @@ uint32_t esp_rom_get_cpu_ticks_per_us(void);
  * @param ticks_per_us CPU ticks per us
  */
 void esp_rom_set_cpu_ticks_per_us(uint32_t ticks_per_us);
-
-#if SOC_RECOVERY_BOOTLOADER_SUPPORTED || __DOXYGEN__
-/**
- * @brief Returns the offset from which the bootloader image is used to load.
- *
- * The offset can point to either the PRIMARY or RECOVERY bootloader.
- *
- * @return The offset of the active bootloader.
- */
-uint32_t esp_rom_get_bootloader_offset(void);
-#endif // SOC_RECOVERY_BOOTLOADER_SUPPORTED
 
 #ifdef __cplusplus
 }

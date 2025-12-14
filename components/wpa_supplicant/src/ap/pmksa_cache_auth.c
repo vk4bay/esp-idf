@@ -19,7 +19,7 @@
 #include "ap/ieee802_1x.h"
 
 static const int pmksa_cache_max_entries = 10;
-static const int dot11RSNAConfigPMKLifetime = INT32_MAX;
+static const int dot11RSNAConfigPMKLifetime = 8640000;
 
 
 struct rsn_pmksa_cache {

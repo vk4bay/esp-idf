@@ -12,12 +12,14 @@
 #include "esp_compiler.h"
 
 #include "esp_private/system_internal.h"
+#include "esp_private/usb_console.h"
 
 #include "esp_cpu.h"
 #include "soc/rtc.h"
 #include "hal/timer_hal.h"
 #include "hal/wdt_types.h"
 #include "hal/wdt_hal.h"
+#include "hal/mwdt_ll.h"
 #include "esp_private/esp_int_wdt.h"
 
 #include "esp_private/panic_internal.h"
@@ -37,9 +39,18 @@
 #include "esp_core_dump.h"
 #endif
 
-#if CONFIG_ESP_TRACE_ENABLE
-#include "esp_trace.h"
+#if CONFIG_APPTRACE_ENABLE
+#include "esp_app_trace.h"
+#if CONFIG_APPTRACE_SV_ENABLE
+#include "SEGGER_RTT.h"
 #endif
+
+#if CONFIG_APPTRACE_ONPANIC_HOST_FLUSH_TMO == -1
+#define APPTRACE_ONPANIC_HOST_FLUSH_TMO   ESP_APPTRACE_TMO_INFINITE
+#else
+#define APPTRACE_ONPANIC_HOST_FLUSH_TMO   (1000*CONFIG_APPTRACE_ONPANIC_HOST_FLUSH_TMO)
+#endif
+#endif // CONFIG_APPTRACE_ENABLE
 
 #if !CONFIG_ESP_SYSTEM_PANIC_SILENT_REBOOT
 #include "hal/uart_hal.h"
@@ -51,10 +62,6 @@
 
 #if CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG || CONFIG_ESP_CONSOLE_SECONDARY_USB_SERIAL_JTAG
 #include "hal/usb_serial_jtag_ll.h"
-#endif
-
-#if CONFIG_ESP_CONSOLE_USB_CDC
-#include "esp_private/usb_console.h"
 #endif
 
 #ifdef __XTENSA__
@@ -185,12 +192,12 @@ void esp_panic_handler_disable_timg_wdts(void)
     wdt_hal_disable(&wdt0_context);
     wdt_hal_write_protect_enable(&wdt0_context);
 
-#if TIMG_LL_GET(INST_NUM) >= 2
+#if SOC_TIMER_GROUPS >= 2
     wdt_hal_context_t wdt1_context = {.inst = WDT_MWDT1, .mwdt_dev = &TIMERG1};
     wdt_hal_write_protect_disable(&wdt1_context);
     wdt_hal_disable(&wdt1_context);
     wdt_hal_write_protect_enable(&wdt1_context);
-#endif /* TIMG_LL_GET(INST_NUM) >= 2 */
+#endif /* SOC_TIMER_GROUPS >= 2 */
 }
 
 /* This function enables the RTC WDT with the given timeout in milliseconds */
@@ -225,7 +232,7 @@ void esp_panic_handler_feed_wdts(void)
         wdt_hal_write_protect_enable(&wdt0_context);
     }
 
-#if TIMG_LL_GET(INST_NUM) >= 2
+#if SOC_TIMER_GROUPS >= 2
     // Feed Timer Group 1 WDT
     wdt_hal_context_t wdt1_context = {.inst = WDT_MWDT1, .mwdt_dev = &TIMERG1};
     if (wdt_hal_is_enabled(&wdt1_context)) {
@@ -233,7 +240,7 @@ void esp_panic_handler_feed_wdts(void)
         wdt_hal_feed(&wdt1_context);
         wdt_hal_write_protect_enable(&wdt1_context);
     }
-#endif /* TIMG_LL_GET(INST_NUM) >= 2 */
+#endif /* SOC_TIMER_GROUPS >= 2 */
 
     // Feed RTC WDT
     if (wdt_hal_is_enabled(&rtc_wdt_ctx)) {
@@ -253,14 +260,6 @@ static inline void disable_all_wdts(void)
     wdt_hal_write_protect_disable(&rtc_wdt_ctx);
     wdt_hal_disable(&rtc_wdt_ctx);
     wdt_hal_write_protect_enable(&rtc_wdt_ctx);
-}
-
-/* IRAM-only halt stub: reset modules, then loop */
-void IRAM_ATTR esp_panic_handler_reset_modules_on_exit_and_halt(void)
-{
-    // Do not print or call non-IRAM functions beyond this point
-    esp_system_reset_modules_on_exit();
-    ESP_INFINITE_LOOP();
 }
 
 /********************** Panic handler functions **********************/
@@ -358,9 +357,13 @@ void esp_panic_handler(panic_info_t *info)
         panic_print_str("Setting breakpoint at 0x");
         panic_print_hex((uint32_t)info->addr);
         panic_print_str(" and returning...\r\n");
-
-#if CONFIG_ESP_TRACE_ENABLE
-        esp_trace_panic_handler(info);
+#if CONFIG_APPTRACE_ENABLE
+#if CONFIG_APPTRACE_SV_ENABLE
+        SEGGER_RTT_ESP_FlushNoLock(CONFIG_APPTRACE_POSTMORTEM_FLUSH_THRESH, APPTRACE_ONPANIC_HOST_FLUSH_TMO);
+#else
+        esp_apptrace_flush_nolock(ESP_APPTRACE_DEST_TRAX, CONFIG_APPTRACE_POSTMORTEM_FLUSH_THRESH,
+                                  APPTRACE_ONPANIC_HOST_FLUSH_TMO);
+#endif
 #endif
 
         disable_all_wdts();
@@ -376,9 +379,6 @@ void esp_panic_handler(panic_info_t *info)
 
     PANIC_INFO_DUMP(info, state);
     panic_print_str("\r\n");
-
-    // Now, after all panic info was printed we can clear active interrupts
-    panic_clear_active_interrupts(info->frame);
 
     /* No matter if we come here from abort or an exception, this variable must be reset.
      * Else, any exception/error occurring during the current panic handler would considered
@@ -396,10 +396,15 @@ void esp_panic_handler(panic_info_t *info)
 
     panic_print_str("\r\n");
 
-#if CONFIG_ESP_TRACE_ENABLE
+#if CONFIG_APPTRACE_ENABLE
     esp_panic_handler_feed_wdts();
-    esp_trace_panic_handler(info);
+#if CONFIG_APPTRACE_SV_ENABLE
+    SEGGER_RTT_ESP_FlushNoLock(CONFIG_APPTRACE_POSTMORTEM_FLUSH_THRESH, APPTRACE_ONPANIC_HOST_FLUSH_TMO);
+#else
+    esp_apptrace_flush_nolock(ESP_APPTRACE_DEST_TRAX, CONFIG_APPTRACE_POSTMORTEM_FLUSH_THRESH,
+                              APPTRACE_ONPANIC_HOST_FLUSH_TMO);
 #endif
+#endif // CONFIG_APPTRACE_ENABLE
 
 #if CONFIG_ESP_COREDUMP_ENABLE
     esp_panic_handler_feed_wdts();
@@ -450,21 +455,26 @@ void esp_panic_handler(panic_info_t *info)
     panic_print_str("Rebooting...\r\n");
     panic_restart();
 #else /* CONFIG_ESP_SYSTEM_PANIC_PRINT_REBOOT || CONFIG_ESP_SYSTEM_PANIC_SILENT_REBOOT */
-    esp_panic_handler_feed_wdts();
     panic_print_str("CPU halted.\r\n");
+    esp_system_reset_modules_on_exit();
     disable_all_wdts();
-    esp_panic_handler_reset_modules_on_exit_and_halt();
+    ESP_INFINITE_LOOP();
 #endif /* CONFIG_ESP_SYSTEM_PANIC_PRINT_REBOOT || CONFIG_ESP_SYSTEM_PANIC_SILENT_REBOOT */
 #endif /* CONFIG_ESP_SYSTEM_PANIC_GDBSTUB */
 }
 
-void __attribute__((noreturn, no_sanitize_undefined)) panic_abort(const char *details)
+void IRAM_ATTR __attribute__((noreturn, no_sanitize_undefined)) panic_abort(const char *details)
 {
     g_panic_abort = true;
     g_panic_abort_details = (char *) details;
 
-#if CONFIG_ESP_TRACE_ENABLE
-    esp_trace_panic_handler(NULL);
+#if CONFIG_APPTRACE_ENABLE
+#if CONFIG_APPTRACE_SV_ENABLE
+    SEGGER_RTT_ESP_FlushNoLock(CONFIG_APPTRACE_POSTMORTEM_FLUSH_THRESH, APPTRACE_ONPANIC_HOST_FLUSH_TMO);
+#else
+    esp_apptrace_flush_nolock(ESP_APPTRACE_DEST_TRAX, CONFIG_APPTRACE_POSTMORTEM_FLUSH_THRESH,
+                              APPTRACE_ONPANIC_HOST_FLUSH_TMO);
+#endif
 #endif
 
 #ifdef __XTENSA__
@@ -480,11 +490,11 @@ void __attribute__((noreturn, no_sanitize_undefined)) panic_abort(const char *de
  * If these weren't provided, reset reason code would be linked into the app
  * even if the app never called esp_reset_reason().
  */
-void __attribute__((weak)) esp_reset_reason_set_hint(esp_reset_reason_t hint)
+void IRAM_ATTR __attribute__((weak)) esp_reset_reason_set_hint(esp_reset_reason_t hint)
 {
 }
 
-esp_reset_reason_t __attribute__((weak)) esp_reset_reason_get_hint(void)
+esp_reset_reason_t IRAM_ATTR  __attribute__((weak)) esp_reset_reason_get_hint(void)
 {
     return ESP_RST_UNKNOWN;
 }

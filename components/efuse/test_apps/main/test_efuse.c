@@ -30,7 +30,7 @@
 
 #define TASK_PRIORITY (5)
 
-ESP_LOG_ATTR_TAG(TAG, "efuse_test");
+__attribute__((unused)) static const char* TAG = "efuse_test";
 
 
 static void test_read_blob(void)

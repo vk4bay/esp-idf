@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 #
-# SPDX-FileCopyrightText: 2019-2025 Espressif Systems (Shanghai) CO LTD
+# SPDX-FileCopyrightText: 2019-2024 Espressif Systems (Shanghai) CO LTD
 # SPDX-License-Identifier: Apache-2.0
 import json
 import os
@@ -9,13 +9,12 @@ import shutil
 import sys
 import tempfile
 import unittest
-from subprocess import STDOUT
 from subprocess import check_call
+from subprocess import STDOUT
 from unittest.mock import patch
 
 try:
-    from contextlib import redirect_stderr
-    from contextlib import redirect_stdout
+    from contextlib import redirect_stdout, redirect_stderr
 except ImportError:
     import contextlib
 
@@ -32,7 +31,6 @@ except ImportError:
         sys.stderr = target
         yield
         sys.stderr = original
-
 
 try:
     from cStringIO import StringIO
@@ -66,12 +64,12 @@ DFU_UTIL = 'dfu-util'
 
 
 def get_version_dict():
-    """
+    '''
     Return a dictionary with tool name to tool version mapping.
 
     It works with tools.json directly and not through idf_tools.py in order to bypass the script under test. This is
     a little hacky but thanks to this, versions are not required to be updated here every time a tool is updated.
-    """
+    '''
     with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'tools.json')) as f:
         tools_obj = json.loads(f.read())
 
@@ -100,23 +98,20 @@ DFU_UTIL_VERSION = version_dict[DFU_UTIL]
 
 # Avoiding an ambiguity with a substring 'riscv32-esp-elf' in the `riscv32-esp-elf-gdb`
 # (removing esp- prefix from version)
-RISCV_ELF_ARCHIVE_PATTERN = (
-    RISCV_ELF + '-' + (RISCV_ELF_VERSION[len('esp-') :] if RISCV_ELF_VERSION.startswith('esp-') else RISCV_ELF_VERSION)
-)
+RISCV_ELF_ARCHIVE_PATTERN = RISCV_ELF + '-' \
+    + (RISCV_ELF_VERSION[len('esp-'):] if RISCV_ELF_VERSION.startswith('esp-') else RISCV_ELF_VERSION)
 
 # The same like above
-XTENSA_ELF_ARCHIVE_PATTERN = (
-    XTENSA_ELF
-    + '-'
-    + (XTENSA_ELF_VERSION[len('esp-') :] if XTENSA_ELF_VERSION.startswith('esp-') else XTENSA_ELF_VERSION)
-)
+XTENSA_ELF_ARCHIVE_PATTERN = XTENSA_ELF + '-' \
+    + (XTENSA_ELF_VERSION[len('esp-'):] if XTENSA_ELF_VERSION.startswith('esp-') else XTENSA_ELF_VERSION)
 
 
 # TestUsageBase takes care of general test setup to use the idf_tools commands
 class TestUsageBase(unittest.TestCase):
+
     @classmethod
     def setUpClass(cls):
-        with open(os.path.join(os.getenv('IDF_PATH'), 'tools/tools.json')) as json_file:
+        with open(os.path.join(os.getenv('IDF_PATH'), 'tools/tools.json'), 'r') as json_file:
             tools_dict = json.load(json_file)
         cls.tools_dict = tools_dict
 
@@ -127,12 +122,8 @@ class TestUsageBase(unittest.TestCase):
             # These are are all mapping to filesystem. Windows cannot download from there not even if file:// is omitted
             local = ''.join(['file://', os.path.join(old_tools_dir, 'dist', '')])
 
-            mirror_prefix_map = ';'.join(
-                [
-                    f'https://dl.espressif.com/dl,{local}',
-                    f'https://github.com/.*/.*/releases/download/.*/,{local}',
-                ]
-            )
+            mirror_prefix_map = ';'.join([f'https://dl.espressif.com/dl,{local}',
+                                          f'https://github.com/.*/.*/releases/download/.*/,{local}'])
 
         # Windows will keep downloading the tools from default location or IDF_MIRROR_PREFIX_MAP if set globally
 
@@ -142,7 +133,7 @@ class TestUsageBase(unittest.TestCase):
 
         cls.temp_tools_dir = tempfile.mkdtemp(prefix='idf_tools_tmp')
 
-        print(f'Using IDF_TOOLS_PATH={cls.temp_tools_dir}')
+        print('Using IDF_TOOLS_PATH={}'.format(cls.temp_tools_dir))
         os.environ['IDF_TOOLS_PATH'] = cls.temp_tools_dir
         cls.idf_env_json = os.path.join(cls.temp_tools_dir, 'idf-env.json')
 
@@ -163,13 +154,13 @@ class TestUsageBase(unittest.TestCase):
     def assert_tool_installed(self, output, tool, tool_version, tool_archive_name=None):
         if tool_archive_name is None:
             tool_archive_name = tool
-        self.assertIn(f'Installing {tool}@{tool_version}', output)
+        self.assertIn('Installing %s@' % tool + tool_version, output)
         self.assertRegex(output, re.compile(rf'Downloading \S+{tool_archive_name}'))
 
     def assert_tool_not_installed(self, output, tool, tool_version, tool_archive_name=None):
         if tool_archive_name is None:
             tool_archive_name = tool
-        self.assertNotIn(f'Installing {tool}@{tool_version}', output)
+        self.assertNotIn('Installing %s@' % tool + tool_version, output)
         self.assertNotRegex(output, re.compile(rf'Downloading \S+{tool_archive_name}'))
 
     def run_idf_tools_with_action(self, action):
@@ -202,11 +193,12 @@ class TestUsageBase(unittest.TestCase):
 # TestUsage executes tests that behaves the same on both platforms
 # TestUsage class serves as a parent for classes TestUsageUnix and TestUsageWin
 class TestUsage(TestUsageBase):
+
     def test_tools_for_wildcards1(self):
         required_tools_installed = 2
         output = self.run_idf_tools_with_action(['install', '*gdb*'])
         self.assert_tool_not_installed(output, OPENOCD, OPENOCD_VERSION)
-        self.assert_tool_not_installed(output, RISCV_ELF, RISCV_ELF_VERSION, RISCV_ELF_ARCHIVE_PATTERN)
+        self.assert_tool_not_installed(output, RISCV_ELF, RISCV_ELF_VERSION,RISCV_ELF_ARCHIVE_PATTERN)
         self.assert_tool_installed(output, RISCV_ESP_GDB, RISCV_ESP_GDB_VERSION)
         self.assert_tool_not_installed(output, XTENSA_ELF, XTENSA_ELF_VERSION, XTENSA_ELF_ARCHIVE_PATTERN)
         self.assert_tool_not_installed(output, ESP32ULP, ESP32ULP_VERSION)
@@ -259,27 +251,22 @@ class TestUsage(TestUsageBase):
                 '--checksum-file',
                 'add_version/checksum.sha256',
                 '--output',
-                tools_json_new,
-            ]
-        )
+                tools_json_new
+            ])
         output = self.run_idf_tools_with_action(['--tools-json', tools_json_new, 'uninstall', '--dry-run'])
         self.assertIn('For removing old versions of ' + test_tool_name, output)
-        output = self.run_idf_tools_with_action(['--tools-json', tools_json_new, 'uninstall'])
-        self.assertIn(
-            os.path.join(self.temp_tools_dir, 'tools', test_tool_name, XTENSA_ELF_VERSION) + ' was removed.', output
-        )
+        output = self.run_idf_tools_with_action(['--tools-json',  tools_json_new, 'uninstall'])
+        self.assertIn(os.path.join(self.temp_tools_dir, 'tools', test_tool_name, XTENSA_ELF_VERSION) + ' was removed.', output)
         output = self.run_idf_tools_with_action(['uninstall'])
         self.assertEqual('', output)
 
     def test_deactivate(self):
         self.run_idf_tools_with_action(['install'])
         output = self.run_idf_tools_with_action(['export'])
-        self.assertIn(
-            'export IDF_DEACTIVATE_FILE_PATH=', output, 'No IDF_DEACTIVATE_FILE_PATH exported into environment'
-        )
+        self.assertIn('export IDF_DEACTIVATE_FILE_PATH=', output, 'No IDF_DEACTIVATE_FILE_PATH exported into environment')
         deactivate_file = re.findall(r'(?:IDF_DEACTIVATE_FILE_PATH=")(.*)(?:")', output)[0]
-        self.assertTrue(os.path.isfile(deactivate_file), f'File {deactivate_file} was not found. ')
-        self.assertNotEqual(os.stat(self.idf_env_json).st_size, 0, f'File {deactivate_file} is empty. ')
+        self.assertTrue(os.path.isfile(deactivate_file), 'File {} was not found. '.format(deactivate_file))
+        self.assertNotEqual(os.stat(self.idf_env_json).st_size, 0, 'File {} is empty. '.format(deactivate_file))
 
     def test_export_recommended_version(self):
         always_install_and_recommended_tools = []
@@ -289,7 +276,10 @@ class TestUsage(TestUsageBase):
             for version in tool['versions']:
                 if version['status'] != 'recommended':
                     continue
-                always_install_and_recommended_tools.append({'name': tool['name'], 'version': version['name']})
+                always_install_and_recommended_tools.append({
+                    'name': tool['name'],
+                    'version': version['name']
+                })
         self.run_idf_tools_with_action(['install'])
         output = self.run_idf_tools_with_action(['export'])
 
@@ -313,32 +303,6 @@ class TestUsage(TestUsageBase):
 
         self.assertIn(os.path.join(tool_to_test, tool_version), output)
 
-    def test_export_supported_version_cmake(self):
-        tool_to_test = 'cmake'
-        supported_version = ''
-        recommended_version = ''
-        for tool in self.tools_dict['tools']:
-            if tool['name'] != tool_to_test:
-                continue
-            for version in tool['versions']:
-                if version['status'] == 'supported':
-                    supported_version = version['name']
-                elif version['status'] == 'recommended':
-                    recommended_version = version['name']
-
-        self.run_idf_tools_with_action(['install'])
-        output = self.run_idf_tools_with_action(['install', f'{tool_to_test}@{supported_version}'])
-        self.assert_tool_installed(output, tool_to_test, supported_version)
-
-        # Remove the recommended version folder installed by install command (in case of Windows)
-        recommended_version_folder = os.path.join(self.temp_tools_dir, 'tools', tool_to_test, recommended_version)
-        if os.path.exists(recommended_version_folder):
-            shutil.rmtree(recommended_version_folder)
-
-        output = self.run_idf_tools_with_action(['export'])
-        self.assertIn(os.path.join(tool_to_test, supported_version), output)
-        self.assertNotIn(os.path.join(tool_to_test, recommended_version), output)
-
     def test_export_prefer_system_cmake(self):
         tool_to_test = 'cmake'
         self.run_idf_tools_with_action(['install'])
@@ -358,25 +322,24 @@ class TestUsage(TestUsageBase):
 
             self.run_idf_tools_with_action(['install', OPENOCD])
             output = self.run_idf_tools_with_action(['export'])
-            self.assertIn(
-                os.path.join(self.temp_tools_dir, 'tools', 'openocd-esp32', OPENOCD_VERSION, 'openocd-esp32', 'bin'),
-                output,
-            )
+            self.assertIn('%s/tools/openocd-esp32/%s/openocd-esp32/bin' %
+                          (self.temp_tools_dir, OPENOCD_VERSION), output)
 
 
 # TestUsageUnix tests installed tools on UNIX platforms
 @unittest.skipIf(sys.platform == 'win32', reason='Tools for UNIX differ')
 class TestUsageUnix(TestUsage):
+
     def test_usage_basic(self):
         output = self.run_idf_tools_with_action(['list'])
-        self.assertIn(f'* {ESP32ULP}:', output)
-        self.assertIn(f'- {ESP32ULP_VERSION} (recommended)', output)
-        self.assertIn(f'* {OPENOCD}:', output)
-        self.assertIn(f'- {OPENOCD_VERSION} (recommended)', output)
-        self.assertIn(f'* {RISCV_ELF}:', output)
-        self.assertIn(f'- {RISCV_ELF_VERSION} (recommended)', output)
-        self.assertIn(f'* {XTENSA_ELF}:', output)
-        self.assertIn(f'- {XTENSA_ELF_VERSION} (recommended)', output)
+        self.assertIn('* %s:' % ESP32ULP, output)
+        self.assertIn('- %s (recommended)' % ESP32ULP_VERSION, output)
+        self.assertIn('* %s:' % OPENOCD, output)
+        self.assertIn('- %s (recommended)' % OPENOCD_VERSION, output)
+        self.assertIn('* %s:' % RISCV_ELF, output)
+        self.assertIn('- %s (recommended)' % RISCV_ELF_VERSION, output)
+        self.assertIn('* %s:' % XTENSA_ELF, output)
+        self.assertIn('- %s (recommended)' % XTENSA_ELF_VERSION, output)
 
         required_tools_installed = 7
         output = self.run_idf_tools_with_action(['install'])
@@ -391,31 +354,25 @@ class TestUsageUnix(TestUsage):
         self.assertEqual(required_tools_installed, output.count('Done'))
 
         output = self.run_idf_tools_with_action(['check'])
-        for tool_version in [
-            ESP32ULP_VERSION,
-            OPENOCD_VERSION,
-            RISCV_ELF_VERSION,
-            XTENSA_ELF_VERSION,
-            XTENSA_ESP_GDB_VERSION,
-            RISCV_ESP_GDB_VERSION,
-            ESP_ROM_ELFS_VERSION,
-        ]:
+        for tool_version in [ESP32ULP_VERSION, OPENOCD_VERSION, RISCV_ELF_VERSION, XTENSA_ELF_VERSION,
+                             XTENSA_ESP_GDB_VERSION, RISCV_ESP_GDB_VERSION, ESP_ROM_ELFS_VERSION]:
             self.assertIn('version installed in tools directory: ' + tool_version, output)
 
         output = self.run_idf_tools_with_action(['export'])
-        self.assertIn(f'{self.temp_tools_dir}/tools/esp32ulp-elf/{ESP32ULP_VERSION}/esp32ulp-elf/bin', output)
-        self.assertIn(f'{self.temp_tools_dir}/tools/xtensa-esp-elf/{XTENSA_ELF_VERSION}/xtensa-esp-elf/bin', output)
-        self.assertIn(f'{self.temp_tools_dir}/tools/openocd-esp32/{OPENOCD_VERSION}/openocd-esp32/bin', output)
-        self.assertIn(f'{self.temp_tools_dir}/tools/riscv32-esp-elf/{RISCV_ELF_VERSION}/riscv32-esp-elf/bin', output)
-        self.assertIn(
-            f'{self.temp_tools_dir}/tools/xtensa-esp-elf-gdb/{XTENSA_ESP_GDB_VERSION}/xtensa-esp-elf-gdb/bin',
-            output,
-        )
-        self.assertIn(
-            f'{self.temp_tools_dir}/tools/riscv32-esp-elf-gdb/{RISCV_ESP_GDB_VERSION}/riscv32-esp-elf-gdb/bin',
-            output,
-        )
-        self.assertIn(f'{self.temp_tools_dir}/tools/esp-rom-elfs/{ESP_ROM_ELFS_VERSION}/', output)
+        self.assertIn('%s/tools/esp32ulp-elf/%s/esp32ulp-elf/bin' %
+                      (self.temp_tools_dir, ESP32ULP_VERSION), output)
+        self.assertIn('%s/tools/xtensa-esp-elf/%s/xtensa-esp-elf/bin' %
+                      (self.temp_tools_dir, XTENSA_ELF_VERSION), output)
+        self.assertIn('%s/tools/openocd-esp32/%s/openocd-esp32/bin' %
+                      (self.temp_tools_dir, OPENOCD_VERSION), output)
+        self.assertIn('%s/tools/riscv32-esp-elf/%s/riscv32-esp-elf/bin' %
+                      (self.temp_tools_dir, RISCV_ELF_VERSION), output)
+        self.assertIn('%s/tools/xtensa-esp-elf-gdb/%s/xtensa-esp-elf-gdb/bin' %
+                      (self.temp_tools_dir, XTENSA_ESP_GDB_VERSION), output)
+        self.assertIn('%s/tools/riscv32-esp-elf-gdb/%s/riscv32-esp-elf-gdb/bin' %
+                      (self.temp_tools_dir, RISCV_ESP_GDB_VERSION), output)
+        self.assertIn('%s/tools/esp-rom-elfs/%s/' %
+                      (self.temp_tools_dir, ESP_ROM_ELFS_VERSION), output)
 
         output = self.run_idf_tools_with_action(['list', '--outdated'])
         self.assertEqual('', output)
@@ -435,12 +392,18 @@ class TestUsageUnix(TestUsage):
                 '--checksum-file',
                 'add_version/checksum.sha256',
                 '--output',
-                tools_json_outdated,
-            ]
-        )
+                tools_json_outdated
+            ])
 
-        output = self.run_idf_tools_with_action(['--tools-json', tools_json_outdated, 'list', '--outdated'])
-        self.assertIn((f'{XTENSA_ELF}: version {XTENSA_ELF_VERSION} is outdated by {new_version}'), output)
+        output = self.run_idf_tools_with_action(
+            [
+                '--tools-json',
+                tools_json_outdated,
+                'list',
+                '--outdated'
+            ])
+        self.assertIn((f'{XTENSA_ELF}: version {XTENSA_ELF_VERSION} '
+                       f'is outdated by {new_version}'), output)
 
     def test_tools_for_esp32(self):
         required_tools_installed = 5
@@ -456,29 +419,25 @@ class TestUsageUnix(TestUsage):
         self.assertEqual(required_tools_installed, output.count('Done'))
 
         output = self.run_idf_tools_with_action(['check'])
-        for tool_version in [
-            ESP32ULP_VERSION,
-            OPENOCD_VERSION,
-            XTENSA_ELF_VERSION,
-            XTENSA_ESP_GDB_VERSION,
-            ESP_ROM_ELFS_VERSION,
-        ]:
+        for tool_version in [ESP32ULP_VERSION, OPENOCD_VERSION, XTENSA_ELF_VERSION,
+                             XTENSA_ESP_GDB_VERSION, ESP_ROM_ELFS_VERSION]:
             self.assertIn('version installed in tools directory: ' + tool_version, output)
 
         output = self.run_idf_tools_with_action(['export'])
-        self.assertIn(f'{self.temp_tools_dir}/tools/esp32ulp-elf/{ESP32ULP_VERSION}/esp32ulp-elf/bin', output)
-        self.assertIn(f'{self.temp_tools_dir}/tools/xtensa-esp-elf/{XTENSA_ELF_VERSION}/xtensa-esp-elf/bin', output)
-        self.assertIn(f'{self.temp_tools_dir}/tools/openocd-esp32/{OPENOCD_VERSION}/openocd-esp32/bin', output)
-        self.assertIn(
-            f'{self.temp_tools_dir}/tools/xtensa-esp-elf-gdb/{XTENSA_ESP_GDB_VERSION}/xtensa-esp-elf-gdb/bin',
-            output,
-        )
-        self.assertNotIn(f'{self.temp_tools_dir}/tools/riscv32-esp-elf/{RISCV_ELF_VERSION}/riscv32-esp-elf/bin', output)
-        self.assertNotIn(
-            f'{self.temp_tools_dir}/tools/riscv32-esp-elf-gdb/{RISCV_ESP_GDB_VERSION}/riscv32-esp-elf-gdb/bin',
-            output,
-        )
-        self.assertIn(f'{self.temp_tools_dir}/tools/esp-rom-elfs/{ESP_ROM_ELFS_VERSION}/', output)
+        self.assertIn('%s/tools/esp32ulp-elf/%s/esp32ulp-elf/bin' %
+                      (self.temp_tools_dir, ESP32ULP_VERSION), output)
+        self.assertIn('%s/tools/xtensa-esp-elf/%s/xtensa-esp-elf/bin' %
+                      (self.temp_tools_dir, XTENSA_ELF_VERSION), output)
+        self.assertIn('%s/tools/openocd-esp32/%s/openocd-esp32/bin' %
+                      (self.temp_tools_dir, OPENOCD_VERSION), output)
+        self.assertIn('%s/tools/xtensa-esp-elf-gdb/%s/xtensa-esp-elf-gdb/bin' %
+                      (self.temp_tools_dir, XTENSA_ESP_GDB_VERSION), output)
+        self.assertNotIn('%s/tools/riscv32-esp-elf/%s/riscv32-esp-elf/bin' %
+                         (self.temp_tools_dir, RISCV_ELF_VERSION), output)
+        self.assertNotIn('%s/tools/riscv32-esp-elf-gdb/%s/riscv32-esp-elf-gdb/bin' %
+                         (self.temp_tools_dir, RISCV_ESP_GDB_VERSION), output)
+        self.assertIn('%s/tools/esp-rom-elfs/%s/' %
+                      (self.temp_tools_dir, ESP_ROM_ELFS_VERSION), output)
 
     def test_tools_for_esp32c3(self):
         required_tools_installed = 4
@@ -498,15 +457,18 @@ class TestUsageUnix(TestUsage):
             self.assertIn('version installed in tools directory: ' + tool_version, output)
 
         output = self.run_idf_tools_with_action(['export'])
-        self.assertIn(f'{self.temp_tools_dir}/tools/openocd-esp32/{OPENOCD_VERSION}/openocd-esp32/bin', output)
-        self.assertIn(f'{self.temp_tools_dir}/tools/riscv32-esp-elf/{RISCV_ELF_VERSION}/riscv32-esp-elf/bin', output)
-        self.assertNotIn(f'{self.temp_tools_dir}/tools/esp32ulp-elf/{ESP32ULP_VERSION}/esp32ulp-elf/bin', output)
-        self.assertNotIn(f'{self.temp_tools_dir}/tools/xtensa-esp-elf/{XTENSA_ELF_VERSION}/xtensa-esp-elf/bin', output)
-        self.assertNotIn(
-            f'{self.temp_tools_dir}/tools/xtensa-esp-elf-gdb/{XTENSA_ESP_GDB_VERSION}/xtensa-esp-elf-gdb/bin',
-            output,
-        )
-        self.assertIn(f'{self.temp_tools_dir}/tools/esp-rom-elfs/{ESP_ROM_ELFS_VERSION}/', output)
+        self.assertIn('%s/tools/openocd-esp32/%s/openocd-esp32/bin' %
+                      (self.temp_tools_dir, OPENOCD_VERSION), output)
+        self.assertIn('%s/tools/riscv32-esp-elf/%s/riscv32-esp-elf/bin' %
+                      (self.temp_tools_dir, RISCV_ELF_VERSION), output)
+        self.assertNotIn('%s/tools/esp32ulp-elf/%s/esp32ulp-elf/bin' %
+                         (self.temp_tools_dir, ESP32ULP_VERSION), output)
+        self.assertNotIn('%s/tools/xtensa-esp-elf/%s/xtensa-esp-elf/bin' %
+                         (self.temp_tools_dir, XTENSA_ELF_VERSION), output)
+        self.assertNotIn('%s/tools/xtensa-esp-elf-gdb/%s/xtensa-esp-elf-gdb/bin' %
+                         (self.temp_tools_dir, XTENSA_ESP_GDB_VERSION), output)
+        self.assertIn('%s/tools/esp-rom-elfs/%s/' %
+                      (self.temp_tools_dir, ESP_ROM_ELFS_VERSION), output)
 
     def test_tools_for_esp32s2(self):
         required_tools_installed = 6
@@ -526,19 +488,20 @@ class TestUsageUnix(TestUsage):
             self.assertIn('version installed in tools directory: ' + tool_version, output)
 
         output = self.run_idf_tools_with_action(['export'])
-        self.assertIn(f'{self.temp_tools_dir}/tools/xtensa-esp-elf/{XTENSA_ELF_VERSION}/xtensa-esp-elf/bin', output)
-        self.assertIn(f'{self.temp_tools_dir}/tools/openocd-esp32/{OPENOCD_VERSION}/openocd-esp32/bin', output)
-        self.assertIn(f'{self.temp_tools_dir}/tools/esp32ulp-elf/{ESP32ULP_VERSION}/esp32ulp-elf/bin', output)
-        self.assertIn(f'{self.temp_tools_dir}/tools/riscv32-esp-elf/{RISCV_ELF_VERSION}/riscv32-esp-elf/bin', output)
-        self.assertIn(
-            f'{self.temp_tools_dir}/tools/xtensa-esp-elf-gdb/{XTENSA_ESP_GDB_VERSION}/xtensa-esp-elf-gdb/bin',
-            output,
-        )
-        self.assertNotIn(
-            f'{self.temp_tools_dir}/tools/riscv32-esp-elf-gdb/{RISCV_ESP_GDB_VERSION}/riscv32-esp-elf-gdb/bin',
-            output,
-        )
-        self.assertIn(f'{self.temp_tools_dir}/tools/esp-rom-elfs/{ESP_ROM_ELFS_VERSION}/', output)
+        self.assertIn('%s/tools/xtensa-esp-elf/%s/xtensa-esp-elf/bin' %
+                      (self.temp_tools_dir, XTENSA_ELF_VERSION), output)
+        self.assertIn('%s/tools/openocd-esp32/%s/openocd-esp32/bin' %
+                      (self.temp_tools_dir, OPENOCD_VERSION), output)
+        self.assertIn('%s/tools/esp32ulp-elf/%s/esp32ulp-elf/bin' %
+                      (self.temp_tools_dir, ESP32ULP_VERSION), output)
+        self.assertIn('%s/tools/riscv32-esp-elf/%s/riscv32-esp-elf/bin' %
+                      (self.temp_tools_dir, RISCV_ELF_VERSION), output)
+        self.assertIn('%s/tools/xtensa-esp-elf-gdb/%s/xtensa-esp-elf-gdb/bin' %
+                      (self.temp_tools_dir, XTENSA_ESP_GDB_VERSION), output)
+        self.assertNotIn('%s/tools/riscv32-esp-elf-gdb/%s/riscv32-esp-elf-gdb/bin' %
+                         (self.temp_tools_dir, RISCV_ESP_GDB_VERSION), output)
+        self.assertIn('%s/tools/esp-rom-elfs/%s/' %
+                      (self.temp_tools_dir, ESP_ROM_ELFS_VERSION), output)
 
     def test_tools_for_esp32s3(self):
         required_tools_installed = 6
@@ -554,29 +517,25 @@ class TestUsageUnix(TestUsage):
         self.assertEqual(required_tools_installed, output.count('Done'))
 
         output = self.run_idf_tools_with_action(['check'])
-        for tool_version in [
-            OPENOCD_VERSION,
-            XTENSA_ELF_VERSION,
-            XTENSA_ESP_GDB_VERSION,
-            RISCV_ESP_GDB_VERSION,
-            ESP_ROM_ELFS_VERSION,
-        ]:
+        for tool_version in [OPENOCD_VERSION, XTENSA_ELF_VERSION, XTENSA_ESP_GDB_VERSION,
+                             RISCV_ESP_GDB_VERSION, ESP_ROM_ELFS_VERSION]:
             self.assertIn('version installed in tools directory: ' + tool_version, output)
 
         output = self.run_idf_tools_with_action(['export'])
-        self.assertIn(f'{self.temp_tools_dir}/tools/openocd-esp32/{OPENOCD_VERSION}/openocd-esp32/bin', output)
-        self.assertIn(f'{self.temp_tools_dir}/tools/xtensa-esp-elf/{XTENSA_ELF_VERSION}/xtensa-esp-elf/bin', output)
-        self.assertIn(f'{self.temp_tools_dir}/tools/esp32ulp-elf/{ESP32ULP_VERSION}/esp32ulp-elf/bin', output)
-        self.assertIn(f'{self.temp_tools_dir}/tools/riscv32-esp-elf/{RISCV_ELF_VERSION}/riscv32-esp-elf/bin', output)
-        self.assertIn(
-            f'{self.temp_tools_dir}/tools/xtensa-esp-elf-gdb/{XTENSA_ESP_GDB_VERSION}/xtensa-esp-elf-gdb/bin',
-            output,
-        )
-        self.assertNotIn(
-            f'{self.temp_tools_dir}/tools/riscv32-esp-elf-gdb/{RISCV_ESP_GDB_VERSION}/riscv32-esp-elf-gdb/bin',
-            output,
-        )
-        self.assertIn(f'{self.temp_tools_dir}/tools/esp-rom-elfs/{ESP_ROM_ELFS_VERSION}/', output)
+        self.assertIn('%s/tools/openocd-esp32/%s/openocd-esp32/bin' %
+                      (self.temp_tools_dir, OPENOCD_VERSION), output)
+        self.assertIn('%s/tools/xtensa-esp-elf/%s/xtensa-esp-elf/bin' %
+                      (self.temp_tools_dir, XTENSA_ELF_VERSION), output)
+        self.assertIn('%s/tools/esp32ulp-elf/%s/esp32ulp-elf/bin' %
+                      (self.temp_tools_dir, ESP32ULP_VERSION), output)
+        self.assertIn('%s/tools/riscv32-esp-elf/%s/riscv32-esp-elf/bin' %
+                      (self.temp_tools_dir, RISCV_ELF_VERSION), output)
+        self.assertIn('%s/tools/xtensa-esp-elf-gdb/%s/xtensa-esp-elf-gdb/bin' %
+                      (self.temp_tools_dir, XTENSA_ESP_GDB_VERSION), output)
+        self.assertNotIn('%s/tools/riscv32-esp-elf-gdb/%s/riscv32-esp-elf-gdb/bin' %
+                         (self.temp_tools_dir, RISCV_ESP_GDB_VERSION), output)
+        self.assertIn('%s/tools/esp-rom-elfs/%s/' %
+                      (self.temp_tools_dir, ESP_ROM_ELFS_VERSION), output)
 
     def test_tools_for_esp32p4(self):
         required_tools_installed = 4
@@ -596,24 +555,12 @@ class TestUsageUnix(TestUsage):
 
         output = self.run_idf_tools_with_action(['export'])
         self.assertIn(os.path.join(self.temp_tools_dir, 'tools', OPENOCD, OPENOCD_VERSION, OPENOCD, 'bin'), output)
-        self.assertIn(
-            os.path.join(self.temp_tools_dir, 'tools', RISCV_ELF, RISCV_ELF_VERSION, RISCV_ELF, 'bin'), output
-        )
+        self.assertIn(os.path.join(self.temp_tools_dir, 'tools', RISCV_ELF, RISCV_ELF_VERSION, RISCV_ELF, 'bin'), output)
         self.assertIn(os.path.join(self.temp_tools_dir, 'tools', ESP_ROM_ELFS, ESP_ROM_ELFS_VERSION, ''), output)
-        self.assertIn(
-            os.path.join(self.temp_tools_dir, 'tools', RISCV_ESP_GDB, RISCV_ESP_GDB_VERSION, RISCV_ESP_GDB, 'bin'),
-            output,
-        )
-        self.assertNotIn(
-            os.path.join(self.temp_tools_dir, 'tools', ESP32ULP, ESP32ULP_VERSION, ESP32ULP, 'bin'), output
-        )
-        self.assertNotIn(
-            os.path.join(self.temp_tools_dir, 'tools', XTENSA_ELF, XTENSA_ELF_VERSION, XTENSA_ELF, 'bin'), output
-        )
-        self.assertNotIn(
-            os.path.join(self.temp_tools_dir, 'tools', XTENSA_ESP_GDB, XTENSA_ESP_GDB_VERSION, XTENSA_ESP_GDB, 'bin'),
-            output,
-        )
+        self.assertIn(os.path.join(self.temp_tools_dir, 'tools', RISCV_ESP_GDB, RISCV_ESP_GDB_VERSION, RISCV_ESP_GDB, 'bin'), output)
+        self.assertNotIn(os.path.join(self.temp_tools_dir, 'tools', ESP32ULP, ESP32ULP_VERSION, ESP32ULP, 'bin'), output)
+        self.assertNotIn(os.path.join(self.temp_tools_dir, 'tools', XTENSA_ELF, XTENSA_ELF_VERSION, XTENSA_ELF, 'bin'), output)
+        self.assertNotIn(os.path.join(self.temp_tools_dir, 'tools', XTENSA_ESP_GDB, XTENSA_ESP_GDB_VERSION, XTENSA_ESP_GDB, 'bin'), output)
 
     # a different test for qemu because of "on_request"
     def test_tools_for_qemu_with_required(self):
@@ -642,16 +589,17 @@ class TestUsageUnix(TestUsage):
 # TestUsageWin tests installed tools on Windows platforms
 @unittest.skipIf(sys.platform != 'win32', reason='Tools for WIN differ')
 class TestUsageWin(TestUsage):
+
     def test_usage_basic_win(self):
         output = self.run_idf_tools_with_action(['list'])
-        self.assertIn(f'* {ESP32ULP}:', output)
-        self.assertIn(f'- {ESP32ULP_VERSION} (recommended)', output)
-        self.assertIn(f'* {OPENOCD}:', output)
-        self.assertIn(f'- {OPENOCD_VERSION} (recommended)', output)
-        self.assertIn(f'* {RISCV_ELF}:', output)
-        self.assertIn(f'- {RISCV_ELF_VERSION} (recommended)', output)
-        self.assertIn(f'* {XTENSA_ELF}:', output)
-        self.assertIn(f'- {XTENSA_ELF_VERSION} (recommended)', output)
+        self.assertIn('* %s:' % ESP32ULP, output)
+        self.assertIn('- %s (recommended)' % ESP32ULP_VERSION, output)
+        self.assertIn('* %s:' % OPENOCD, output)
+        self.assertIn('- %s (recommended)' % OPENOCD_VERSION, output)
+        self.assertIn('* %s:' % RISCV_ELF, output)
+        self.assertIn('- %s (recommended)' % RISCV_ELF_VERSION, output)
+        self.assertIn('* %s:' % XTENSA_ELF, output)
+        self.assertIn('- %s (recommended)' % XTENSA_ELF_VERSION, output)
 
         required_tools_installed = 12
         output = self.run_idf_tools_with_action(['install'])
@@ -671,59 +619,48 @@ class TestUsageWin(TestUsage):
         self.assertEqual(required_tools_installed, output.count('Done'))
 
         output = self.run_idf_tools_with_action(['check'])
-        for tool_version in [
-            ESP32ULP_VERSION,
-            OPENOCD_VERSION,
-            RISCV_ELF_VERSION,
-            XTENSA_ELF_VERSION,
-            XTENSA_ESP_GDB_VERSION,
-            RISCV_ESP_GDB_VERSION,
-            ESP_ROM_ELFS_VERSION,
-            CMAKE_VERSION,
-            NINJA_VERSION,
-            IDF_EXE_VERSION,
-            CCACHE_VERSION,
-            DFU_UTIL_VERSION,
-        ]:
+        for tool_version in [ESP32ULP_VERSION, OPENOCD_VERSION, RISCV_ELF_VERSION, XTENSA_ELF_VERSION,
+                             XTENSA_ESP_GDB_VERSION, RISCV_ESP_GDB_VERSION, ESP_ROM_ELFS_VERSION, CMAKE_VERSION,
+                             NINJA_VERSION, IDF_EXE_VERSION, CCACHE_VERSION, DFU_UTIL_VERSION]:
             self.assertIn('version installed in tools directory: ' + tool_version, output)
 
         output = self.run_idf_tools_with_action(['export'])
-        self.assertIn(
-            os.path.join(self.temp_tools_dir, 'tools', 'esp32ulp-elf', ESP32ULP_VERSION, 'esp32ulp-elf', 'bin'), output
-        )
-        self.assertIn(
-            os.path.join(self.temp_tools_dir, 'tools', 'xtensa-esp-elf', XTENSA_ELF_VERSION, 'xtensa-esp-elf', 'bin'),
-            output,
-        )
-        self.assertIn(
-            os.path.join(self.temp_tools_dir, 'tools', 'openocd-esp32', OPENOCD_VERSION, 'openocd-esp32', 'bin'), output
-        )
-        self.assertIn(
-            os.path.join(self.temp_tools_dir, 'tools', 'riscv32-esp-elf', RISCV_ELF_VERSION, 'riscv32-esp-elf', 'bin'),
-            output,
-        )
-        self.assertIn(
-            os.path.join(
-                self.temp_tools_dir, 'tools', 'xtensa-esp-elf-gdb', XTENSA_ESP_GDB_VERSION, 'xtensa-esp-elf-gdb', 'bin'
-            ),
-            output,
-        )
-        self.assertIn(
-            os.path.join(
-                self.temp_tools_dir, 'tools', 'riscv32-esp-elf-gdb', RISCV_ESP_GDB_VERSION, 'riscv32-esp-elf-gdb', 'bin'
-            ),
-            output,
-        )
-        self.assertIn(os.path.join(self.temp_tools_dir, 'tools', 'esp-rom-elfs', ESP_ROM_ELFS_VERSION), output)
-        self.assertIn(os.path.join(self.temp_tools_dir, 'tools', CMAKE, CMAKE_VERSION, 'bin'), output)
-        self.assertIn(os.path.join(self.temp_tools_dir, 'tools', NINJA, NINJA_VERSION), output)
-        self.assertIn(os.path.join(self.temp_tools_dir, 'tools', IDF_EXE, IDF_EXE_VERSION), output)
-        self.assertIn(
-            os.path.join(self.temp_tools_dir, 'tools', CCACHE, CCACHE_VERSION, 'ccache-4.12.1-windows-x86_64'), output
-        )
-        self.assertIn(
-            os.path.join(self.temp_tools_dir, 'tools', DFU_UTIL, DFU_UTIL_VERSION, 'dfu-util-0.11-win64'), output
-        )
+        self.assertIn(os.path.join(
+            self.temp_tools_dir, 'tools', 'esp32ulp-elf', ESP32ULP_VERSION, 'esp32ulp-elf', 'bin'
+        ), output)
+        self.assertIn(os.path.join(
+            self.temp_tools_dir, 'tools', 'xtensa-esp-elf', XTENSA_ELF_VERSION, 'xtensa-esp-elf', 'bin'
+        ), output)
+        self.assertIn(os.path.join(
+            self.temp_tools_dir, 'tools', 'openocd-esp32', OPENOCD_VERSION, 'openocd-esp32', 'bin'
+        ), output)
+        self.assertIn(os.path.join(
+            self.temp_tools_dir, 'tools', 'riscv32-esp-elf', RISCV_ELF_VERSION, 'riscv32-esp-elf', 'bin'
+        ), output)
+        self.assertIn(os.path.join(
+            self.temp_tools_dir, 'tools', 'xtensa-esp-elf-gdb', XTENSA_ESP_GDB_VERSION, 'xtensa-esp-elf-gdb', 'bin'
+        ), output)
+        self.assertIn(os.path.join(
+            self.temp_tools_dir, 'tools', 'riscv32-esp-elf-gdb', RISCV_ESP_GDB_VERSION, 'riscv32-esp-elf-gdb', 'bin'
+        ), output)
+        self.assertIn(os.path.join(
+            self.temp_tools_dir, 'tools', 'esp-rom-elfs', ESP_ROM_ELFS_VERSION
+        ), output)
+        self.assertIn(os.path.join(
+            self.temp_tools_dir, 'tools', CMAKE, CMAKE_VERSION, 'bin'
+        ), output)
+        self.assertIn(os.path.join(
+            self.temp_tools_dir, 'tools', NINJA, NINJA_VERSION
+        ), output)
+        self.assertIn(os.path.join(
+            self.temp_tools_dir, 'tools', IDF_EXE, IDF_EXE_VERSION
+        ), output)
+        self.assertIn(os.path.join(
+            self.temp_tools_dir, 'tools', CCACHE, CCACHE_VERSION, 'ccache-4.10.2-windows-x86_64'
+        ), output)
+        self.assertIn(os.path.join(
+            self.temp_tools_dir, 'tools', DFU_UTIL, DFU_UTIL_VERSION, 'dfu-util-0.11-win64'
+        ), output)
 
         output = self.run_idf_tools_with_action(['list', '--outdated'])
         self.assertEqual('', output)
@@ -743,12 +680,18 @@ class TestUsageWin(TestUsage):
                 '--checksum-file',
                 'add_version/checksum.sha256',
                 '--output',
-                tools_json_outdated,
-            ]
-        )
+                tools_json_outdated
+            ])
 
-        output = self.run_idf_tools_with_action(['--tools-json', tools_json_outdated, 'list', '--outdated'])
-        self.assertIn((f'{XTENSA_ELF}: version {XTENSA_ELF_VERSION} is outdated by {new_version}'), output)
+        output = self.run_idf_tools_with_action(
+            [
+                '--tools-json',
+                tools_json_outdated,
+                'list',
+                '--outdated'
+            ])
+        self.assertIn((f'{XTENSA_ELF}: version {XTENSA_ELF_VERSION} '
+                       f'is outdated by {new_version}'), output)
 
     def test_tools_for_esp32_win(self):
         required_tools_installed = 9
@@ -769,65 +712,48 @@ class TestUsageWin(TestUsage):
         self.assertEqual(required_tools_installed, output.count('Done'))
 
         output = self.run_idf_tools_with_action(['check'])
-        for tool_version in [
-            ESP32ULP_VERSION,
-            OPENOCD_VERSION,
-            XTENSA_ELF_VERSION,
-            XTENSA_ESP_GDB_VERSION,
-            ESP_ROM_ELFS_VERSION,
-            CMAKE_VERSION,
-            NINJA_VERSION,
-            IDF_EXE_VERSION,
-            CCACHE_VERSION,
-        ]:
+        for tool_version in [ESP32ULP_VERSION, OPENOCD_VERSION, XTENSA_ELF_VERSION, XTENSA_ESP_GDB_VERSION,
+                             ESP_ROM_ELFS_VERSION, CMAKE_VERSION, NINJA_VERSION, IDF_EXE_VERSION, CCACHE_VERSION]:
             self.assertIn('version installed in tools directory: ' + tool_version, output)
         self.assertNotIn('version installed in tools directory: ' + DFU_UTIL_VERSION, output)
 
         output = self.run_idf_tools_with_action(['export'])
-        self.assertIn(
-            os.path.join(self.temp_tools_dir, 'tools', 'esp32ulp-elf', ESP32ULP_VERSION, 'esp32ulp-elf', 'bin'), output
-        )
-        self.assertIn(
-            os.path.join(self.temp_tools_dir, 'tools', 'xtensa-esp-elf', XTENSA_ELF_VERSION, 'xtensa-esp-elf', 'bin'),
-            output,
-        )
-        self.assertIn(
-            os.path.join(self.temp_tools_dir, 'tools', 'openocd-esp32', OPENOCD_VERSION, 'openocd-esp32', 'bin'), output
-        )
-        self.assertIn(
-            os.path.join(
-                self.temp_tools_dir, 'tools', 'xtensa-esp-elf-gdb', XTENSA_ESP_GDB_VERSION, 'xtensa-esp-elf-gdb', 'bin'
-            ),
-            output,
-        )
-        self.assertNotIn(
-            os.path.join(self.temp_tools_dir, 'tools', 'riscv32-esp-elf', RISCV_ELF_VERSION, 'riscv32-esp-elf', 'bin'),
-            output,
-        )
-        self.assertNotIn(
-            os.path.join(
-                self.temp_tools_dir, 'tools', 'riscv32-esp-elf-gdb', RISCV_ESP_GDB_VERSION, 'riscv32-esp-elf-gdb', 'bin'
-            ),
-            output,
-        )
-        self.assertIn(
-            os.path.join(
-                self.temp_tools_dir,
-                'tools',
-                'esp-rom-elfs',
-                ESP_ROM_ELFS_VERSION,
-            ),
-            output,
-        )
-        self.assertIn(os.path.join(self.temp_tools_dir, 'tools', CMAKE, CMAKE_VERSION, 'bin'), output)
-        self.assertIn(os.path.join(self.temp_tools_dir, 'tools', NINJA, NINJA_VERSION), output)
-        self.assertIn(os.path.join(self.temp_tools_dir, 'tools', IDF_EXE, IDF_EXE_VERSION), output)
-        self.assertIn(
-            os.path.join(self.temp_tools_dir, 'tools', CCACHE, CCACHE_VERSION, 'ccache-4.12.1-windows-x86_64'), output
-        )
-        self.assertNotIn(
-            os.path.join(self.temp_tools_dir, 'tools', DFU_UTIL, DFU_UTIL_VERSION, 'dfu-util-0.11-win64'), output
-        )
+        self.assertIn(os.path.join(
+            self.temp_tools_dir, 'tools', 'esp32ulp-elf', ESP32ULP_VERSION, 'esp32ulp-elf', 'bin'
+        ), output)
+        self.assertIn(os.path.join(
+            self.temp_tools_dir, 'tools', 'xtensa-esp-elf', XTENSA_ELF_VERSION, 'xtensa-esp-elf', 'bin'
+        ), output)
+        self.assertIn(os.path.join(
+            self.temp_tools_dir, 'tools', 'openocd-esp32', OPENOCD_VERSION, 'openocd-esp32', 'bin'
+        ), output)
+        self.assertIn(os.path.join(
+            self.temp_tools_dir, 'tools', 'xtensa-esp-elf-gdb', XTENSA_ESP_GDB_VERSION, 'xtensa-esp-elf-gdb', 'bin'
+        ), output)
+        self.assertNotIn(os.path.join(
+            self.temp_tools_dir, 'tools', 'riscv32-esp-elf', RISCV_ELF_VERSION, 'riscv32-esp-elf', 'bin'
+        ), output)
+        self.assertNotIn(os.path.join(
+            self.temp_tools_dir, 'tools', 'riscv32-esp-elf-gdb', RISCV_ESP_GDB_VERSION, 'riscv32-esp-elf-gdb', 'bin'
+        ), output)
+        self.assertIn(os.path.join(
+            self.temp_tools_dir, 'tools', 'esp-rom-elfs', ESP_ROM_ELFS_VERSION,
+        ), output)
+        self.assertIn(os.path.join(
+            self.temp_tools_dir, 'tools', CMAKE, CMAKE_VERSION, 'bin'
+        ), output)
+        self.assertIn(os.path.join(
+            self.temp_tools_dir, 'tools', NINJA, NINJA_VERSION
+        ), output)
+        self.assertIn(os.path.join(
+            self.temp_tools_dir, 'tools', IDF_EXE, IDF_EXE_VERSION
+        ), output)
+        self.assertIn(os.path.join(
+            self.temp_tools_dir, 'tools', CCACHE, CCACHE_VERSION, 'ccache-4.10.2-windows-x86_64'
+        ), output)
+        self.assertNotIn(os.path.join(
+            self.temp_tools_dir, 'tools', DFU_UTIL, DFU_UTIL_VERSION, 'dfu-util-0.11-win64'
+        ), output)
 
     def test_tools_for_esp32c3_win(self):
         required_tools_installed = 8
@@ -848,58 +774,45 @@ class TestUsageWin(TestUsage):
         self.assertEqual(required_tools_installed, output.count('Done'))
 
         output = self.run_idf_tools_with_action(['check'])
-        for tool_version in [
-            OPENOCD_VERSION,
-            RISCV_ELF_VERSION,
-            RISCV_ESP_GDB_VERSION,
-            ESP_ROM_ELFS_VERSION,
-            CMAKE_VERSION,
-            NINJA_VERSION,
-            IDF_EXE_VERSION,
-            CCACHE_VERSION,
-        ]:
+        for tool_version in [OPENOCD_VERSION, RISCV_ELF_VERSION,  RISCV_ESP_GDB_VERSION, ESP_ROM_ELFS_VERSION,
+                             CMAKE_VERSION, NINJA_VERSION, IDF_EXE_VERSION, CCACHE_VERSION]:
             self.assertIn('version installed in tools directory: ' + tool_version, output)
         self.assertNotIn('version installed in tools directory: ' + DFU_UTIL_VERSION, output)
 
         output = self.run_idf_tools_with_action(['export'])
-        self.assertIn(
-            os.path.join(self.temp_tools_dir, 'tools', 'openocd-esp32', OPENOCD_VERSION, 'openocd-esp32', 'bin'), output
-        )
-        self.assertIn(
-            os.path.join(self.temp_tools_dir, 'tools', 'riscv32-esp-elf', RISCV_ELF_VERSION, 'riscv32-esp-elf', 'bin'),
-            output,
-        )
-        self.assertNotIn(
-            os.path.join(self.temp_tools_dir, 'tools', 'esp32ulp-elf', ESP32ULP_VERSION, 'esp32ulp-elf', 'bin'), output
-        )
-        self.assertNotIn(
-            os.path.join(self.temp_tools_dir, 'tools', 'xtensa-esp-elf', XTENSA_ELF_VERSION, 'xtensa-esp-elf', 'bin'),
-            output,
-        )
-        self.assertNotIn(
-            os.path.join(
-                self.temp_tools_dir, 'tools', 'xtensa-esp-elf-gdb', XTENSA_ESP_GDB_VERSION, 'xtensa-esp-elf-gdb', 'bin'
-            ),
-            output,
-        )
-        self.assertIn(
-            os.path.join(
-                self.temp_tools_dir,
-                'tools',
-                'esp-rom-elfs',
-                ESP_ROM_ELFS_VERSION,
-            ),
-            output,
-        )
-        self.assertIn(os.path.join(self.temp_tools_dir, 'tools', CMAKE, CMAKE_VERSION, 'bin'), output)
-        self.assertIn(os.path.join(self.temp_tools_dir, 'tools', NINJA, NINJA_VERSION), output)
-        self.assertIn(os.path.join(self.temp_tools_dir, 'tools', IDF_EXE, IDF_EXE_VERSION), output)
-        self.assertIn(
-            os.path.join(self.temp_tools_dir, 'tools', CCACHE, CCACHE_VERSION, 'ccache-4.12.1-windows-x86_64'), output
-        )
-        self.assertNotIn(
-            os.path.join(self.temp_tools_dir, 'tools', DFU_UTIL, DFU_UTIL_VERSION, 'dfu-util-0.11-win64'), output
-        )
+        self.assertIn(os.path.join(
+            self.temp_tools_dir, 'tools', 'openocd-esp32', OPENOCD_VERSION, 'openocd-esp32', 'bin'
+        ), output)
+        self.assertIn(os.path.join(
+            self.temp_tools_dir, 'tools', 'riscv32-esp-elf', RISCV_ELF_VERSION, 'riscv32-esp-elf', 'bin'
+        ), output)
+        self.assertNotIn(os.path.join(
+            self.temp_tools_dir, 'tools', 'esp32ulp-elf', ESP32ULP_VERSION, 'esp32ulp-elf', 'bin'
+        ), output)
+        self.assertNotIn(os.path.join(
+            self.temp_tools_dir, 'tools', 'xtensa-esp-elf', XTENSA_ELF_VERSION, 'xtensa-esp-elf', 'bin'
+        ), output)
+        self.assertNotIn(os.path.join(
+            self.temp_tools_dir, 'tools', 'xtensa-esp-elf-gdb', XTENSA_ESP_GDB_VERSION, 'xtensa-esp-elf-gdb', 'bin'
+        ), output)
+        self.assertIn(os.path.join(
+            self.temp_tools_dir, 'tools', 'esp-rom-elfs', ESP_ROM_ELFS_VERSION,
+        ), output)
+        self.assertIn(os.path.join(
+            self.temp_tools_dir, 'tools', CMAKE, CMAKE_VERSION, 'bin'
+        ), output)
+        self.assertIn(os.path.join(
+            self.temp_tools_dir, 'tools', NINJA, NINJA_VERSION
+        ), output)
+        self.assertIn(os.path.join(
+            self.temp_tools_dir, 'tools', IDF_EXE, IDF_EXE_VERSION
+        ), output)
+        self.assertIn(os.path.join(
+            self.temp_tools_dir, 'tools', CCACHE, CCACHE_VERSION, 'ccache-4.10.2-windows-x86_64'
+        ), output)
+        self.assertNotIn(os.path.join(
+            self.temp_tools_dir, 'tools', DFU_UTIL, DFU_UTIL_VERSION, 'dfu-util-0.11-win64'
+        ), output)
 
     def test_tools_for_esp32s2_win(self):
         required_tools_installed = 11
@@ -920,64 +833,47 @@ class TestUsageWin(TestUsage):
         self.assertEqual(required_tools_installed, output.count('Done'))
 
         output = self.run_idf_tools_with_action(['check'])
-        for tool_version in [
-            OPENOCD_VERSION,
-            XTENSA_ELF_VERSION,
-            XTENSA_ESP_GDB_VERSION,
-            DFU_UTIL_VERSION,
-            ESP_ROM_ELFS_VERSION,
-            CMAKE_VERSION,
-            NINJA_VERSION,
-            IDF_EXE_VERSION,
-            CCACHE_VERSION,
-        ]:
+        for tool_version in [OPENOCD_VERSION, XTENSA_ELF_VERSION, XTENSA_ESP_GDB_VERSION, DFU_UTIL_VERSION,
+                             ESP_ROM_ELFS_VERSION, CMAKE_VERSION, NINJA_VERSION, IDF_EXE_VERSION, CCACHE_VERSION]:
             self.assertIn('version installed in tools directory: ' + tool_version, output)
 
         output = self.run_idf_tools_with_action(['export'])
-        self.assertIn(
-            os.path.join(self.temp_tools_dir, 'tools', 'xtensa-esp-elf', XTENSA_ELF_VERSION, 'xtensa-esp-elf', 'bin'),
-            output,
-        )
-        self.assertIn(
-            os.path.join(self.temp_tools_dir, 'tools', 'openocd-esp32', OPENOCD_VERSION, 'openocd-esp32', 'bin'), output
-        )
-        self.assertIn(
-            os.path.join(self.temp_tools_dir, 'tools', 'esp32ulp-elf', ESP32ULP_VERSION, 'esp32ulp-elf', 'bin'), output
-        )
-        self.assertIn(
-            os.path.join(self.temp_tools_dir, 'tools', 'riscv32-esp-elf', RISCV_ELF_VERSION, 'riscv32-esp-elf', 'bin'),
-            output,
-        )
-        self.assertIn(
-            os.path.join(
-                self.temp_tools_dir, 'tools', 'xtensa-esp-elf-gdb', XTENSA_ESP_GDB_VERSION, 'xtensa-esp-elf-gdb', 'bin'
-            ),
-            output,
-        )
-        self.assertNotIn(
-            os.path.join(
-                self.temp_tools_dir, 'tools', 'riscv32-esp-elf-gdb', RISCV_ESP_GDB_VERSION, 'riscv32-esp-elf-gdb', 'bin'
-            ),
-            output,
-        )
-        self.assertIn(
-            os.path.join(
-                self.temp_tools_dir,
-                'tools',
-                'esp-rom-elfs',
-                ESP_ROM_ELFS_VERSION,
-            ),
-            output,
-        )
-        self.assertIn(os.path.join(self.temp_tools_dir, 'tools', CMAKE, CMAKE_VERSION, 'bin'), output)
-        self.assertIn(os.path.join(self.temp_tools_dir, 'tools', NINJA, NINJA_VERSION), output)
-        self.assertIn(os.path.join(self.temp_tools_dir, 'tools', IDF_EXE, IDF_EXE_VERSION), output)
-        self.assertIn(
-            os.path.join(self.temp_tools_dir, 'tools', CCACHE, CCACHE_VERSION, 'ccache-4.12.1-windows-x86_64'), output
-        )
-        self.assertIn(
-            os.path.join(self.temp_tools_dir, 'tools', DFU_UTIL, DFU_UTIL_VERSION, 'dfu-util-0.11-win64'), output
-        )
+        self.assertIn(os.path.join(
+            self.temp_tools_dir, 'tools', 'xtensa-esp-elf', XTENSA_ELF_VERSION, 'xtensa-esp-elf', 'bin'
+        ), output)
+        self.assertIn(os.path.join(
+            self.temp_tools_dir, 'tools', 'openocd-esp32', OPENOCD_VERSION, 'openocd-esp32', 'bin'
+        ), output)
+        self.assertIn(os.path.join(
+            self.temp_tools_dir, 'tools', 'esp32ulp-elf', ESP32ULP_VERSION, 'esp32ulp-elf', 'bin'
+        ), output)
+        self.assertIn(os.path.join(
+            self.temp_tools_dir, 'tools', 'riscv32-esp-elf', RISCV_ELF_VERSION, 'riscv32-esp-elf', 'bin'
+        ), output)
+        self.assertIn(os.path.join(
+            self.temp_tools_dir, 'tools', 'xtensa-esp-elf-gdb', XTENSA_ESP_GDB_VERSION, 'xtensa-esp-elf-gdb', 'bin'
+        ), output)
+        self.assertNotIn(os.path.join(
+            self.temp_tools_dir, 'tools', 'riscv32-esp-elf-gdb', RISCV_ESP_GDB_VERSION, 'riscv32-esp-elf-gdb', 'bin'
+        ), output)
+        self.assertIn(os.path.join(
+            self.temp_tools_dir, 'tools', 'esp-rom-elfs', ESP_ROM_ELFS_VERSION,
+        ), output)
+        self.assertIn(os.path.join(
+            self.temp_tools_dir, 'tools', CMAKE, CMAKE_VERSION, 'bin'
+        ), output)
+        self.assertIn(os.path.join(
+            self.temp_tools_dir, 'tools', NINJA, NINJA_VERSION
+        ), output)
+        self.assertIn(os.path.join(
+            self.temp_tools_dir, 'tools', IDF_EXE, IDF_EXE_VERSION
+        ), output)
+        self.assertIn(os.path.join(
+            self.temp_tools_dir, 'tools', CCACHE, CCACHE_VERSION, 'ccache-4.10.2-windows-x86_64'
+        ), output)
+        self.assertIn(os.path.join(
+            self.temp_tools_dir, 'tools', DFU_UTIL, DFU_UTIL_VERSION, 'dfu-util-0.11-win64'
+        ), output)
 
     def test_tools_for_esp32s3_win(self):
         required_tools_installed = 11
@@ -999,65 +895,48 @@ class TestUsageWin(TestUsage):
         self.assertEqual(required_tools_installed, output.count('Done'))
 
         output = self.run_idf_tools_with_action(['check'])
-        for tool_version in [
-            OPENOCD_VERSION,
-            XTENSA_ELF_VERSION,
-            XTENSA_ESP_GDB_VERSION,
-            RISCV_ESP_GDB_VERSION,
-            DFU_UTIL_VERSION,
-            ESP_ROM_ELFS_VERSION,
-            CMAKE_VERSION,
-            NINJA_VERSION,
-            IDF_EXE_VERSION,
-            CCACHE_VERSION,
-        ]:
+        for tool_version in [OPENOCD_VERSION, XTENSA_ELF_VERSION, XTENSA_ESP_GDB_VERSION, RISCV_ESP_GDB_VERSION,
+                             DFU_UTIL_VERSION, ESP_ROM_ELFS_VERSION, CMAKE_VERSION, NINJA_VERSION,
+                             IDF_EXE_VERSION, CCACHE_VERSION]:
             self.assertIn('version installed in tools directory: ' + tool_version, output)
 
         output = self.run_idf_tools_with_action(['export'])
-        self.assertIn(
-            os.path.join(self.temp_tools_dir, 'tools', 'openocd-esp32', OPENOCD_VERSION, 'openocd-esp32', 'bin'), output
-        )
-        self.assertIn(
-            os.path.join(self.temp_tools_dir, 'tools', 'xtensa-esp-elf', XTENSA_ELF_VERSION, 'xtensa-esp-elf', 'bin'),
-            output,
-        )
-        self.assertIn(
-            os.path.join(self.temp_tools_dir, 'tools', 'esp32ulp-elf', ESP32ULP_VERSION, 'esp32ulp-elf', 'bin'), output
-        )
-        self.assertIn(
-            os.path.join(self.temp_tools_dir, 'tools', 'riscv32-esp-elf', RISCV_ELF_VERSION, 'riscv32-esp-elf', 'bin'),
-            output,
-        )
-        self.assertIn(
-            os.path.join(
-                self.temp_tools_dir, 'tools', 'xtensa-esp-elf-gdb', XTENSA_ESP_GDB_VERSION, 'xtensa-esp-elf-gdb', 'bin'
-            ),
-            output,
-        )
-        self.assertNotIn(
-            os.path.join(
-                self.temp_tools_dir, 'tools', 'riscv32-esp-elf-gdb', RISCV_ESP_GDB_VERSION, 'riscv32-esp-elf-gdb', 'bin'
-            ),
-            output,
-        )
-        self.assertIn(
-            os.path.join(
-                self.temp_tools_dir,
-                'tools',
-                'esp-rom-elfs',
-                ESP_ROM_ELFS_VERSION,
-            ),
-            output,
-        )
-        self.assertIn(os.path.join(self.temp_tools_dir, 'tools', CMAKE, CMAKE_VERSION, 'bin'), output)
-        self.assertIn(os.path.join(self.temp_tools_dir, 'tools', NINJA, NINJA_VERSION), output)
-        self.assertIn(os.path.join(self.temp_tools_dir, 'tools', IDF_EXE, IDF_EXE_VERSION), output)
-        self.assertIn(
-            os.path.join(self.temp_tools_dir, 'tools', CCACHE, CCACHE_VERSION, 'ccache-4.12.1-windows-x86_64'), output
-        )
-        self.assertIn(
-            os.path.join(self.temp_tools_dir, 'tools', DFU_UTIL, DFU_UTIL_VERSION, 'dfu-util-0.11-win64'), output
-        )
+        self.assertIn(os.path.join(
+            self.temp_tools_dir, 'tools', 'openocd-esp32', OPENOCD_VERSION, 'openocd-esp32', 'bin'
+        ), output)
+        self.assertIn(os.path.join(
+            self.temp_tools_dir, 'tools', 'xtensa-esp-elf', XTENSA_ELF_VERSION, 'xtensa-esp-elf', 'bin'
+        ), output)
+        self.assertIn(os.path.join(
+            self.temp_tools_dir, 'tools', 'esp32ulp-elf', ESP32ULP_VERSION, 'esp32ulp-elf', 'bin'
+        ), output)
+        self.assertIn(os.path.join(
+            self.temp_tools_dir, 'tools', 'riscv32-esp-elf', RISCV_ELF_VERSION, 'riscv32-esp-elf', 'bin'
+        ), output)
+        self.assertIn(os.path.join(
+            self.temp_tools_dir, 'tools', 'xtensa-esp-elf-gdb', XTENSA_ESP_GDB_VERSION, 'xtensa-esp-elf-gdb', 'bin'
+        ), output)
+        self.assertNotIn(os.path.join(
+            self.temp_tools_dir, 'tools', 'riscv32-esp-elf-gdb', RISCV_ESP_GDB_VERSION, 'riscv32-esp-elf-gdb', 'bin'
+        ), output)
+        self.assertIn(os.path.join(
+            self.temp_tools_dir, 'tools', 'esp-rom-elfs', ESP_ROM_ELFS_VERSION,
+        ), output)
+        self.assertIn(os.path.join(
+            self.temp_tools_dir, 'tools', CMAKE, CMAKE_VERSION, 'bin'
+        ), output)
+        self.assertIn(os.path.join(
+            self.temp_tools_dir, 'tools', NINJA, NINJA_VERSION
+        ), output)
+        self.assertIn(os.path.join(
+            self.temp_tools_dir, 'tools', IDF_EXE, IDF_EXE_VERSION
+        ), output)
+        self.assertIn(os.path.join(
+            self.temp_tools_dir, 'tools', CCACHE, CCACHE_VERSION, 'ccache-4.10.2-windows-x86_64'
+        ), output)
+        self.assertIn(os.path.join(
+            self.temp_tools_dir, 'tools', DFU_UTIL, DFU_UTIL_VERSION, 'dfu-util-0.11-win64'
+        ), output)
 
     def test_tools_for_esp32p4_win(self):
         required_tools_installed = 8
@@ -1077,47 +956,23 @@ class TestUsageWin(TestUsage):
         self.assertEqual(required_tools_installed, output.count('Done'))
 
         output = self.run_idf_tools_with_action(['check'])
-        for tool_version in [
-            RISCV_ELF_VERSION,
-            RISCV_ESP_GDB_VERSION,
-            ESP_ROM_ELFS_VERSION,
-            OPENOCD_VERSION,
-            CMAKE_VERSION,
-            NINJA_VERSION,
-            IDF_EXE_VERSION,
-            CCACHE_VERSION,
-        ]:
+        for tool_version in [RISCV_ELF_VERSION, RISCV_ESP_GDB_VERSION, ESP_ROM_ELFS_VERSION, OPENOCD_VERSION,
+                             CMAKE_VERSION, NINJA_VERSION, IDF_EXE_VERSION, CCACHE_VERSION]:
             self.assertIn(f'version installed in tools directory: {tool_version}', output)
 
         output = self.run_idf_tools_with_action(['export'])
-        self.assertIn(
-            os.path.join(self.temp_tools_dir, 'tools', RISCV_ELF, RISCV_ELF_VERSION, RISCV_ELF, 'bin'), output
-        )
-        self.assertIn(
-            os.path.join(self.temp_tools_dir, 'tools', RISCV_ESP_GDB, RISCV_ESP_GDB_VERSION, RISCV_ESP_GDB, 'bin'),
-            output,
-        )
+        self.assertIn(os.path.join(self.temp_tools_dir, 'tools', RISCV_ELF, RISCV_ELF_VERSION, RISCV_ELF, 'bin'), output)
+        self.assertIn(os.path.join(self.temp_tools_dir, 'tools', RISCV_ESP_GDB, RISCV_ESP_GDB_VERSION, RISCV_ESP_GDB, 'bin'), output)
         self.assertIn(os.path.join(self.temp_tools_dir, 'tools', ESP_ROM_ELFS, ESP_ROM_ELFS_VERSION), output)
         self.assertIn(os.path.join(self.temp_tools_dir, 'tools', OPENOCD, OPENOCD_VERSION, OPENOCD, 'bin'), output)
         self.assertIn(os.path.join(self.temp_tools_dir, 'tools', CMAKE, CMAKE_VERSION, 'bin'), output)
         self.assertIn(os.path.join(self.temp_tools_dir, 'tools', NINJA, NINJA_VERSION), output)
         self.assertIn(os.path.join(self.temp_tools_dir, 'tools', IDF_EXE, IDF_EXE_VERSION), output)
-        self.assertIn(
-            os.path.join(self.temp_tools_dir, 'tools', CCACHE, CCACHE_VERSION, 'ccache-4.12.1-windows-x86_64'), output
-        )
-        self.assertNotIn(
-            os.path.join(self.temp_tools_dir, 'tools', XTENSA_ELF, XTENSA_ELF_VERSION, XTENSA_ELF, 'bin'), output
-        )
-        self.assertNotIn(
-            os.path.join(self.temp_tools_dir, 'tools', ESP32ULP, ESP32ULP_VERSION, ESP32ULP, 'bin'), output
-        )
-        self.assertNotIn(
-            os.path.join(self.temp_tools_dir, 'tools', XTENSA_ESP_GDB, XTENSA_ESP_GDB_VERSION, XTENSA_ESP_GDB, 'bin'),
-            output,
-        )
-        self.assertNotIn(
-            os.path.join(self.temp_tools_dir, 'tools', DFU_UTIL, DFU_UTIL_VERSION, 'dfu-util-0.11-win64'), output
-        )
+        self.assertIn(os.path.join(self.temp_tools_dir, 'tools', CCACHE, CCACHE_VERSION, 'ccache-4.10.2-windows-x86_64'), output)
+        self.assertNotIn(os.path.join(self.temp_tools_dir, 'tools', XTENSA_ELF, XTENSA_ELF_VERSION, XTENSA_ELF, 'bin'), output)
+        self.assertNotIn(os.path.join(self.temp_tools_dir, 'tools', ESP32ULP, ESP32ULP_VERSION, ESP32ULP, 'bin'), output)
+        self.assertNotIn(os.path.join(self.temp_tools_dir, 'tools', XTENSA_ESP_GDB, XTENSA_ESP_GDB_VERSION, XTENSA_ESP_GDB, 'bin'), output)
+        self.assertNotIn(os.path.join(self.temp_tools_dir, 'tools', DFU_UTIL, DFU_UTIL_VERSION, 'dfu-util-0.11-win64'), output)
 
     # a different test for qemu because of "on_request"
     def test_tools_for_qemu_with_required_win(self):
@@ -1142,6 +997,7 @@ class TestUsageWin(TestUsage):
 
 
 class TestMaintainer(unittest.TestCase):
+
     @classmethod
     def setUpClass(cls):
         idf_path = os.getenv('IDF_PATH')
@@ -1155,16 +1011,16 @@ class TestMaintainer(unittest.TestCase):
 
     def test_json_rewrite(self):
         idf_tools.main(['rewrite'])
-        with open(self.tools_old) as f:
+        with open(self.tools_old, 'r') as f:
             json_old = f.read()
-        with open(self.tools_new) as f:
+        with open(self.tools_new, 'r') as f:
             json_new = f.read()
         self.assertEqual(json_old, json_new, "Please check 'tools/tools.new.json' to find a cause!")
 
     def add_version_get_expected_json(self, addition_file, replace=False):
-        with open(self.tools_old) as f:
+        with open(self.tools_old, 'r') as f:
             expected_json = json.load(f)
-        with open(addition_file) as f:
+        with open(addition_file, 'r') as f:
             addition_json = json.load(f)
         for tool in expected_json['tools']:
             if tool['name'] == self.test_tool_name:
@@ -1177,7 +1033,7 @@ class TestMaintainer(unittest.TestCase):
 
     def test_add_version_artifact_addition(self):
         filenames = []
-        with open('add_version/artifact_input.json') as f:
+        with open('add_version/artifact_input.json', 'r') as f:
             add_tools_info = json.load(f)
         for tool in add_tools_info:
             filenames.append(tool['filename'])
@@ -1193,12 +1049,11 @@ class TestMaintainer(unittest.TestCase):
                 'http://test.com',
                 '--version',
                 'test',
-                '--artifact-file',
-            ]
-            + filenames
+                '--artifact-file'
+            ] + filenames
         )
         expected_json = self.add_version_get_expected_json('add_version/artifact_expected_addition.json')
-        with open(self.tools_new) as f1:
+        with open(self.tools_new, 'r') as f1:
             self.assertEqual(json.load(f1), expected_json, "Please check 'tools/tools.new.json' to find a cause!")
 
     def test_add_version_checksum_addition(self):
@@ -1216,7 +1071,7 @@ class TestMaintainer(unittest.TestCase):
             ]
         )
         expected_json = self.add_version_get_expected_json('add_version/checksum_expected_addition.json')
-        with open(self.tools_new) as f1:
+        with open(self.tools_new, 'r') as f1:
             self.assertEqual(json.load(f1), expected_json, "Please check 'tools/tools.new.json' to find a cause!")
 
     def test_add_version_checksum_with_override(self):
@@ -1231,15 +1086,16 @@ class TestMaintainer(unittest.TestCase):
                 'test',
                 '--override',
                 '--checksum-file',
-                'add_version/checksum.sha256',
+                'add_version/checksum.sha256'
             ]
         )
         expected_json = self.add_version_get_expected_json('add_version/checksum_expected_override.json', True)
-        with open(self.tools_new) as f1:
+        with open(self.tools_new, 'r') as f1:
             self.assertEqual(json.load(f1), expected_json, "Please check 'tools/tools.new.json' to find a cause!")
 
 
 class TestArmDetection(unittest.TestCase):
+
     ELF_HEADERS = {
         idf_tools.PLATFORM_LINUX_ARM64: 'platform_detection/arm64_header.elf',
         idf_tools.PLATFORM_LINUX_ARMHF: 'platform_detection/armhf_header.elf',
@@ -1254,12 +1110,10 @@ class TestArmDetection(unittest.TestCase):
 
     def test_arm_detection(self):
         for platform in idf_tools.Platforms.PLATFORM_FROM_NAME.values():
-            # use invalid ELF as executable. In this case passed parameter must return
-            with patch('sys.executable', __file__):
+            with patch('sys.executable', __file__):  # use invalid ELF as executable. In this case passed parameter must return
                 self.assertEqual(idf_tools.Platforms.detect_linux_arm_platform(platform), platform)
         # detect_linux_arm_platform() intended to return arch that detected in sys.executable ELF
-        arm_platforms = (idf_tools.PLATFORM_LINUX_ARM64, idf_tools.PLATFORM_LINUX_ARMHF, idf_tools.PLATFORM_LINUX_ARM32)
-        for exec_platform in arm_platforms:
+        for exec_platform in (idf_tools.PLATFORM_LINUX_ARM64, idf_tools.PLATFORM_LINUX_ARMHF, idf_tools.PLATFORM_LINUX_ARM32):
             with patch('sys.executable', TestArmDetection.ELF_HEADERS[exec_platform]):
                 for platform in TestArmDetection.ARM_PLATFORMS:
                     self.assertEqual(idf_tools.Platforms.detect_linux_arm_platform(platform), exec_platform)
@@ -1267,19 +1121,14 @@ class TestArmDetection(unittest.TestCase):
 
 # TestSystemDependencies tests behaviour when system dependencies had been broken, on linux
 @unittest.skipUnless(sys.platform == 'linux', reason='Tools for LINUX differ')
-@unittest.skipUnless(
-    int(os.getenv('IDF_TEST_MAY_BREAK_DEPENDENCIES', 0)) == 1, reason='Do not run destructive tests by default'
-)
+@unittest.skipUnless(int(os.getenv('IDF_TEST_MAY_BREAK_DEPENDENCIES', 0)) == 1, reason='Do not run destructive tests by default')
 class TestSystemDependencies(TestUsageBase):
+
     @classmethod
     def tearDownClass(cls):
-        # We won't restore dependencies because `apt-get update` and `apt-get install` require network access and take
-        # a lot of time on the runners
-        print(
-            '\nINFO: System dependencies have been modified for TestSystemDependencies. '
-            'Other tests may not work correctly'
-        )
-        super().tearDownClass()
+        # We won't restore dependencies because `apt-get update` and `apt-get install` require network access and take a lot of time on the runners
+        print('\nINFO: System dependencies have been modified for TestSystemDependencies. Other tests may not work correctly')
+        super(TestSystemDependencies, cls).tearDownClass()
 
     def test_commands_when_nodeps(self):
         # Prerequisites
@@ -1292,25 +1141,17 @@ class TestSystemDependencies(TestUsageBase):
         # Tests
 
         _, err_output = self.run_idf_tools_with_error(['list'])
-        self.assertIn(
-            f'ERROR: tool {QEMU_XTENSA} version {QEMU_XTENSA_VERSION} is installed, but cannot be run', err_output
-        )
+        self.assertIn(f'ERROR: tool {QEMU_XTENSA} version {QEMU_XTENSA_VERSION} is installed, but cannot be run', err_output)
 
         _, err_output = self.run_idf_tools_with_error(['export'])
-        self.assertIn(
-            f'ERROR: tool {QEMU_XTENSA} version {QEMU_XTENSA_VERSION} is installed, but cannot be run', err_output
-        )
+        self.assertIn(f'ERROR: tool {QEMU_XTENSA} version {QEMU_XTENSA_VERSION} is installed, but cannot be run', err_output)
 
-        _, err_output = self.run_idf_tools_with_error(['check'], assertError=True)
-        self.assertIn(
-            f'ERROR: tool {QEMU_XTENSA} version {QEMU_XTENSA_VERSION} is installed, but cannot be run', err_output
-        )
+        _,err_output = self.run_idf_tools_with_error(['check'], assertError=True)
+        self.assertIn(f'ERROR: tool {QEMU_XTENSA} version {QEMU_XTENSA_VERSION} is installed, but cannot be run', err_output)
 
-        _, err_output = self.run_idf_tools_with_error(['install', 'qemu-xtensa'], assertError=True)
-        self.assertIn(
-            f'ERROR: tool {QEMU_XTENSA} version {QEMU_XTENSA_VERSION} is installed, but getting error', err_output
-        )
-        self.assertIn('ERROR: Failed to check the tool while installed', err_output)
+        _,err_output = self.run_idf_tools_with_error(['install', 'qemu-xtensa'], assertError=True)
+        self.assertIn(f'ERROR: tool {QEMU_XTENSA} version {QEMU_XTENSA_VERSION} is installed, but getting error', err_output)
+        self.assertIn(f'ERROR: Failed to check the tool while installed', err_output)
 
 
 if __name__ == '__main__':

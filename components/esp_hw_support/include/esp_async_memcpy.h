@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2020-2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2020-2024 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -51,8 +51,11 @@ typedef bool (*async_memcpy_isr_cb_t)(async_memcpy_handle_t mcp_hdl, async_memcp
  */
 typedef struct {
     uint32_t backlog;          /*!< Maximum number of transactions that can be prepared in the background */
-    uint32_t weight;           /*!< Weight of async memcpy dma channel, higher weight means higher average bandwidth */
-    size_t dma_burst_size;     /*!< DMA transfer burst size, in bytes */
+    size_t sram_trans_align __attribute__((deprecated)); /*!< DMA transfer alignment (both in size and address) for SRAM memory */
+    union {
+        size_t psram_trans_align __attribute__((deprecated)); /*!< DMA transfer alignment (both in size and address) for PSRAM memory */
+        size_t dma_burst_size;    /*!< DMA transfer burst size, in bytes */
+    };
     uint32_t flags;            /*!< Extra flags to control async memcpy feature */
 } async_memcpy_config_t;
 
@@ -66,7 +69,7 @@ typedef struct {
         .flags = 0,                   \
     }
 
-#if SOC_HAS(AHB_GDMA)
+#if SOC_AHB_GDMA_SUPPORTED
 /**
  * @brief Install async memcpy driver, with AHB-GDMA as the backend
  *
@@ -79,9 +82,9 @@ typedef struct {
  *      - ESP_FAIL: Install async memcpy driver failed because of other error
  */
 esp_err_t esp_async_memcpy_install_gdma_ahb(const async_memcpy_config_t *config, async_memcpy_handle_t *mcp);
-#endif // SOC_HAS(AHB_GDMA)
+#endif // SOC_AHB_GDMA_SUPPORTED
 
-#if SOC_HAS(AXI_GDMA)
+#if SOC_AXI_GDMA_SUPPORTED
 /**
  * @brief Install async memcpy driver, with AXI-GDMA as the backend
  *
@@ -94,7 +97,7 @@ esp_err_t esp_async_memcpy_install_gdma_ahb(const async_memcpy_config_t *config,
  *      - ESP_FAIL: Install async memcpy driver failed because of other error
  */
 esp_err_t esp_async_memcpy_install_gdma_axi(const async_memcpy_config_t *config, async_memcpy_handle_t *mcp);
-#endif // SOC_HAS(AXI_GDMA)
+#endif // SOC_AXI_GDMA_SUPPORTED
 
 #if SOC_CP_DMA_SUPPORTED
 /**

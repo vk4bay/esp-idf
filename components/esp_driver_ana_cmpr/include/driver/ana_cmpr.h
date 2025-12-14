@@ -29,6 +29,10 @@ typedef struct {
     ana_cmpr_cross_type_t   cross_type;         /*!< The crossing types that can trigger interrupt */
     int                     intr_priority;      /*!< The interrupt priority, range 1~3.
                                                      If set to 0, the driver will automatically select a relative low priority (1,2,3) */
+    struct {
+        uint32_t            io_loop_back: 1;     /*!< Enable this field when the other signals that output on the comparison pins are supposed to be fed back.
+                                                 *   Normally used for debug/test scenario */
+    } flags;                                    /*!< Analog comparator driver flags */
 } ana_cmpr_config_t;
 
 /**
@@ -53,7 +57,7 @@ typedef struct {
 /**
  * @brief Group of Analog Comparator callbacks
  * @note The callbacks are all running under ISR environment
- * @note When CONFIG_ANA_CMPR_ISR_CACHE_SAFE is enabled, the callback itself and functions called by it should be placed in IRAM.
+ * @note When CONFIG_ANA_CMPR_ISR_IRAM_SAFE is enabled, the callback itself and functions called by it should be placed in IRAM.
  *       The variables used in the function should be in the SRAM as well.
  */
 typedef struct {
@@ -86,8 +90,9 @@ esp_err_t ana_cmpr_del_unit(ana_cmpr_handle_t cmpr);
 
 /**
  * @brief Set internal reference configuration
- * @note This function only need to be called when `ana_cmpr_config_t::ref_src` is set to `ANA_CMPR_REF_SRC_INTERNAL`.
- * @note This function is allowed to run within ISR context including interrupt callbacks
+ * @note  This function only need to be called when `ana_cmpr_config_t::ref_src`
+ *        is ANA_CMPR_REF_SRC_INTERNAL.
+ * @note This function is allowed to run within ISR context including intr callbacks
  * @note This function will be placed into IRAM if `CONFIG_ANA_CMPR_CTRL_FUNC_IN_IRAM` is on,
  *       so that it's allowed to be executed when Cache is disabled
  *
@@ -102,7 +107,7 @@ esp_err_t ana_cmpr_set_internal_reference(ana_cmpr_handle_t cmpr, const ana_cmpr
 
 /**
  * @brief Set debounce configuration to the analog comparator
- * @note This function is allowed to run within ISR context including interrupt callbacks
+ * @note This function is allowed to run within ISR context including intr callbacks
  * @note This function will be placed into IRAM if `CONFIG_ANA_CMPR_CTRL_FUNC_IN_IRAM` is on,
  *       so that it's allowed to be executed when Cache is disabled
  *
@@ -117,8 +122,9 @@ esp_err_t ana_cmpr_set_debounce(ana_cmpr_handle_t cmpr, const ana_cmpr_debounce_
 /**
  * @brief Set the source signal cross type
  * @note The initial cross type is configured in `ana_cmpr_new_unit`, this function can update the cross type
- * @note This function is allowed to run within ISR context including interrupt callbacks
- * @note This function must be called before `ana_cmpr_register_event_callbacks`
+ * @note This function is allowed to run within ISR context including intr callbacks
+ * @note This function will be placed into IRAM if `CONFIG_ANA_CMPR_CTRL_FUNC_IN_IRAM` is on,
+ *       so that it's allowed to be executed when Cache is disabled
  *
  * @param[in]  cmpr         The handle of analog comparator unit
  * @param[in]  cross_type   The source signal cross type that can trigger the interrupt

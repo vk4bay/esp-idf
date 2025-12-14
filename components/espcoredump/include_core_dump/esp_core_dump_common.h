@@ -7,7 +7,7 @@
 #define ESP_CORE_DUMP_COMMON_H_
 
 #include "freertos/FreeRTOS.h"
-#include "freertos/freertos_debug.h"
+#include "esp_private/freertos_debug.h"
 #include "esp_app_format.h"
 #include "esp_core_dump_types.h"
 
@@ -137,9 +137,9 @@ esp_err_t esp_core_dump_write_data(core_dump_write_data_t *wr_data, void *data, 
 esp_err_t esp_core_dump_write_end(core_dump_write_data_t *wr_data);
 
 /**
- * @brief Stores the core dump in ELF format.
+ * @brief Stores the core dump in either binary or ELF format.
  */
-esp_err_t esp_core_dump_write_elf(void);
+esp_err_t esp_core_dump_store(void);
 
 /**
  * @brief Get TCB length, in bytes.

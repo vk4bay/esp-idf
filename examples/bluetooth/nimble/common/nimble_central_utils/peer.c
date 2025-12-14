@@ -9,7 +9,6 @@
 #include "host/ble_hs.h"
 #include "esp_central.h"
 
-#if NIMBLE_BLE_CONNECT
 static void *peer_svc_mem;
 static struct os_mempool peer_svc_pool;
 
@@ -602,16 +601,13 @@ peer_disc_incs(struct peer *peer)
             }
         }
     }
+
     svc = peer->cur_svc;
-    if (svc != NULL && !peer_svc_is_empty(svc)) {
-        rc = ble_gattc_find_inc_svcs(peer->conn_handle,
-                                     svc->svc.start_handle,
-                                     svc->svc.end_handle,
-                                     peer_inc_disced, peer);
-        if (rc != 0) {
-            peer_disc_chrs(peer);
-        }
-    } else {
+    rc = ble_gattc_find_inc_svcs(peer->conn_handle,
+                                 svc->svc.start_handle,
+                                 svc->svc.end_handle,
+                                 peer_inc_disced, peer);
+    if (rc != 0) {
         peer_disc_chrs(peer);
     }
 }
@@ -1093,4 +1089,3 @@ err:
     peer_free_mem();
     return rc;
 }
-#endif

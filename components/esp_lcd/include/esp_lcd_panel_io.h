@@ -11,7 +11,6 @@
 #include "esp_lcd_io_i80.h"
 #include "esp_lcd_io_i2c.h"
 #include "esp_lcd_io_spi.h"
-#include "esp_lcd_io_parl.h"
 
 #ifdef __cplusplus
 extern "C" {

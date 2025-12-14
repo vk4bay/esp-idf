@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2023-2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2023-2024 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Unlicense OR CC0-1.0
  */
@@ -109,11 +109,7 @@ TEST_CASE_MULTIPLE_STAGES("reset reason ESP_RST_DEEPSLEEP", "[reset_reason]",
 static void do_exception(void)
 {
     setup_values();
-#ifdef __XTENSA__
-    asm("ill");     // should be an invalid operation on xtensa targets
-#elif __riscv
-    asm("unimp");   // should be an invalid operation on RISC-V targets
-#endif
+    *(int*)(0x0) = 0;
 }
 
 static void do_abort(void)
@@ -326,7 +322,7 @@ TEST_CASE_MULTIPLE_STAGES("reset reason ESP_RST_BROWNOUT after brownout event",
 #ifndef CONFIG_FREERTOS_UNICORE
 #if CONFIG_IDF_TARGET_ARCH_XTENSA
 #include "xt_instr_macros.h"
-#include "xtensa/config/xt_specreg.h"
+#include "xtensa/config/specreg.h"
 
 static int size_stack = 1024 * 4;
 static StackType_t *start_addr_stack;
@@ -335,8 +331,8 @@ static int fibonacci(int n, void* func(void))
 {
     int tmp1 = n, tmp2 = n;
     uint32_t base, start;
-    RSR(XT_REG_WINDOWBASE, base);
-    RSR(XT_REG_WINDOWSTART, start);
+    RSR(WINDOWBASE, base);
+    RSR(WINDOWSTART, start);
     printf("WINDOWBASE = %-2"PRIi32"   WINDOWSTART = 0x%"PRIx32"\n", base, start);
     if (n <= 1) {
         StackType_t *last_addr_stack = esp_cpu_get_sp();

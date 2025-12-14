@@ -1,14 +1,14 @@
 /*
- * SPDX-FileCopyrightText: 2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2024 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
 /* ROM function interface esp32c5.rom.ld for esp32c5
  *
  *
- * Generated from ./target/esp32c5/interface-esp32c5.yml md5sum 4dfe6ccc311ca3575012c23e3753353c
+ * Generated from ./target/esp32c5/interface-esp32c5.yml md5sum f5c146321f24f88ad1f27234da5aed11
  *
- * Compatible with ROM where ECO version equal or greater to 2.
+ * Compatible with ROM where ECO version equal or greater to 0.
  *
  * THIS FILE WAS AUTOMATICALLY GENERATED. DO NOT EDIT.
  */
@@ -27,7 +27,7 @@ ets_install_putc2 = 0x4000002c;
 ets_install_uart_printf = 0x40000030;
 ets_install_usb_printf = 0x40000034;
 ets_get_printf_channel = 0x40000038;
-PROVIDE ( ets_delay_us = 0x4000003c );
+ets_delay_us = 0x4000003c;
 ets_get_cpu_frequency = 0x40000040;
 ets_update_cpu_frequency = 0x40000044;
 ets_install_lock = 0x40000048;
@@ -219,7 +219,7 @@ Cache_Suspend_Cache = 0x400006b4;
 Cache_Resume_Cache = 0x400006b8;
 Cache_Freeze_Enable = 0x400006bc;
 Cache_Freeze_Disable = 0x400006c0;
-PROVIDE ( Cache_Set_IDROM_MMU_Size = 0x400006c4 );
+Cache_Set_IDROM_MMU_Size = 0x400006c4;
 Cache_Get_IROM_MMU_End = 0x400006c8;
 Cache_Get_DROM_MMU_End = 0x400006cc;
 Cache_MMU_Init = 0x400006d0;
@@ -253,21 +253,21 @@ ets_clk_get_cpu_freq = 0x40000704;
  ***************************************/
 
 /* Functions */
-rom_gpio_set_output_level = 0x40000708;
-rom_gpio_get_input_level = 0x4000070c;
-rom_gpio_matrix_in = 0x40000710;
-rom_gpio_matrix_out = 0x40000714;
-rom_gpio_bypass_matrix_in = 0x40000718;
-rom_gpio_output_disable = 0x4000071c;
-rom_gpio_output_enable = 0x40000720;
-rom_gpio_pad_input_disable = 0x40000724;
-rom_gpio_pad_input_enable = 0x40000728;
-rom_gpio_pad_pulldown = 0x4000072c;
-rom_gpio_pad_pullup = 0x40000730;
-rom_gpio_pad_select_gpio = 0x40000734;
-rom_gpio_pad_set_drv = 0x40000738;
-rom_gpio_pad_unhold = 0x4000073c;
-rom_gpio_pad_hold = 0x40000740;
+gpio_set_output_level = 0x40000708;
+gpio_get_input_level = 0x4000070c;
+gpio_matrix_in = 0x40000710;
+gpio_matrix_out = 0x40000714;
+gpio_bypass_matrix_in = 0x40000718;
+/* gpio_output_disable = 0x4000071c; */
+/* gpio_output_enable = 0x40000720; */
+gpio_pad_input_disable = 0x40000724;
+gpio_pad_input_enable = 0x40000728;
+gpio_pad_pulldown = 0x4000072c;
+gpio_pad_pullup = 0x40000730;
+gpio_pad_select_gpio = 0x40000734;
+gpio_pad_set_drv = 0x40000738;
+gpio_pad_unhold = 0x4000073c;
+gpio_pad_hold = 0x40000740;
 
 
 /***************************************
@@ -429,60 +429,3 @@ usb_serial_device_rx_one_char = 0x40000ab8;
 usb_serial_device_rx_one_char_block = 0x40000abc;
 usb_serial_device_tx_flush = 0x40000ac0;
 usb_serial_device_tx_one_char = 0x40000ac4;
-
-
-/***************************************
- Group recovery_bootloader
- ***************************************/
-
-/* Functions */
-ets_get_bootloader_offset = 0x40001544;
-ets_set_bootloader_offset = 0x40001548;
-
-
-/***************************************
- Group lldesc
- ***************************************/
-
-/* Functions */
-lldesc_build_chain = 0x4000154c;
-
-
-/***************************************
- Group sip
- ***************************************/
-
-/* Functions */
-sip_after_tx_complete = 0x40001550;
-sip_alloc_to_host_evt = 0x40001554;
-sip_download_begin = 0x40001558;
-sip_get_ptr = 0x4000155c;
-sip_get_state = 0x40001560;
-sip_init_attach = 0x40001564;
-sip_install_rx_ctrl_cb = 0x40001568;
-sip_install_rx_data_cb = 0x4000156c;
-sip_is_active = 0x40001570;
-sip_post_init = 0x40001574;
-sip_reclaim_from_host_cmd = 0x40001578;
-sip_reclaim_tx_data_pkt = 0x4000157c;
-sip_send = 0x40001580;
-sip_to_host_chain_append = 0x40001584;
-sip_to_host_evt_send_done = 0x40001588;
-
-
-/***************************************
- Group slc
- ***************************************/
-
-/* Functions */
-slc_add_credits = 0x4000158c;
-slc_enable = 0x40001590;
-slc_from_host_chain_fetch = 0x40001594;
-slc_from_host_chain_recycle = 0x40001598;
-slc_has_pkt_to_host = 0x4000159c;
-slc_init_attach = 0x400015a0;
-slc_init_credit = 0x400015a4;
-slc_reattach = 0x400015a8;
-slc_send_to_host_chain = 0x400015ac;
-slc_set_host_io_max_window = 0x400015b0;
-slc_to_host_chain_recycle = 0x400015b4;
